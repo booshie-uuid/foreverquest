@@ -1,0 +1,514 @@
+:root
+{
+    --panel: rgba(24, 20, 16, 0.88);
+    --panel-edge: #8a6d3b;
+    --panel-edge-soft: rgba(138, 109, 59, 0.45);
+    --ink: #efe3c8;
+    --ink-soft: #b9a888;
+    --accent: #e0b04a;
+    --accent-ink: #20170c;
+    --danger: #d0604a;
+    --font-display: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --font-body: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+*
+{
+    box-sizing: border-box;
+}
+
+html,
+body
+{
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #14161c;
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 14px;
+}
+
+#app
+{
+    position: fixed;
+    inset: 0;
+}
+
+#app canvas
+{
+    display: block;
+    touch-action: none;
+}
+
+#app canvas.is-retro
+{
+    image-rendering: pixelated;
+}
+
+[hidden]
+{
+    display: none !important;
+}
+
+.panel
+{
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 6px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 220, 160, 0.06);
+    pointer-events: auto;
+}
+
+button
+{
+    font: inherit;
+    color: inherit;
+}
+
+.button
+{
+    padding: 8px 14px;
+    border: 1px solid var(--panel-edge);
+    border-radius: 4px;
+    background: linear-gradient(#3a2f22, #261e15);
+    cursor: pointer;
+}
+
+.button:hover
+{
+    border-color: var(--accent);
+}
+
+.button.primary
+{
+    background: linear-gradient(#ecc061, #c48f2c);
+    color: var(--accent-ink);
+    font-weight: 600;
+}
+
+.button:disabled
+{
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.button:focus-visible,
+.toggle:focus-visible,
+.tab:focus-visible,
+.swatch:focus-visible,
+.stepper-arrow:focus-visible
+{
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+
+/* CREATOR ********************************************************************/
+
+.creator
+{
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.creator-panel
+{
+    position: absolute;
+    top: 16px;
+    bottom: 16px;
+    left: 16px;
+    width: 348px;
+    display: flex;
+    flex-direction: column;
+    padding: 18px 18px 14px;
+}
+
+.title
+{
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 28px;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+}
+
+.subtitle
+{
+    margin: 2px 0 14px;
+    color: var(--ink-soft);
+    font-family: var(--font-display);
+    font-style: italic;
+}
+
+.tabs
+{
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--panel-edge-soft);
+}
+
+.tab
+{
+    flex: 1;
+    padding: 8px 0;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    background: none;
+    color: var(--ink-soft);
+    font-family: var(--font-display);
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.tab.is-active
+{
+    border-color: var(--panel-edge-soft);
+    background: rgba(224, 176, 74, 0.1);
+    color: var(--ink);
+}
+
+.tab-body
+{
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 2px;
+}
+
+.row
+{
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.row-label
+{
+    color: var(--ink-soft);
+}
+
+.gear-slot
+{
+    padding: 8px 0 2px;
+    border-bottom: 1px solid rgba(138, 109, 59, 0.2);
+}
+
+.gear-slot .row:not(:first-child) .row-label
+{
+    padding-left: 12px;
+    font-size: 12px;
+}
+
+.stepper
+{
+    display: grid;
+    grid-template-columns: 30px 1fr 30px;
+    align-items: center;
+    border: 1px solid var(--panel-edge-soft);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.stepper-arrow
+{
+    height: 30px;
+    border: none;
+    background: none;
+    color: var(--accent);
+    cursor: pointer;
+}
+
+.stepper-arrow:hover
+{
+    background: rgba(224, 176, 74, 0.15);
+}
+
+.stepper-value
+{
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: 15px;
+}
+
+.swatches
+{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.swatch
+{
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid rgba(0, 0, 0, 0.6);
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+}
+
+.swatch.is-selected
+{
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.slider
+{
+    width: 100%;
+    accent-color: var(--accent);
+}
+
+.text-input
+{
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid var(--panel-edge-soft);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 16px;
+}
+
+.text-input.is-invalid
+{
+    border-color: var(--danger);
+}
+
+.creator-actions
+{
+    display: flex;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--panel-edge-soft);
+}
+
+.creator-actions .primary
+{
+    margin-left: auto;
+}
+
+.preview-bar
+{
+    position: absolute;
+    bottom: 16px;
+    left: calc(380px + (100% - 380px) / 2);
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 12px;
+    white-space: nowrap;
+}
+
+.toggle-group
+{
+    display: flex;
+    gap: 2px;
+}
+
+.toggle
+{
+    padding: 5px 10px;
+    border: 1px solid var(--panel-edge-soft);
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--ink-soft);
+    cursor: pointer;
+}
+
+.toggle.is-active
+{
+    border-color: var(--accent);
+    color: var(--ink);
+    background: rgba(224, 176, 74, 0.18);
+}
+
+.stats
+{
+    color: var(--ink-soft);
+    font-size: 12px;
+}
+
+
+/* GAME HUD *******************************************************************/
+
+.hud
+{
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.hud-name
+{
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    padding: 8px 14px;
+}
+
+.hud-name strong
+{
+    display: block;
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: var(--accent);
+}
+
+.hud-name span
+{
+    color: var(--ink-soft);
+    font-size: 12px;
+}
+
+.hud-help
+{
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    padding: 8px 12px;
+    color: var(--ink-soft);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.hud-help kbd
+{
+    padding: 0 4px;
+    border: 1px solid var(--panel-edge-soft);
+    border-radius: 3px;
+    color: var(--ink);
+    font-family: inherit;
+}
+
+.chat
+{
+    position: absolute;
+    left: 16px;
+    bottom: 16px;
+    width: min(440px, calc(100% - 32px));
+    height: 168px;
+    padding: 8px 10px;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.chat-line.system
+{
+    color: #e8c46a;
+}
+
+.chat-line.say
+{
+    color: #f1ead8;
+}
+
+.chat-line.say b
+{
+    color: #9fd0ff;
+}
+
+.hud-actions
+{
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+.hud-settings
+{
+    padding: 5px;
+}
+
+.label-layer
+{
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+
+.nameplate
+{
+    position: absolute;
+    transform: translate(-50%, -100%);
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.45);
+    color: #f5e7c0;
+    font-family: var(--font-display);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.nameplate.is-player
+{
+    color: #9fd0ff;
+}
+
+.bubble
+{
+    position: absolute;
+    transform: translate(-50%, -100%);
+    max-width: 240px;
+    padding: 6px 10px;
+    border: 1px solid var(--panel-edge);
+    border-radius: 8px;
+    background: rgba(250, 243, 225, 0.95);
+    color: #2a2116;
+    font-size: 13px;
+    text-align: center;
+}
+
+.click-marker
+{
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    animation: marker 0.6s ease-out forwards;
+}
+
+@keyframes marker
+{
+    from { transform: scale(0.4); opacity: 1; }
+    to { transform: scale(1.6); opacity: 0; }
+}
+
+@media (max-width: 760px)
+{
+    .creator-panel
+    {
+        top: auto;
+        right: 8px;
+        bottom: 8px;
+        left: 8px;
+        width: auto;
+        height: 52%;
+    }
+
+    .preview-bar
+    {
+        top: 8px;
+        bottom: auto;
+        left: 50%;
+    }
+
+    .hud-help
+    {
+        display: none;
+    }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "foreverquest",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Proof of concept for a browser RPG with procedural low-poly characters.",
+  "type": "module",
+  "scripts": {
+    "start": "node tools/serve.js",
+    "test": "node --test \"js-tests/unit/**/*.test.js\" \"lint/tests/**/*.test.js\"",
+    "test:browser": "node js-tests/browser/run.js",
+    "lint": "eslint .",
+    "vendor": "node tools/vendor.js"
+  },
+  "dependencies": {
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "@stylistic/eslint-plugin": "6.0.1",
+    "eslint": "10.15.0"
+  }
+}
