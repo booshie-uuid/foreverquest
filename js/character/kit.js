@@ -44,6 +44,15 @@ export function partBlocks(look, dims)
     return blocks;
 }
 
+export function featureBlocks(look)
+{
+    const blocks = [];
+
+    addFeatures(blocks, look);
+
+    return blocks;
+}
+
 function addFeatures(blocks, look)
 {
     const body = look.body;

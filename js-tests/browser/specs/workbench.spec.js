@@ -65,4 +65,30 @@ export const tests =
             assert.equal(wolf.overlay, 0);
         },
     },
+    {
+        name: "the comparison shows the prototype beside the model built from baked parts",
+        run: async ({ page, baseUrl, screenshot }) =>
+        {
+            await openViewer(page, baseUrl, "gear=spikeB&compare=1&variant=female");
+
+            const shown = await page.evaluate(() =>
+            {
+                const viewer = window.workbench.viewer;
+
+                return {
+                    isShown: viewer.partsModel.root.parent === viewer.scene,
+                    gap: viewer.partsModel.root.position.x - viewer.model.root.position.x,
+                    prototype: viewer.model.triangleCount,
+                    parts: viewer.partsModel.triangleCount,
+                    stats: document.querySelector(".workbench-stats").textContent,
+                };
+            });
+
+            assert.equal(shown.isShown, true);
+            assert.ok(shown.gap > 1, "The models are " + shown.gap + " metres apart");
+            assert.equal(shown.parts, shown.prototype);
+            assert.match(shown.stats, /Right: baked parts/);
+            await screenshot("compare");
+        },
+    },
 ];

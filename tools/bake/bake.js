@@ -1,5 +1,7 @@
 import * as Migrations from "../../content/migrations.js";
 import * as Models from "./models.js";
+import * as Parts from "./parts.js";
+import * as Stamps from "./stamps.js";
 import * as WorldTextures from "./world-textures.js";
 import * as childProcess from "node:child_process";
 import * as crypto from "node:crypto";
@@ -13,7 +15,7 @@ const ASSETS = path.join(ROOT, "assets");
 const LOCK = path.join(ROOT, "assets.lock.json");
 const WATCHED = ["content", "js"];
 const WATCH_DELAY_MS = 200;
-const BAKERS = [WorldTextures, Models];
+const BAKERS = [WorldTextures, Stamps, Models, Parts];
 const USAGE = "Usage: node tools/bake/bake.js [--accept] [--watch]";
 
 
@@ -35,10 +37,11 @@ export async function bake({ shouldAccept = false } = {})
     const problems = [];
     const files = [{ path: "migrations.json", bytes: Buffer.from(JSON.stringify(Migrations.IDS, null, 4) + "\n") }];
     const ids = {};
+    const context = {};
 
     for(const baker of BAKERS)
     {
-        const output = await baker.bake(problems);
+        const output = await baker.bake(problems, context);
 
         files.push(...output.files);
         Object.assign(ids, output.ids);

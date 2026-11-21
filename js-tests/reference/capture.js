@@ -35,7 +35,7 @@ export function round(value)
     return Object.is(rounded, -0) ? 0 : rounded;
 }
 
-function blockRecord(block)
+export function blockRecord(block)
 {
     return {
         joint: block.joint,

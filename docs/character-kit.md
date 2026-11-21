@@ -147,6 +147,61 @@ A painter is a function `(raster, area, random, glow)`. It draws inside `area` o
 
 Each character paints with a random generator seeded from its name and body id, so the same character always gets the same texels.
 
+## Baked Parts
+
+The parts are moving from code in [kit.js](../js/character/kit.js), [outfit.js](../js/character/outfit.js) and [face.js](../js/art/face.js) to content files that the bake checks and writes to `assets/models/parts/`. One part of each kind has moved so far: face 1, long hair, the tunic, plate and tabard, the great helm, the ragged cloak, the sword, the lantern, and the bare chest, legs and feet. The game still dresses characters from the code; the [workbench](workbench.md) compares the two.
+
+### Sockets, Regions and Slots
+
+The humanoid rig names the places where parts attach and paint:
+
+| Field | Holds |
+|---|---|
+| `sockets` | Points on a bone, such as `hand.R`, with an optional rotation. `grip.R` is the hand turned so that a held weapon points forwards with its tip low. Every bone is also a socket at its pivot |
+| `regions` | Areas of bone faces, such as `face`, `scalp`, `torso`, `sleeves` and `hands`, each a list of bones with optional faces and rows |
+| `slots` | The slots the rig offers, in the order their parts paint |
+| `base` | The layers every outfit body paints first, which is the skin |
+
+### Parts
+
+A part file in `content/parts/<slot>/` exports a `PART`:
+
+| Field | Holds |
+|---|---|
+| `id`, `slot` | The part's id, which matches the catalogue item or style, and its slot |
+| `paint` | Layers that paint body regions |
+| `blocks` | Blocks with an `at` socket, an optional `mirror` socket, a `size`, a `centre`, an optional `rotation` and the layers of each face, with `all` as the fallback |
+| `hidesHair` | For headgear, whether the hair part's blocks are left out |
+| `stance` | For a held part, its arm pose, such as `blade` or `lantern` |
+
+Sizes and centres are numbers or sums of box sizes, as in rigs. A block with a `mirror` is copied to the mirror socket with x, and the y and z rotations, negated.
+
+A layer names a `stamp`, a `tint`, and optionally the `faces` and `rows` it covers, a `place` rule and the `variants` it applies to. Rows count from the top, or from the bottom when negative, so `[0, -5]` is all but the bottom five rows. A tint is a channel (`skin`, `hair`, `eyes`, `primary` or `trim`), a fixed `#rrggbb` colour, or an object that adds a `shade` factor or a `mix` with another colour.
+
+The place rule gives the horizontal and the vertical rule, such as `"tile tile"` or `"centre top"`:
+
+| Rule | Effect |
+|---|---|
+| `tile` | Repeats the stamp, starting at an offset drawn from the character's seed |
+| `centre` | Centres the stamp once |
+| `top`, `bottom` | Aligns the stamp with the top or bottom edge (vertical only) |
+
+### Stamps
+
+A stamp is a rectangle of texels that the bake paints once. A stamp file in [content/stamps/](../content/stamps/) exports `STAMPS`, each with a `size`, a unique `seed`, a `paint` function and, for a lit stamp, `glow: true`. The paint function draws in the colour it is given wherever the texels take a part's tint.
+
+The bake paints each stamp twice with the same seed, once in grey and once in another colour. Texels that change are tinted, and their grey value gives their shade. Texels that do not change are fixed colours. The bake packs every stamp into `models/stamps.png` and stores each texel's kind in its alpha:
+
+| Alpha | Kind |
+|---|---|
+| 0 | Skipped: the texel below shows through |
+| 1 | Cut out: the texel becomes transparent |
+| 128 | Tinted: red holds the shade, where 96 is a shade of 1 |
+| 254 | A fixed colour that also glows |
+| 255 | A fixed colour |
+
+[compositor.js](../js/kit/compositor.js) draws stamps under these rules, and [dresser.js](../js/kit/dresser.js) turns the worn parts into blocks and face layers. `new CharacterModel(appearance, { pipeline: "parts" })` builds a model this way. Features that have not moved, such as noses and ears, still come from the kit.
+
 ## Animation
 
 [Animator](../js/character/animator.js) poses a rig whose `motion` is `biped`, and leaves any other rig at its rest angles. It turns joints each frame and never moves them, except to bob the torso above its rest position. It blends from idle to walking at 2.4 metres a second and to running at 5.2: the legs and arms swing in opposite phase, the torso bobs and leans, the head looks around when standing, and the cape swings back with speed. Held items change the arms' rest angles, and `wave()` raises the right arm for 2.2 seconds.

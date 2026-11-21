@@ -10,6 +10,7 @@ import { Random } from "../../../js/util/random.js";
 const PANEL_WIDTH = 352;
 const OVERLAY_COLOUR = "#e0b060";
 const JOINT_SIZE = 0.035;
+const COMPARE_GAP = 0.6;
 
 const MOTIONS =
 [
@@ -23,7 +24,15 @@ const GEAR =
     { id: "default", name: "Default" },
     { id: "random", name: "Random" },
     { id: "bare", name: "None" },
+    { id: "spikeA", name: "Spike A" },
+    { id: "spikeB", name: "Spike B" },
 ];
+
+const SPIKES =
+{
+    spikeA: { head: "none", chest: "tunic", legs: "none", feet: "none", hands: "none", back: "none", mainHand: "sword", offHand: "lantern" },
+    spikeB: { head: "helm", chest: "plate", legs: "none", feet: "none", hands: "none", back: "cloak", mainHand: "sword", offHand: "none" },
+};
 
 
 /******************************************************************************/
@@ -47,6 +56,8 @@ export class ModelViewer
         this.appearance = new Appearance(library);
         this.model = new CharacterModel(this.appearance);
         this.animator = new Animator(this.model);
+        this.partsModel = new CharacterModel(this.appearance, { pipeline: "parts" });
+        this.partsAnimator = new Animator(this.partsModel);
 
         this.buildScene();
         this.panel = Controls.element("aside", "panel workbench-panel");
@@ -93,6 +104,12 @@ export class ModelViewer
         if(body.skins.includes(state.skin)) { data.skin = state.skin; }
         if(state.gear === "bare") { data.equipment = Object.fromEntries(Catalogue.SLOTS.map((slot) => [slot.id, { item: "none" }])); }
 
+        if(SPIKES[state.gear])
+        {
+            Object.assign(data, { face: "1", hair: "long", beard: "none", markings: "none" });
+            data.equipment = Object.fromEntries(Object.entries(SPIKES[state.gear]).map(([slot, item]) => [slot, { item }]));
+        }
+
         this.state = { ...state, body: body.id, variant };
         this.appearance.replace(data);
         this.renderPanel();
@@ -131,7 +148,9 @@ export class ModelViewer
 
         rows.push(this.toggles([{ id: "bones", name: "Bones and boxes" }], state.overlay ? "bones" : null, () => this.setState({ overlay: !state.overlay }), "overlay"));
 
-        if(isBiped) { rows.push(Controls.button("Wave", () => this.animator.wave(), "button")); }
+        if(body.surface === "outfit") { rows.push(this.toggles([{ id: "compare", name: "Compare with parts" }], state.compare ? "compare" : null, () => this.setState({ compare: !state.compare }), "compare")); }
+
+        if(isBiped) { rows.push(Controls.button("Wave", () => this.wave(), "button")); }
 
         this.panel.replaceChildren(...rows);
     }
@@ -165,7 +184,7 @@ export class ModelViewer
         const plan = this.model.plan;
         const sheet = this.model.textures.map.image;
 
-        this.stats.textContent = plan.rig.id + " · " + plan.fit.bones.length + " bones · " + this.model.triangleCount + " triangles · sheet " + sheet.width + " × " + sheet.height + " · " + plan.height.toFixed(2) + " m";
+        this.stats.textContent = (this.isComparing ? "Left: prototype · Right: baked parts · " : "") + plan.rig.id + " · " + plan.fit.bones.length + " bones · " + this.model.triangleCount + " triangles · sheet " + sheet.width + " × " + sheet.height + " · " + plan.height.toFixed(2) + " m";
     }
 
     buildOverlay()
@@ -189,6 +208,12 @@ export class ModelViewer
             edges.position.set(...bone.centre.map((value) => value * Fitter.TEXEL));
             this.addOverlay(joint, edges);
         }
+    }
+
+    wave()
+    {
+        this.animator.wave();
+        this.partsAnimator.wave();
     }
 
     addOverlay(parent, object)
@@ -242,6 +267,11 @@ export class ModelViewer
         }, { passive: false });
     }
 
+    get isComparing()
+    {
+        return this.state.compare && this.appearance.body.surface === "outfit";
+    }
+
     show() {}
 
     hide() {}
@@ -259,12 +289,26 @@ export class ModelViewer
         const plan = this.model.plan;
         const speed = MOTIONS.find((motion) => motion.id === this.state.motion)?.speed ?? 0;
         const extent = Math.max(plan.height, plan.fit.bones.reduce((widest, bone) => Math.max(widest, ...(bone.size ?? [0])), 0) * Fitter.TEXEL);
-        const distance = (extent * 2.6 + 0.8) * this.state.zoom;
+        const distance = (extent * (this.isComparing ? 3.6 : 2.6) + 0.8) * this.state.zoom;
+        const gap = this.isComparing ? COMPARE_GAP : 0;
 
         this.animator.update(delta, speed);
         this.model.root.rotation.y = this.state.yaw;
+        this.model.root.position.x = -gap;
+
+        if(this.isComparing !== Boolean(this.partsModel.root.parent)) { this.togglePartsModel(); }
+
+        this.partsAnimator.update(delta, speed);
+        this.partsModel.root.rotation.y = this.state.yaw;
+        this.partsModel.root.position.x = gap;
         this.camera.position.set(0, plan.height * 0.5 + distance * 0.18, distance);
         this.camera.lookAt(0, plan.height * 0.5, 0);
+    }
+
+    togglePartsModel()
+    {
+        if(this.partsModel.root.parent) { this.partsModel.root.removeFromParent(); }
+        else { this.scene.add(this.partsModel.root); }
     }
 
     render(webgl)

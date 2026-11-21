@@ -1,5 +1,7 @@
 import * as Bake from "../../tools/bake/bake.js";
 import * as ModelBaker from "../../tools/bake/models.js";
+import * as PartBaker from "../../tools/bake/parts.js";
+import * as StampBaker from "../../tools/bake/stamps.js";
 import * as TestAssets from "../helpers/assets.js";
 import * as WorldTextureBaker from "../../tools/bake/world-textures.js";
 import * as assert from "node:assert/strict";
@@ -42,14 +44,18 @@ describe("Bake", () =>
         assert.deepEqual(changes.sort(), ["added d", "changed b", "removed c"]);
     });
 
-    it("bakes the world textures and the models with no problems and the same bytes every time", async () =>
+    it("bakes every kind of content with no problems and the same bytes every time", async () =>
     {
         const problems = [];
-        const first = [WorldTextureBaker.bake(problems), await ModelBaker.bake(problems)];
-        const second = [WorldTextureBaker.bake(problems), await ModelBaker.bake(problems)];
+        const all = async () =>
+        {
+            const context = {};
 
+            return [WorldTextureBaker.bake(problems, context), await StampBaker.bake(problems, context), await ModelBaker.bake(problems, context), await PartBaker.bake(problems, context)];
+        };
+
+        assert.deepEqual(await all(), await all());
         assert.deepEqual(problems, []);
-        assert.deepEqual(first, second);
     });
 });
 

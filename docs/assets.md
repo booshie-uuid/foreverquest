@@ -58,7 +58,7 @@ The lock file records what the owner has accepted. After each bake, the asset lo
 
 ## Ids and Migrations
 
-The lock file also records every content id by kind: each world texture, rig and body, and each body's variants as `body/variant`. A bake fails when an id that the lock file records is gone, unless [migrations.js](../content/migrations.js) maps it to a replacement that still exists. The bake writes the maps to `migrations.json`, and saved characters load through them.
+The lock file also records every content id by kind: each world texture, rig, body, stamp and part, each part as `slot/id`, and each body's variants as `body/variant`. A bake fails when an id that the lock file records is gone, unless [migrations.js](../content/migrations.js) maps it to a replacement that still exists. The bake writes the maps to `migrations.json`, and saved characters load through them.
 
 ```javascript
 export const IDS =
@@ -77,6 +77,8 @@ export const IDS =
 | `models/index.json` | The rig ids, and the body ids in display order |
 | `models/rigs/<id>.json` | A rig, with each pivot and centre compiled into a linear form of box sizes |
 | `models/bodies/<id>.json` | A body, checked against its rig |
+| `models/stamps.png`, `models/stamps.json` | Every stamp packed into one sheet, and each stamp's rectangle and whether it takes a tint |
+| `models/parts/index.json`, `models/parts/<slot>/<id>.json` | The part ids, and each part checked against the rigs that offer its slot |
 | `migrations.json` | The id maps from [migrations.js](../content/migrations.js) |
 
 Texels are stored as 8-bit RGBA PNG, so any image viewer opens them. The bake writes PNG with Node's built-in `zlib` and no row filters, so the same texels always give the same bytes.

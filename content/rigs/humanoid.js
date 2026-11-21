@@ -1,6 +1,9 @@
 // Texels. A pivot is in the parent bone's frame, and a centre places the
 // bone's box in its own frame. The root is at the feet, +x is the character's
 // left, and the bone order is the order the faces pack the sheet.
+const GRIP = Math.PI / 2 + 0.55;
+const HAND_ROWS = 5;
+
 export const RIG =
 {
     id: "humanoid",
@@ -17,4 +20,24 @@ export const RIG =
         { name: "legR", mirror: "legL" },
         { name: "cape", parent: "torso", pivot: [0, "torso.h - 1", "-torso.d/2 - 0.7"] },
     ],
+    sockets:
+    [
+        { name: "hand.L", bone: "armL", at: [0, "4 - arm.h", 0] },
+        { name: "hand.R", bone: "armR", at: [0, "4 - arm.h", 0] },
+        { name: "grip.L", bone: "armL", at: [0, "4 - arm.h", 0], rotation: [GRIP, 0, 0] },
+        { name: "grip.R", bone: "armR", at: [0, "4 - arm.h", 0], rotation: [GRIP, 0, 0] },
+    ],
+    regions:
+    {
+        body: ["head", "torso", "armL", "armR", "legL", "legR"].map((bone) => ({ bone })),
+        face: [{ bone: "head", faces: ["front"] }],
+        scalp: [{ bone: "head", faces: ["top", "back", "left", "right"] }],
+        torso: [{ bone: "torso" }],
+        arms: [{ bone: "armL" }, { bone: "armR" }],
+        sleeves: [{ bone: "armL", rows: [0, -HAND_ROWS] }, { bone: "armR", rows: [0, -HAND_ROWS] }],
+        hands: [{ bone: "armL", rows: [-HAND_ROWS] }, { bone: "armR", rows: [-HAND_ROWS] }],
+        legs: [{ bone: "legL" }, { bone: "legR" }],
+    },
+    slots: ["hair", "face", "beard", "markings", "legs", "feet", "chest", "hands", "head", "back", "mainHand", "offHand"],
+    base: [{ region: "body", stamp: "grit", tint: "skin" }],
 };

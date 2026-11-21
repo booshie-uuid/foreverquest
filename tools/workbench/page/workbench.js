@@ -4,8 +4,9 @@ import { Log } from "../../../js/log.js";
 import { ModelViewer } from "./model-viewer.js";
 import { Renderer } from "../../../js/engine/renderer.js";
 
-const DEFAULTS = { body: "human", variant: "male", height: 0, build: 0, skin: "", gear: "default", seed: 1, motion: "idle", overlay: false, yaw: 0.5, zoom: 1 };
+const DEFAULTS = { body: "human", variant: "male", height: 0, build: 0, skin: "", gear: "default", seed: 1, motion: "idle", overlay: false, compare: false, yaw: 0.5, zoom: 1 };
 const NUMBERS = ["height", "build", "seed", "yaw", "zoom"];
+const SWITCHES = ["overlay", "compare"];
 
 
 /******************************************************************************/
@@ -24,7 +25,7 @@ function readState()
         const text = params.get(key);
 
         if(NUMBERS.includes(key)) { state[key] = Number.isFinite(Number(text)) ? Number(text) : DEFAULTS[key]; }
-        else if(key === "overlay") { state.overlay = text === "bones"; }
+        else if(SWITCHES.includes(key)) { state[key] = text === "1" || text === "bones"; }
         else { state[key] = text; }
     }
 
@@ -39,7 +40,7 @@ function writeState(state)
     {
         if(value === DEFAULTS[key]) { continue; }
 
-        params.set(key, key === "overlay" ? "bones" : NUMBERS.includes(key) ? String(Math.round(value * 1000) / 1000) : value);
+        params.set(key, SWITCHES.includes(key) ? "1" : NUMBERS.includes(key) ? String(Math.round(value * 1000) / 1000) : value);
     }
 
     history.replaceState(null, "", "?" + params.toString());

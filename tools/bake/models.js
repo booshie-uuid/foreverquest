@@ -1,4 +1,5 @@
 import * as Fitter from "../../js/kit/fitter.js";
+import * as Layers from "./layers.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as url from "node:url";
@@ -13,13 +14,14 @@ const SURFACES = ["outfit", "placeholder"];
 const EARS = ["round", "long", "pointed", "swept"];
 const MEASURES = ["radius", "walk", "run", "nameplate", "focus"];
 const SLIDER_VALUES = [-1, 1];
+const FACES = ["front", "back", "left", "right", "top", "bottom"];
 
 
 /******************************************************************************/
 /* BAKE                                                                       */
 /******************************************************************************/
 
-export async function bake(problems)
+export async function bake(problems, context)
 {
     const rigs = new Map();
     const bodies = [];
@@ -39,6 +41,7 @@ export async function bake(problems)
     }
 
     bodies.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+    context.rigs = rigs;
 
     const json = (value) => Buffer.from(JSON.stringify(value, null, 4) + "\n");
     const files = [{ path: "models/index.json", bytes: json({ rigs: [...rigs.keys()].sort(), bodies: bodies.map((body) => body.id) }) }];
@@ -104,7 +107,17 @@ export function compileRig(source, problems)
 
     if(problems.length > before) { return null; }
 
-    return { id: source.id, boxes, faceBone: source.faceBone, motion: source.motion ?? null, bones };
+    return {
+        id: source.id,
+        boxes,
+        faceBone: source.faceBone,
+        motion: source.motion ?? null,
+        bones,
+        sockets: compileSockets(source.sockets ?? [], bones, boxes, where, problems),
+        regions: checkRegions(source.regions ?? {}, bones, where, problems),
+        slots: source.slots ?? [],
+        base: (source.base ?? []).map(Layers.normalise),
+    };
 }
 
 function mirrored(bone, all, where, problems)
@@ -155,6 +168,45 @@ function compileBone(bone, boxes, where, problems)
     };
 }
 
+function compileSockets(sockets, bones, boxes, where, problems)
+{
+    const names = new Set(bones.map((bone) => bone.name));
+
+    return sockets.map((socket) =>
+    {
+        const label = where + " socket " + socket.name;
+
+        if(!ID_PATTERN.test(socket.name?.replace(".", "") ?? "") || names.has(socket.name)) { problems.push(label + " has an invalid or repeated name"); }
+        if(!bones.some((bone) => bone.name === socket.bone)) { problems.push(label + " is on an unknown bone: " + socket.bone); }
+
+        names.add(socket.name);
+
+        return {
+            name: socket.name,
+            bone: socket.bone,
+            at: (socket.at ?? [0, 0, 0]).map((value) => compile(value, boxes, label, problems)),
+            rotation: socket.rotation ?? null,
+        };
+    });
+}
+
+function checkRegions(regions, bones, where, problems)
+{
+    for(const [name, entries] of Object.entries(regions))
+    {
+        for(const entry of entries)
+        {
+            const bone = bones.find((candidate) => candidate.name === entry.bone);
+
+            if(!bone?.box) { problems.push(where + " region " + name + " covers a bone without a box: " + entry.bone); }
+            if(entry.faces && !entry.faces.every((face) => FACES.includes(face))) { problems.push(where + " region " + name + " names an unknown face"); }
+            if(entry.rows && !entry.rows.every(Number.isInteger)) { problems.push(where + " region " + name + " needs whole-number rows"); }
+        }
+    }
+
+    return regions;
+}
+
 function checkHierarchy(bones, where, problems)
 {
     const names = new Set();
@@ -192,7 +244,7 @@ function linear(constant)
 }
 
 // Accepts sums such as "torso.w/2 + arm.w/2 - 1" and "2*leg.h".
-function compile(expression, boxes, label, problems)
+export function compile(expression, boxes, label, problems)
 {
     if(typeof expression === "number") { return linear(expression); }
     if(expression?.negate !== undefined) { return scaled(compile(expression.negate, boxes, label, problems), -1); }

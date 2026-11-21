@@ -1,3 +1,4 @@
+import * as Dresser from "../kit/dresser.js";
 import * as Fitter from "../kit/fitter.js";
 import * as Kit from "./kit.js";
 import * as Outfit from "./outfit.js";
@@ -9,9 +10,10 @@ import { Sheet } from "./sheet.js";
 
 export class CharacterModel
 {
-    constructor(appearance)
+    constructor(appearance, { pipeline = "legacy" } = {})
     {
         this.appearance = appearance;
+        this.pipeline = pipeline;
         this.root = new THREE.Group();
         this.body = new THREE.Group();
         this.joints = { root: this.body };
@@ -36,15 +38,13 @@ export class CharacterModel
         const body = look.body;
         const rig = look.library.rig(body.rig);
         const fitted = Fitter.fit(rig, body, { variant: look.get("variant"), height: look.get("height"), build: look.get("build") });
-        const isOutfit = body.surface === "outfit";
-        const dims = { ...fitted.boxes, scale: fitted.scale };
-        const blocks = [...Fitter.bodyBlocks(fitted), ...(isOutfit ? Kit.partBlocks(look, dims) : [])];
+        const { blocks, layers } = this.assemble(look, fitted);
         const sheet = new Sheet();
 
         for(const block of blocks) { block.areas = sheet.reserve(block.size); }
 
         sheet.open();
-        this.paint(sheet, blocks, isOutfit ? Outfit.layers(look, dims) : Placeholder.layers(look, fitted));
+        this.paint(sheet, blocks, layers);
 
         const builders = new Map();
 
@@ -75,6 +75,19 @@ export class CharacterModel
 
         this.plan = CharacterModel.planOf(fitted);
         this.emitChange();
+    }
+
+    assemble(look, fitted)
+    {
+        const body = [...Fitter.bodyBlocks(fitted)];
+        const dims = { ...fitted.boxes, scale: fitted.scale };
+
+        if(look.body.surface !== "outfit") { return { blocks: body, layers: Placeholder.layers(look, fitted) }; }
+        if(this.pipeline === "legacy") { return { blocks: [...body, ...Kit.partBlocks(look, dims)], layers: Outfit.layers(look, dims) }; }
+
+        const dressed = Dresser.dress(fitted, look, look.library);
+
+        return { blocks: [...body, ...Kit.featureBlocks(look), ...dressed.blocks], layers: dressed.layers };
     }
 
     static planOf(fitted)

@@ -17,9 +17,10 @@ The model viewer shows one body at a time, from any rig, including creature bodi
 |---|---|
 | Body, Variant | Steps through every body in the library and the body's variants |
 | Height, Build, Skin | Sets the sliders and the skin colour |
-| Gear | For a body that wears parts: the default gear, a random set, or none |
+| Gear | For a body that wears parts: the default gear, a random set, none, or Spike A or B, which use only the parts that have moved to content |
 | Idle, Walk, Run, Wave | Plays a motion on a rig whose motion is `biped` |
 | Bones and boxes | Draws each joint as a small cube and each bone's box as an outline |
+| Compare with parts | For a body that wears parts: shows the model the game builds on the left, and the model built from baked parts on the right |
 | Drag, mouse wheel | Turns the model and zooms |
 
 The panel at the bottom right shows the rig, the number of bones and triangles, the sheet size and the model's height.
