@@ -4,5 +4,7 @@ export const PART =
 {
     id: "none",
     slot: "legs",
+    name: "None",
+    order: 0,
     paint: [{ region: "legs", faces: Shared.SIDES, rows: [0, 6], stamp: "cloth", tint: Shared.LINEN }],
 };

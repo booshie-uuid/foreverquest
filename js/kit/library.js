@@ -6,8 +6,11 @@ const MIGRATIONS = "migrations.json";
 
 export class Library
 {
-    constructor({ rigs, bodies, parts = [], stamps = null, migrations })
+    constructor({ rigs, bodies, parts = [], stamps = null, palettes = {}, archetypes = [], appearance = null, migrations })
     {
+        this.palettes = palettes;
+        this.archetypes = archetypes;
+        this.appearance = appearance;
         this.parts = new Map(parts.map((part) => [part.slot + "/" + part.id, part]));
         this.stamps = stamps;
         this.rigs = new Map(rigs.map((rig) => [rig.id, rig]));
@@ -27,6 +30,9 @@ export class Library
             bodies: await read("bodies", index.bodies),
             parts: await read("parts", await source.json(PARTS)),
             stamps: new StampSheet(await source.json("models/stamps.json"), await source.image("models/stamps.png")),
+            palettes: await source.json("models/palettes.json"),
+            archetypes: await source.json("models/archetypes.json"),
+            appearance: await source.json("models/appearance.json"),
             migrations: await source.json(MIGRATIONS),
         });
     }
@@ -44,6 +50,16 @@ export class Library
     part(slot, id)
     {
         return this.parts.get(slot + "/" + id) ?? null;
+    }
+
+    partsFor(slot)
+    {
+        return [...this.parts.values()].filter((part) => part.slot === slot);
+    }
+
+    palette(name)
+    {
+        return this.palettes[name] ?? [];
     }
 
     get playableBodies()

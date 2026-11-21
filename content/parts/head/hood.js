@@ -4,6 +4,10 @@ export const PART =
 {
     id: "hood",
     slot: "head",
+    name: "Hood",
+    order: 1,
+    tints: { primary: "cloth" },
+    colour: "#24301f",
     hidesHair: true,
     blocks:
     [

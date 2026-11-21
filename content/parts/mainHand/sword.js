@@ -3,6 +3,11 @@ export const PART =
 {
     id: "sword",
     slot: "mainHand",
+    name: "Sword",
+    order: 1,
+    tints: { primary: "metal", trim: "cloth" },
+    colour: "#9a9ea4",
+    trimColour: "#2e241c",
     stance: "blade",
     blocks:
     [

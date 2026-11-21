@@ -2,6 +2,11 @@ export const PART =
 {
     id: "heater",
     slot: "offHand",
+    name: "Heater Shield",
+    order: 2,
+    tints: { primary: "cloth", trim: "cloth" },
+    colour: "#4a1a18",
+    trimColour: "#9a917c",
     stance: "shield",
     blocks:
     [

@@ -1,4 +1,3 @@
-import * as Catalogue from "../../js/character/catalogue.js";
 import * as TestAssets from "../helpers/assets.js";
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -36,7 +35,7 @@ describe("CharacterModel", () =>
 {
     it("builds every playable body and variant with every face, nose, hair, beard and marking", () =>
     {
-        const fields = { face: Catalogue.FACES, nose: Catalogue.NOSES, hair: Catalogue.HAIR_STYLES, beard: Catalogue.BEARD_STYLES, markings: Catalogue.MARKINGS };
+        const fields = Object.fromEntries(["face", "nose", "hair", "beard", "markings"].map((field) => [field, library.partsFor(field)]));
 
         for(const body of library.playableBodies)
         {
@@ -66,9 +65,9 @@ describe("CharacterModel", () =>
             const look = new Appearance(library, { body: body.id });
             const model = new CharacterModel(look);
 
-            for(const slot of Catalogue.SLOTS)
+            for(const slot of library.rig("humanoid").gear)
             {
-                for(const item of Catalogue.EQUIPMENT[slot.id])
+                for(const item of library.partsFor(slot.id))
                 {
                     look.equip(slot.id, item.id);
                     assertSound(model, body.id + " " + slot.id + "=" + item.id);

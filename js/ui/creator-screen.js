@@ -1,4 +1,3 @@
-import * as Catalogue from "../character/catalogue.js";
 import * as Controls from "./controls.js";
 import * as Props from "../world/props.js";
 import * as THREE from "three";
@@ -24,15 +23,6 @@ const POSES =
     { id: "walk", name: "Walk", speed: Animator.WALK_SPEED },
     { id: "run", name: "Run", speed: Animator.RUN_SPEED },
 ];
-
-const OPTION_LISTS =
-{
-    face: Catalogue.FACES,
-    nose: Catalogue.NOSES,
-    hair: Catalogue.HAIR_STYLES,
-    beard: Catalogue.BEARD_STYLES,
-    markings: Catalogue.MARKINGS,
-};
 
 
 /******************************************************************************/
@@ -251,24 +241,24 @@ export class CreatorScreen
     {
         const rows = [];
 
-        for(const slot of Catalogue.SLOTS)
+        for(const slot of this.draft.gearSlots)
         {
             const gear = this.draft.equipped(slot.id);
-            const item = Catalogue.item(slot.id, gear.item);
+            const item = this.library.part(slot.id, gear.item);
             const group = Controls.element("div", "gear-slot");
 
             group.append(Controls.stepper(slot.name, item.name, (direction) => this.cycleItem(slot.id, direction), "slot-" + slot.id));
 
-            if(item.primary)
+            if(item.tints.primary)
             {
-                const colours = Appearance.tintChoices(slot.id, item.id, "primary");
+                const colours = Appearance.tintChoices(this.library, slot.id, item.id, "primary");
 
                 group.append(Controls.swatches("Colour", colours, gear.colour, (colour) => this.draft.tint(slot.id, "primary", colour), "tint-" + slot.id));
             }
 
-            if(item.trim)
+            if(item.tints.trim)
             {
-                const trims = Appearance.tintChoices(slot.id, item.id, "trim");
+                const trims = Appearance.tintChoices(this.library, slot.id, item.id, "trim");
 
                 group.append(Controls.swatches("Trim", trims, gear.trim, (colour) => this.draft.tint(slot.id, "trim", colour), "trim-" + slot.id));
             }
@@ -281,7 +271,7 @@ export class CreatorScreen
 
     optionStepper(label, key)
     {
-        const option = Catalogue.find(this.optionsFor(key), this.draft.get(key));
+        const option = this.optionsFor(key).find((entry) => entry.id === this.draft.get(key));
         const text = key === "face" ? option.id + " · " + option.name : option.name;
 
         return Controls.stepper(label, text, (direction) => this.cycle(key, direction), key);
@@ -292,7 +282,7 @@ export class CreatorScreen
         if(key === "body") { return this.library.playableBodies; }
         if(key === "variant") { return this.draft.body.variants; }
 
-        return OPTION_LISTS[key];
+        return this.library.partsFor(key);
     }
 
     /* CHANGES ****************************************************************/
@@ -307,7 +297,7 @@ export class CreatorScreen
 
     cycleItem(slot, direction)
     {
-        const items = Catalogue.EQUIPMENT[slot];
+        const items = this.library.partsFor(slot);
         const index = items.findIndex((item) => item.id === this.draft.equipped(slot).item);
 
         this.draft.equip(slot, items[(index + direction + items.length) % items.length].id);

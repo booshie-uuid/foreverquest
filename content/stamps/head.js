@@ -1,5 +1,5 @@
-import * as Face from "../../js/art/face.js";
-import * as Pixels from "../../js/art/pixels.js";
+import * as Face from "../art/face.js";
+import * as Pixels from "../art/pixels.js";
 
 const HEAD = [16, 16];
 const WHITE = "#c9c0ae";

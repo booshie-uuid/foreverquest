@@ -11,7 +11,6 @@ const AXES = { w: 0, h: 1, d: 2 };
 const NUMBER = "\\d+(?:\\.\\d+)?";
 const TERM = new RegExp("^(?:(" + NUMBER + ")\\*)?([a-z][A-Za-z0-9]*)\\.([whd])(?:/(" + NUMBER + "))?$|^(" + NUMBER + ")$");
 const SURFACES = ["outfit", "placeholder"];
-const EARS = ["round", "long", "pointed", "swept"];
 const MEASURES = ["radius", "walk", "run", "nameplate", "focus"];
 const SLIDER_VALUES = [-1, 1];
 const FACES = ["front", "back", "left", "right", "top", "bottom"];
@@ -117,6 +116,8 @@ export function compileRig(source, problems)
         sockets: compileSockets(source.sockets ?? [], bones, boxes, where, problems),
         regions: checkRegions(source.regions ?? {}, bones, where, problems),
         slots: source.slots ?? [],
+        gear: source.gear ?? [],
+        stances: source.stances ?? {},
         base: (source.base ?? []).map(Layers.normalise),
     };
 }
@@ -299,7 +300,6 @@ export function checkBody(source, rigs, problems)
     if(!rig) { problems.push(where + " uses an unknown rig: " + source.rig); return null; }
     if(!Number.isFinite(source.order)) { problems.push(where + " has no order"); }
     if(!SURFACES.includes(source.surface)) { problems.push(where + " has an unknown surface: " + source.surface); }
-    if(source.surface === "outfit" && !EARS.includes(source.ears)) { problems.push(where + " has an unknown ear shape: " + source.ears); }
 
     checkBoxes(source.boxes, rig, where, problems);
     checkVariants(source.variants, rig, where, problems);
@@ -335,8 +335,7 @@ export function checkBody(source, rigs, problems)
         skins: source.skins,
         shades: source.shades ?? {},
         features: source.features ?? [],
-        ears: source.ears ?? null,
-        hasTusks: source.hasTusks === true,
+        random: source.random ?? {},
     };
 
     checkFits(body, where, problems);

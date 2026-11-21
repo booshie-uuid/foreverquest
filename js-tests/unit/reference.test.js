@@ -11,9 +11,19 @@ const library = await TestAssets.library();
 
 describe("Prototype reference", () =>
 {
-    it("builds every reference character with the same joints, blocks, meshes and texels", () =>
+    // The reference meshes and sheets predate stamps, so only geometry is
+    // compared.
+    it("builds every reference character with the same joints, blocks, height and triangles", () =>
     {
-        for(const { label, look, record } of REFERENCE.characters) { assert.deepEqual(Capture.characterRecord(library, look), record, label); }
+        for(const { label, look, record } of REFERENCE.characters)
+        {
+            const current = Capture.characterRecord(library, look);
+
+            assert.deepEqual(current.joints, record.joints, label);
+            assert.deepEqual(current.bodyBlocks, record.bodyBlocks, label);
+            assert.deepEqual(current.partBlocks, Capture.sorted(record.partBlocks), label);
+            assert.deepEqual([current.scale, current.height, current.triangles], [record.scale, record.height, record.triangles], label);
+        }
     });
 
     it("gives every option on every body the same part blocks", () =>
@@ -22,7 +32,7 @@ describe("Prototype reference", () =>
 
         assert.deepEqual(Object.keys(sweep).sort(), Object.keys(REFERENCE.parts).sort());
 
-        for(const [label, blocks] of Object.entries(REFERENCE.parts)) { assert.deepEqual(sweep[label], blocks, label); }
+        for(const [label, blocks] of Object.entries(REFERENCE.parts)) { assert.deepEqual(sweep[label], Capture.sorted(blocks), label); }
     });
 
     it("bakes the same world texture layers", () =>

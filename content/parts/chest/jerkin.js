@@ -7,6 +7,11 @@ export const PART =
 {
     id: "jerkin",
     slot: "chest",
+    name: "Leather Jerkin",
+    order: 4,
+    tints: { primary: "cloth", trim: "cloth" },
+    colour: "#4a3424",
+    trimColour: "#2e241c",
     paint:
     [
         { region: "torso", ...LINEN },

@@ -13,6 +13,6 @@ export const BODY =
     sliders: Shared.SLIDERS,
     measures: Shared.MEASURES,
     skins: ["#b08a70", "#a07a62", "#8a6450", "#6a4a3a"],
+    random: { beard: { odds: 0.95, from: ["full", "long", "forked"] } },
     features: ["earsRound"],
-    ears: "round",
 };

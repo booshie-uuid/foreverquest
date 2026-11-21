@@ -7,6 +7,11 @@ export const PART =
 {
     id: "robe",
     slot: "chest",
+    name: "Robe",
+    order: 3,
+    tints: { primary: "cloth", trim: "cloth" },
+    colour: "#2a2a2a",
+    trimColour: "#4a1a18",
     paint:
     [
         { region: "torso", ...CLOTH },

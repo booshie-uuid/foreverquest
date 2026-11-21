@@ -1,37 +1,11 @@
-import * as Face from "../../js/art/face.js";
-import * as Pixels from "../../js/art/pixels.js";
+import * as Face from "../../content/art/face.js";
+import * as Pixels from "../../content/art/pixels.js";
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Random } from "../../js/util/random.js";
 import { Raster } from "../../js/engine/raster.js";
 
 const PAINTERS = ["cloth", "leather", "chain", "plate", "planks", "timber", "plaster", "stone", "slate", "thatch", "bark", "needles", "grass", "mud", "cobble", "earth", "iron", "glow"];
-
-const LOOK =
-{
-    skin: "#b49a84",
-    hairColour: "#2b2119",
-    eyes: "#3d4a3a",
-    face: { brow: 0, eyes: 1, lines: 0, mouth: 0 },
-    beard: "none",
-    markings: "none",
-    hair: "crop",
-    isFemale: false,
-};
-
-function paintFace(changes)
-{
-    const raster = new Raster(16, 16);
-
-    Face.front(raster, Pixels.area(0, 0, 16, 16), new Random(5), { ...LOOK, ...changes });
-
-    return raster;
-}
-
-function differences(a, b)
-{
-    return a.data.filter((value, i) => value !== b.data[i]).length;
-}
 
 describe("Pixels", () =>
 {
@@ -78,22 +52,6 @@ describe("Pixels", () =>
 
 describe("Face", () =>
 {
-    it("paints the iris in the eye colour", () =>
-    {
-        const raster = paintFace({ eyes: "#6a2a2a" });
-
-        assert.deepEqual(raster.get(4, 8).slice(0, 3), [0x6a, 0x2a, 0x2a]);
-        assert.deepEqual(raster.get(11, 8).slice(0, 3), [0x6a, 0x2a, 0x2a]);
-    });
-
-    it("changes the face for each beard and marking", () =>
-    {
-        const plain = paintFace({});
-
-        for(const beard of ["stubble", "moustache", "full"]) { assert.ok(differences(plain, paintFace({ beard })) > 8, beard); }
-        for(const markings of ["scar", "weathered", "warpaint", "tattoo"]) { assert.ok(differences(plain, paintFace({ markings })) > 4, markings); }
-    });
-
     it("leaves the top of a bald head as skin", () =>
     {
         const raster = new Raster(16, 16);

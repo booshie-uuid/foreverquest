@@ -6,6 +6,11 @@ export const PART =
 {
     id: "coat",
     slot: "chest",
+    name: "Long Coat",
+    order: 5,
+    tints: { primary: "cloth", trim: "metal" },
+    colour: "#16161a",
+    trimColour: "#8a7240",
     paint:
     [
         { region: "torso", ...LEATHER },

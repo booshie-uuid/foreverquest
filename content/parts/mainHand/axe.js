@@ -3,6 +3,11 @@ export const PART =
 {
     id: "axe",
     slot: "mainHand",
+    name: "Axe",
+    order: 2,
+    tints: { primary: "metal", trim: "cloth" },
+    colour: "#7a7e85",
+    trimColour: "#4a3424",
     stance: "blade",
     blocks:
     [

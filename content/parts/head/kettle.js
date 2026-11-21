@@ -4,6 +4,10 @@ export const PART =
 {
     id: "kettle",
     slot: "head",
+    name: "Kettle Hat",
+    order: 3,
+    tints: { primary: "metal" },
+    colour: "#7a7e85",
     blocks:
     [
         { at: "head", size: [30, 1.5, 30], centre: [0, 16.5, 0], faces: { all: PLATE } },

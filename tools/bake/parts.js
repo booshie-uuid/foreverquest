@@ -1,5 +1,8 @@
+import * as Appearance from "../../content/appearance.js";
+import * as Archetypes from "../../content/archetypes.js";
 import * as Layers from "./layers.js";
 import * as Models from "./models.js";
+import * as Palettes from "../../content/palettes.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as url from "node:url";
@@ -40,8 +43,17 @@ export async function bake(problems, context)
         }
     }
 
+    parts.sort((a, b) => a.slot.localeCompare(b.slot) || a.order - b.order || a.id.localeCompare(b.id));
+    checkCatalogue(parts, context, problems);
+
     const ids = parts.map((part) => part.slot + "/" + part.id);
-    const files = [{ path: "models/parts/index.json", bytes: json(ids) }];
+    const files =
+    [
+        { path: "models/parts/index.json", bytes: json(ids) },
+        { path: "models/palettes.json", bytes: json(Palettes.PALETTES) },
+        { path: "models/archetypes.json", bytes: json(Archetypes.ARCHETYPES) },
+        { path: "models/appearance.json", bytes: json({ defaults: Appearance.DEFAULTS, random: Appearance.RANDOM }) },
+    ];
 
     for(const part of parts) { files.push({ path: "models/parts/" + part.slot + "/" + part.id + ".json", bytes: json(part) }); }
 
@@ -94,16 +106,72 @@ export function compilePart(source, context, problems)
         for(const rig of rigs) { Layers.check(layer, rig, context.stamps, where + " layer on " + layer.region, problems, true); }
     }
 
+    checkTints(source, where, problems);
+
     if(problems.length > before) { return null; }
 
     return {
         id: source.id,
         slot: source.slot,
+        name: source.name ?? source.id,
+        order: source.order ?? 0,
+        tints: source.tints ?? {},
+        colour: source.colour ?? null,
+        trimColour: source.trimColour ?? null,
         hidesHair: source.hidesHair === true,
         stance: source.stance ?? null,
         paint: (source.paint ?? []).map(Layers.normalise),
         blocks,
     };
+}
+
+function checkTints(source, where, problems)
+{
+    for(const [field, defaultField] of [["primary", "colour"], ["trim", "trimColour"]])
+    {
+        const palette = source.tints?.[field];
+
+        if(palette === undefined) { continue; }
+        if(!Palettes.PALETTES[palette]) { problems.push(where + " uses an unknown palette: " + palette); continue; }
+        if(!Palettes.PALETTES[palette].includes(source[defaultField])) { problems.push(where + " needs a default " + field + " colour from the " + palette + " palette"); }
+    }
+}
+
+function checkCatalogue(parts, context, problems)
+{
+    const has = (slot, id) => parts.some((part) => part.slot === slot && part.id === id);
+    const defaults = Appearance.DEFAULTS;
+
+    for(const slot of ["face", "nose", "hair", "beard", "markings"])
+    {
+        if(!has(slot, defaults[slot])) { problems.push("The default " + slot + " is not a part: " + defaults[slot]); }
+    }
+
+    for(const [slot, id] of Object.entries(defaults.equipment))
+    {
+        if(!has(slot, id)) { problems.push("The default " + slot + " gear is not a part: " + id); }
+    }
+
+    for(const archetype of Archetypes.ARCHETYPES)
+    {
+        for(const [slot, ids] of Object.entries(archetype.slots))
+        {
+            for(const id of ids.filter((entry) => !has(slot, entry))) { problems.push("Archetype " + archetype.id + " names a " + slot + " part that does not exist: " + id); }
+        }
+    }
+
+    const rules = [Appearance.RANDOM, ...context.bodies.map((body) => body.random)];
+
+    for(const rule of rules)
+    {
+        for(const id of [...(rule.hair?.female ?? []), ...(rule.hair?.male ?? [])].filter((entry) => !has("hair", entry))) { problems.push("A random hair rule names an unknown style: " + id); }
+        for(const id of (rule.beard?.from ?? []).filter((entry) => !has("beard", entry))) { problems.push("A random beard rule names an unknown beard: " + id); }
+    }
+
+    for(const [name, colours] of Object.entries(Palettes.PALETTES))
+    {
+        if(!colours.every((colour) => /^#[0-9a-f]{6}$/.test(colour))) { problems.push("The " + name + " palette needs lower-case #rrggbb colours"); }
+    }
 }
 
 function compileBlock(block, rigs, boxes, context, where, problems)

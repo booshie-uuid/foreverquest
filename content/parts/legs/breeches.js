@@ -4,6 +4,10 @@ export const PART =
 {
     id: "breeches",
     slot: "legs",
+    name: "Breeches",
+    order: 2,
+    tints: { primary: "cloth" },
+    colour: "#5a5246",
     paint:
     [
         { region: "legs", faces: Shared.SIDES, rows: [0, 0.55], stamp: "cloth", tint: "primary" },

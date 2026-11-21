@@ -6,6 +6,11 @@ export const PART =
 {
     id: "mail",
     slot: "chest",
+    name: "Mail Hauberk",
+    order: 6,
+    tints: { primary: "metal", trim: "cloth" },
+    colour: "#7a7e85",
+    trimColour: "#2e241c",
     paint:
     [
         { region: "torso", ...CHAIN },

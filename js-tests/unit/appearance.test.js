@@ -1,4 +1,3 @@
-import * as Catalogue from "../../js/character/catalogue.js";
 import * as TestAssets from "../helpers/assets.js";
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -14,7 +13,7 @@ describe("Appearance.normalise", () =>
         const look = new Appearance(library);
 
         assert.equal(look.get("body"), "human");
-        assert.deepEqual(Object.keys(look.toJSON().equipment).sort(), Catalogue.SLOTS.map((slot) => slot.id).sort());
+        assert.deepEqual(Object.keys(look.toJSON().equipment).sort(), library.rig("humanoid").gear.map((slot) => slot.id).sort());
     });
 
     it("replaces invalid values with defaults and keeps valid ones", () =>
@@ -93,7 +92,7 @@ describe("Appearance changes", () =>
         look.set("hair", "long");
         look.set("hair", "long");
         look.equip("head", "hood");
-        look.tint("head", "primary", Catalogue.CLOTH_COLOURS[0]);
+        look.tint("head", "primary", library.palette("cloth")[0]);
 
         assert.deepEqual(keys, ["hair", "equipment", "equipment"]);
     });
@@ -113,7 +112,7 @@ describe("Appearance changes", () =>
     it("keeps a tint across items that share a palette and resets it across palettes", () =>
     {
         const look = new Appearance(library);
-        const red = Catalogue.CLOTH_COLOURS[0];
+        const red = library.palette("cloth")[0];
 
         look.equip("chest", "tunic");
         look.tint("chest", "primary", red);
@@ -123,7 +122,7 @@ describe("Appearance changes", () =>
 
         look.equip("chest", "plate");
 
-        assert.ok(Catalogue.METAL_COLOURS.includes(look.equipped("chest").colour));
+        assert.ok(library.palette("metal").includes(look.equipped("chest").colour));
     });
 });
 

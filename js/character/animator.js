@@ -71,18 +71,32 @@ export class Animator
     poseArms({ walk, run, swing, breath })
     {
         const joints = this.model.joints;
-        const look = this.model.appearance;
-        const mainHand = look.equipped("mainHand").item;
-        const offHand = look.equipped("offHand").item;
-        const isPole = mainHand === "staff" || mainHand === "spear" || mainHand === "pitchfork";
+        const rest = this.restAngles();
         const armSwing = (0.45 + 0.4 * run) * walk * swing;
         const spread = 0.05 + 0.01 * breath * (1 - walk);
 
-        const rightRest = mainHand === "none" ? 0 : isPole ? -0.2 : -0.3;
-        const leftRest = offHand === "lantern" ? -0.7 : offHand === "none" || offHand === "dagger" ? 0 : -0.3;
+        joints.armR.rotation.set(rest.armR - armSwing * (rest.isHolding.armR ? 0.4 : 1), 0, -spread);
+        joints.armL.rotation.set(rest.armL + armSwing * (rest.isHolding.armL ? 0.4 : 1), 0, spread);
+    }
 
-        joints.armR.rotation.set(rightRest - armSwing * (mainHand === "none" ? 1 : 0.4), 0, -spread);
-        joints.armL.rotation.set(leftRest + armSwing * (offHand === "none" ? 1 : 0.4), 0, spread);
+    restAngles()
+    {
+        const look = this.model.appearance;
+        const stances = this.model.plan.rig.stances;
+        const rest = { armR: 0, armL: 0, isHolding: { armR: false, armL: false } };
+
+        for(const slot of ["mainHand", "offHand"])
+        {
+            const stance = look.library.part(slot, look.equipped(slot).item)?.stance;
+
+            for(const [arm, angle] of Object.entries(stances[stance] ?? {}))
+            {
+                rest[arm] = angle;
+                rest.isHolding[arm] = true;
+            }
+        }
+
+        return rest;
     }
 
     poseWave()

@@ -2,6 +2,11 @@ export const PART =
 {
     id: "buckler",
     slot: "offHand",
+    name: "Buckler",
+    order: 1,
+    tints: { primary: "metal", trim: "metal" },
+    colour: "#4a4e56",
+    trimColour: "#7a7e85",
     stance: "shield",
     blocks:
     [

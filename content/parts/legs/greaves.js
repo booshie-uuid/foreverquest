@@ -4,6 +4,11 @@ export const PART =
 {
     id: "greaves",
     slot: "legs",
+    name: "Greaves",
+    order: 3,
+    tints: { primary: "metal", trim: "cloth" },
+    colour: "#7a7e85",
+    trimColour: "#2a2a2a",
     paint:
     [
         { region: "legs", faces: [...Shared.SIDES, "top"], stamp: "cloth", tint: "trim" },

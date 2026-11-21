@@ -1,46 +1,10 @@
-import * as Catalogue from "./catalogue.js";
 import * as Names from "./names.js";
 
 const NAME_PATTERN = /^[A-Za-z][A-Za-z' -]{0,19}$/;
 const VERSION = 2;
-
-const DEFAULT_LOOK =
-{
-    name: "Adventurer",
-    body: "human",
-    variant: "male",
-    height: 0,
-    build: 0,
-    skin: "#b49a84",
-    face: "1",
-    nose: "straight",
-    eyes: "#2b3a4a",
-    hair: "crop",
-    hairColour: "#3f2c1e",
-    beard: "stubble",
-    markings: "none",
-};
-
-const DEFAULT_GEAR =
-{
-    head: "none",
-    chest: "jerkin",
-    legs: "trousers",
-    feet: "boots",
-    hands: "gloves",
-    back: "cloak",
-    mainHand: "sword",
-    offHand: "none",
-};
-
-const OPTION_LISTS =
-{
-    face: Catalogue.FACES,
-    nose: Catalogue.NOSES,
-    hair: Catalogue.HAIR_STYLES,
-    beard: Catalogue.BEARD_STYLES,
-    markings: Catalogue.MARKINGS,
-};
+const FIELDS = ["name", "body", "variant", "height", "build", "skin", "face", "nose", "eyes", "hair", "hairColour", "beard", "markings"];
+const PART_FIELDS = ["face", "nose", "hair", "beard", "markings"];
+const PALETTE_FIELDS = { eyes: "eyes", hairColour: "hair" };
 
 
 /******************************************************************************/
@@ -78,6 +42,11 @@ export class Appearance
         return this.body.variants.find((variant) => variant.id === this.data.variant);
     }
 
+    get gearSlots()
+    {
+        return Appearance.gearSlots(this.library, this.data.body);
+    }
+
     /* CHOICES ****************************************************************/
 
     choices(key)
@@ -89,42 +58,50 @@ export class Appearance
     {
         const body = library.body(bodyId);
 
-        if(OPTION_LISTS[key]) { return OPTION_LISTS[key].map((option) => option.id); }
+        if(PART_FIELDS.includes(key)) { return library.partsFor(key).map((part) => part.id); }
+        if(PALETTE_FIELDS[key]) { return [...library.palette(PALETTE_FIELDS[key])]; }
         if(key === "body") { return library.playableBodies.map((option) => option.id); }
         if(key === "variant") { return body.variants.map((variant) => variant.id); }
         if(key === "skin") { return [...body.skins]; }
-        if(key === "eyes") { return [...Catalogue.EYE_COLOURS]; }
-        if(key === "hairColour") { return [...Catalogue.HAIR_COLOURS]; }
 
         return null;
     }
 
-    static tintChoices(slot, itemId, part)
+    static gearSlots(library, bodyId)
     {
-        const item = Catalogue.item(slot, itemId);
-        const paletteId = part === "trim" ? item?.trim : item?.primary;
+        return library.rig(library.body(bodyId).rig).gear;
+    }
 
-        return paletteId ? [...Catalogue.PALETTES[paletteId]] : [];
+    static tintChoices(library, slot, itemId, part)
+    {
+        const item = library.part(slot, itemId);
+        const palette = item?.tints[part === "trim" ? "trim" : "primary"];
+
+        return palette ? [...library.palette(palette)] : [];
     }
 
     /* CHANGES ****************************************************************/
 
     set(key, value)
     {
-        if(!(key in DEFAULT_LOOK)) { throw new Error("Unknown appearance field: " + key); }
+        if(!FIELDS.includes(key)) { throw new Error("Unknown appearance field: " + key); }
         if(!Appearance.isValid(this.library, key, value, this.data.body)) { throw new Error("Invalid " + key + ": " + value); }
         if(this.data[key] === value) { return; }
 
         this.data[key] = value;
 
-        if(key === "body") { Appearance.fitToBody(this.library, this.data); }
+        if(key === "body")
+        {
+            Appearance.fitToBody(this.library, this.data);
+            this.data.equipment = Appearance.normaliseEquipment(this.library, value, this.data.equipment);
+        }
 
         this.emitChange(key);
     }
 
     equip(slot, itemId)
     {
-        const item = Catalogue.item(slot, itemId);
+        const item = this.gearSlots.some((entry) => entry.id === slot) ? this.library.part(slot, itemId) : null;
 
         if(!item) { throw new Error("Unknown item for " + slot + ": " + itemId); }
 
@@ -132,7 +109,7 @@ export class Appearance
 
         if(current.item === itemId) { return; }
 
-        this.data.equipment[slot] = Appearance.fitTints(slot, item, current);
+        this.data.equipment[slot] = Appearance.fitTints(this.library, item, current);
         this.emitChange("equipment");
     }
 
@@ -141,7 +118,7 @@ export class Appearance
         const current = this.data.equipment[slot];
         const field = part === "trim" ? "trim" : "colour";
 
-        if(!Appearance.tintChoices(slot, current.item, part).includes(colour))
+        if(!Appearance.tintChoices(this.library, slot, current.item, part).includes(colour))
         {
             throw new Error("Invalid " + part + " colour for " + slot + ": " + colour);
         }
@@ -229,6 +206,11 @@ export class Appearance
             source.variant = library.migrateId("body-variant", source.body + "/" + source.variant).split("/")[1];
         }
 
+        for(const field of PART_FIELDS)
+        {
+            if(typeof source[field] === "string") { source[field] = library.migrateId("part", field + "/" + source[field]).split("/")[1]; }
+        }
+
         return source;
     }
 
@@ -247,47 +229,50 @@ export class Appearance
 
     static normalise(library, data)
     {
+        const defaults = { ...library.appearance.defaults, height: 0, build: 0 };
         const source = Appearance.migrate(library, data);
-        const bodyId = Appearance.isValid(library, "body", source.body, null) ? source.body : DEFAULT_LOOK.body;
+        const bodyId = Appearance.isValid(library, "body", source.body, null) ? source.body : defaults.body;
         const result = {};
 
-        for(const key of Object.keys(DEFAULT_LOOK))
+        for(const key of FIELDS)
         {
-            result[key] = Appearance.isValid(library, key, source[key], bodyId) ? source[key] : DEFAULT_LOOK[key];
+            result[key] = Appearance.isValid(library, key, source[key], bodyId) ? source[key] : defaults[key];
         }
 
         result.body = bodyId;
         Appearance.fitToBody(library, result);
-        result.equipment = Appearance.normaliseEquipment(source.equipment);
+        result.equipment = Appearance.normaliseEquipment(library, bodyId, source.equipment);
 
         return result;
     }
 
-    static normaliseEquipment(source)
+    static normaliseEquipment(library, bodyId, source)
     {
         const equipment = {};
         const given = source && typeof source === "object" ? source : {};
+        const defaults = library.appearance.defaults.equipment;
 
-        for(const slot of Catalogue.SLOTS)
+        for(const slot of Appearance.gearSlots(library, bodyId))
         {
             const entry = given[slot.id] && typeof given[slot.id] === "object" ? given[slot.id] : {};
-            const item = Catalogue.item(slot.id, entry.item) ?? Catalogue.item(slot.id, DEFAULT_GEAR[slot.id]);
+            const itemId = typeof entry.item === "string" ? library.migrateId("part", slot.id + "/" + entry.item).split("/")[1] : null;
+            const item = library.part(slot.id, itemId) ?? library.part(slot.id, defaults[slot.id]) ?? library.partsFor(slot.id)[0];
 
-            equipment[slot.id] = Appearance.fitTints(slot.id, item, entry);
+            equipment[slot.id] = Appearance.fitTints(library, item, entry);
         }
 
         return equipment;
     }
 
-    static fitTints(slot, item, previous)
+    static fitTints(library, item, previous)
     {
-        const colours = Appearance.tintChoices(slot, item.id, "primary");
-        const trims = Appearance.tintChoices(slot, item.id, "trim");
+        const colours = Appearance.tintChoices(library, item.slot, item.id, "primary");
+        const trims = Appearance.tintChoices(library, item.slot, item.id, "trim");
 
         return {
             item: item.id,
-            colour: colours.includes(previous.colour) ? previous.colour : item.colour ?? null,
-            trim: trims.includes(previous.trim) ? previous.trim : item.trimColour ?? null,
+            colour: colours.includes(previous.colour) ? previous.colour : item.colour,
+            trim: trims.includes(previous.trim) ? previous.trim : item.trimColour,
         };
     }
 
@@ -295,18 +280,18 @@ export class Appearance
 
     static randomData(library, random, options = {})
     {
+        const rules = library.appearance.random;
         const bodyId = options.body ?? random.pick(library.playableBodies).id;
         const body = library.body(bodyId);
         const variant = options.variant ?? random.pick(body.variants).id;
-        const archetype = Catalogue.find(Catalogue.ARCHETYPES, options.archetype) ?? random.pick(Catalogue.ARCHETYPES);
-        const isFemale = variant === "female";
+        const archetype = library.archetypes.find((entry) => entry.id === options.archetype) ?? random.pick(library.archetypes);
+        const beard = { ...rules.beard, ...body.random.beard };
+        const hairStyles = rules.hair[variant] ?? rules.hair.male;
+        const pick = (slot) => random.pick(library.partsFor(slot)).id;
 
-        const longStyles = ["long", "tail", "braids", "topknot", "swept"];
-        const shortStyles = ["crop", "swept", "bald", "shaved", "crest", "tail", "long"];
-        const hair = random.pick(isFemale ? longStyles : shortStyles);
-        const beardOdds = bodyId === "dwarf" ? 0.95 : 0.55;
-        const beards = bodyId === "dwarf" ? ["full", "long", "forked"] : ["stubble", "stubble", "moustache", "short", "full", "long"];
-        const beard = !isFemale && random.chance(beardOdds) ? random.pick(beards) : "none";
+        const hair = random.pick(hairStyles);
+        const hasBeard = beard.variants.includes(variant) && random.chance(beard.odds);
+        const beardId = hasBeard ? random.pick(beard.from) : "none";
 
         return {
             version: VERSION,
@@ -316,21 +301,24 @@ export class Appearance
             height: Math.round(random.range(-0.6, 0.6) * 100) / 100,
             build: Math.round(random.range(-0.6, 0.6) * 100) / 100,
             skin: random.pick(body.skins),
-            face: random.pick(Catalogue.FACES).id,
-            nose: random.pick(Catalogue.NOSES).id,
-            eyes: random.pick(Catalogue.EYE_COLOURS),
+            face: pick("face"),
+            nose: pick("nose"),
+            eyes: random.pick(library.palette("eyes")),
             hair,
-            hairColour: random.pick(Catalogue.HAIR_COLOURS),
-            beard,
-            markings: random.chance(0.65) ? "none" : random.pick(Catalogue.MARKINGS).id,
-            equipment: Appearance.randomEquipment(random, archetype),
+            hairColour: random.pick(library.palette("hair")),
+            beard: beardId,
+            markings: random.chance(1 - rules.markings.odds) ? "none" : pick("markings"),
+            equipment: Appearance.randomEquipment(library, random, archetype, bodyId),
         };
     }
 
-    static randomEquipment(random, archetype)
+    static randomEquipment(library, random, archetype, bodyId)
     {
+        const rules = library.appearance.random;
+        const cloth = library.palette("cloth");
+        const metal = library.palette("metal");
         const equipment = {};
-        const preferred = [random.pick(Catalogue.CLOTH_COLOURS), random.pick(Catalogue.CLOTH_COLOURS), "#4a3424", "#2e241c", random.pick(Catalogue.METAL_COLOURS.slice(0, 4))];
+        const preferred = [random.pick(cloth), random.pick(cloth), ...rules.favouredColours, random.pick(metal.slice(0, rules.favouredMetals))];
         const pickTint = (choices) =>
         {
             if(choices.length === 0) { return null; }
@@ -340,15 +328,15 @@ export class Appearance
             return random.pick(favoured.length > 0 ? favoured : choices);
         };
 
-        for(const slot of Catalogue.SLOTS)
+        for(const slot of Appearance.gearSlots(library, bodyId))
         {
-            const itemId = random.pick(archetype.slots[slot.id]);
+            const itemId = random.pick(archetype.slots[slot.id] ?? ["none"]);
 
             equipment[slot.id] =
             {
                 item: itemId,
-                colour: pickTint(Appearance.tintChoices(slot.id, itemId, "primary")),
-                trim: pickTint(Appearance.tintChoices(slot.id, itemId, "trim")),
+                colour: pickTint(Appearance.tintChoices(library, slot.id, itemId, "primary")),
+                trim: pickTint(Appearance.tintChoices(library, slot.id, itemId, "trim")),
             };
         }
 

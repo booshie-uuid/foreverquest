@@ -1,4 +1,4 @@
-import * as Pixels from "../js/art/pixels.js";
+import * as Pixels from "./art/pixels.js";
 
 export const SIZE = 32;
 export const TEXELS_PER_METRE = 16;

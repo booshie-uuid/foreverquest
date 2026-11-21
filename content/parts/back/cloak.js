@@ -4,6 +4,10 @@ export const PART =
 {
     id: "cloak",
     slot: "back",
+    name: "Ragged Cloak",
+    order: 2,
+    tints: { primary: "cloth" },
+    colour: "#24301f",
     blocks:
     [
         { at: "cape", size: ["torso.w + 4", "torso.h + 0.85*leg.h", 1.2], centre: [0, "-torso.h/2 - 0.425*leg.h", 0], faces: { all: [CLOTH, { stamp: "ragged", place: "tile bottom" }] } },

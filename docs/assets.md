@@ -2,7 +2,7 @@
 
 ForeverQuest separates the code that makes art from the code that plays the game. Authoring code in [content/](../content/) paints and builds the art. The bake runs that code and writes asset files into `assets/`. The game reads only those files, so it holds no painter or generator for anything that has been baked.
 
-The world textures, the rigs and the bodies are baked. Character parts, props and the zone still run their generators in the game, and move to the bake in later stages of the restructure.
+The world textures and everything that makes up a character are baked: rigs, bodies, parts, stamps, palettes, archetypes and appearance defaults. Props and the zone still run their generators in the game, and move to the bake in later stages of the restructure.
 
 ## The Boundary
 
@@ -36,7 +36,7 @@ The lint enforces the boundary:
 - A module under `js/sim/` cannot import Three.js or a module from `js/engine/`, `js/render/` or `js/ui/`, and cannot use a page global such as `window` or `document`.
 - A module under `content/` or `tools/bake/` cannot call `Math.random`, `Date.now` or `performance.now`, or create a `Date`, so every bake writes the same files.
 
-Content may import game modules, such as the pixel painters in [js/art/](../js/art/).
+Content may import game modules, such as the colour maths in [js/art/](../js/art/). The authoring painters live in [content/art/](../content/art/).
 
 ## Running the Bake
 
@@ -78,7 +78,9 @@ export const IDS =
 | `models/rigs/<id>.json` | A rig, with each pivot and centre compiled into a linear form of box sizes |
 | `models/bodies/<id>.json` | A body, checked against its rig |
 | `models/stamps.png`, `models/stamps.json` | Every stamp packed into one sheet, and each stamp's rectangle and whether it takes a tint |
-| `models/parts/index.json`, `models/parts/<slot>/<id>.json` | The part ids, and each part checked against the rigs that offer its slot |
+| `models/parts/index.json`, `models/parts/<slot>/<id>.json` | The part ids in each slot's order, and each part checked against the rigs that offer its slot |
+| `models/stamps.preview.png` | A viewable copy of the stamp sheet, which the game does not read |
+| `models/palettes.json`, `models/archetypes.json`, `models/appearance.json` | The colour palettes, the villager archetypes, and the appearance defaults and random rules |
 | `migrations.json` | The id maps from [migrations.js](../content/migrations.js) |
 
 Texels are stored as 8-bit RGBA PNG, so any image viewer opens them. The bake writes PNG with Node's built-in `zlib` and no row filters, so the same texels always give the same bytes.

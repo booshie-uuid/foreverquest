@@ -6,4 +6,6 @@ export const IDS =
     "rig": {},
     "body": {},
     "body-variant": {},
+    "part": {},
+    "stamp": {},
 };

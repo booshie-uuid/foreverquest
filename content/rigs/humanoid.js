@@ -39,5 +39,24 @@ export const RIG =
         legs: [{ bone: "legL" }, { bone: "legR" }],
     },
     slots: ["feature", "nose", "hair", "face", "beard", "markings", "legs", "feet", "chest", "hands", "head", "back", "mainHand", "offHand"],
+    gear:
+    [
+        { id: "head", name: "Head" },
+        { id: "chest", name: "Chest" },
+        { id: "legs", name: "Legs" },
+        { id: "feet", name: "Feet" },
+        { id: "hands", name: "Hands" },
+        { id: "back", name: "Back" },
+        { id: "mainHand", name: "Main Hand" },
+        { id: "offHand", name: "Off Hand" },
+    ],
+    stances:
+    {
+        pole: { armR: -0.2 },
+        blade: { armR: -0.3 },
+        shield: { armL: -0.3 },
+        lantern: { armL: -0.7 },
+        dagger: { armL: 0 },
+    },
     base: [{ region: "body", stamp: "grit", tint: "skin" }],
 };

@@ -5,6 +5,11 @@ export const PART =
 {
     id: "horned",
     slot: "head",
+    name: "Horned Helm",
+    order: 5,
+    tints: { primary: "metal", trim: "cloth" },
+    colour: "#4a4e56",
+    trimColour: "#9a917c",
     hidesHair: true,
     blocks:
     [

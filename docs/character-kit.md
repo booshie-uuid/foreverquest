@@ -2,7 +2,7 @@
 
 A character is a set of rigid, textured blocks hung on the bones of a rig. The kit builds every character from an `Appearance` record, a body and its rig. No block ever bends, so characters never stretch or clip.
 
-Rigs and bodies are content: authoring files in [content/rigs/](../content/rigs/) and [content/bodies/](../content/bodies/), which the bake writes to `assets/models/`. The parts that clip on or paint on, such as hair and equipment, are still code in [js/character/](../js/character/).
+Rigs, bodies, parts, stamps, palettes and archetypes are content: authoring files in [content/](../content/), which the bake checks and writes to `assets/models/`. The game holds no painter and no part id; it fits, dresses and paints characters from the baked files.
 
 ## From Appearance to Model
 
@@ -29,15 +29,15 @@ flowchart LR
 ```
 
 1. [fitter.js](../js/kit/fitter.js) sizes the body's boxes from its variant and sliders, places each bone, and lists one body block for each bone with a box.
-2. For a body whose surface is `outfit`, [kit.js](../js/character/kit.js) lists the clip-on blocks for the nose, ears, tusks, hair, beard and equipment, and [outfit.js](../js/character/outfit.js) lists, for each face of each body block, the painters to run in order: skin, then the face and hair, legs, feet, chest and hands. For a body whose surface is `placeholder`, [placeholder.js](../js/character/placeholder.js) paints every body block in the skin colour, shaded per bone.
+2. For a body whose surface is `outfit`, [dresser.js](../js/kit/dresser.js) lists the blocks of every part the character wears, and, for each face of each body block, the layers to paint in order: the rig's base skin layer, then each part in the rig's slot order. For a body whose surface is `placeholder`, [placeholder.js](../js/character/placeholder.js) paints every body block in the skin colour, shaded per bone.
 3. [sheet.js](../js/character/sheet.js) reserves a texel area on one texture for each face of every block, then runs the painters into those areas.
 4. [character-model.js](../js/character/character-model.js) merges each joint's blocks into one mesh with [BlockBuilder](../js/geometry/block-builder.js), creates one material from the sheet, and hangs the meshes on the joints. It creates a new set of joints when the rig changes.
 
 The model then disposes the previous geometry, material and textures. A character has about 130 to 300 triangles. The model's `plan` holds the fit, the height in metres, the height of the face bone's box and each bone's rest position.
 
-## Appearance and Catalogue
+## Appearance
 
-[catalogue.js](../js/character/catalogue.js) holds the options that are still code: the palettes, faces, noses, hair and beard styles, markings, equipment slots and items, and the archetypes that random villagers draw from. The bodies come from the baked assets through [Library](../js/kit/library.js). [appearance.js](../js/character/appearance.js) holds one character's choices and checks each change against the library and the catalogue.
+[appearance.js](../js/character/appearance.js) holds one character's choices and checks each change against the [Library](../js/kit/library.js) of baked content: the bodies, the parts of each slot, the palettes, the defaults in [content/appearance.js](../content/appearance.js), and the archetypes in [content/archetypes.js](../content/archetypes.js) that random villagers draw from.
 
 | Field | Holds |
 |---|---|
@@ -46,11 +46,11 @@ The model then disposes the previous geometry, material and textures. A characte
 | `body`, `variant` | A body id from the library, and one of that body's variants |
 | `height`, `build` | Slider values from -1 to 1 |
 | `skin` | A colour from the body's `skins` |
-| `face`, `nose`, `hair`, `beard`, `markings` | Ids from the matching catalogue list |
-| `eyes`, `hairColour` | Colours from `EYE_COLOURS` and `HAIR_COLOURS` |
-| `equipment` | For each slot, `{ item, colour, trim }`, where each colour comes from the palette the item names |
+| `face`, `nose`, `hair`, `beard`, `markings` | The id of a part in that slot |
+| `eyes`, `hairColour` | Colours from the `eyes` and `hair` palettes |
+| `equipment` | For each gear slot of the body's rig, `{ item, colour, trim }`, where each colour comes from the palette the part names |
 
-`Appearance.normalise()` first migrates the record. A version 1 record, which named the body `race` and the variant `body`, moves to the version 2 fields, and a body or variant id that [content/migrations.js](../content/migrations.js) maps moves to its replacement. It then replaces any value that the library and the catalogue do not hold with a default. A saved character whose item or style no longer exists therefore loads with the default in its place.
+`Appearance.normalise()` first migrates the record. A version 1 record, which named the body `race` and the variant `body`, moves to the version 2 fields, and a body or variant id that [content/migrations.js](../content/migrations.js) maps moves to its replacement. It then replaces any value that the library does not hold with a default. A saved character whose item or style no longer exists therefore loads with the default in its place.
 
 Any body in the library is valid, but the creator offers only the playable bodies. The workbench shows the others, such as the wolf.
 
@@ -116,7 +116,8 @@ A body file in [content/bodies/](../content/bodies/) exports a `BODY`. Other mod
 | `measures` | The collision `radius`, the `walk` and `run` speeds in metres a second, the `nameplate` height above the model and the camera `focus` height, in metres |
 | `skins` | The skin colours on offer, as lower-case `#rrggbb` |
 | `shades` | For a placeholder body, a shade factor for each bone's colour |
-| `ears`, `hasTusks` | For an outfit body, the ear shape and whether the body has tusks |
+| `features` | The feature parts the body always wears, such as `earsLong` or `tusks` |
+| `random` | Optional rules for random characters, such as the dwarf's beard odds |
 
 Every head of an outfit body is 16 texels on a side, because the face and hair painters assume it. The humanoid bodies keep the legs at half the torso's width and its full depth, so every variant and build step changes the legs with the torso. A human male is 88 texels, or 1.8 metres, tall.
 
@@ -133,23 +134,23 @@ A block is a plain object:
 | `at` | The block's centre in texels, relative to the joint |
 | `rotation` | Optional `[x, y, z]` angles in radians, turned about the block's centre |
 | `faces` | Painters by face name: `front`, `back`, `left`, `right`, `top`, `bottom`, or `all` as the fallback |
-| `part` | Set only on body blocks, to the name the outfit layers use |
+| `part` | Set only on body blocks, to the bone whose face layers paint it |
 
 A face that a painter leaves transparent stays see-through, because the character material discards texels with alpha below 0.5. The hood and the mail coif use this for their face openings, and the cloak for its ragged hem.
 
-Held items use `holding(joint, grip)` in [kit.js](../js/character/kit.js), which places blocks along a weapon held forwards with its tip low. Poles such as staffs, spears and pitchforks stand upright in the hand instead.
+Weapons such as swords hang from the `grip.R` socket, which points them forwards with the tip low. Poles such as staffs, spears and pitchforks hang from `hand.R` and stand upright.
 
 ## Texture Sheet and Painters
 
 `Sheet` packs faces left to right in rows, 256 texels wide, and grows downwards as needed. It insets each face's UVs by a hundredth of a texel, so nearest sampling never reads a neighbouring face. A second raster of the same size holds the glow that the material's emissive map reads.
 
-A painter is a function `(raster, area, random, glow)`. It draws inside `area` only, and draws into `glow` only when the texels should light themselves. [pixels.js](../js/art/pixels.js) holds the material painters, such as `cloth`, `leather`, `chain`, `plate`, `planks` and `stone`, and the drawing helpers `rows`, `columns`, `rect`, `dot` and `grit`. [face.js](../js/art/face.js) paints the 16 by 16 face, with its eyes, brows, mouth, beard and markings, and the hair on the other faces of the head.
+A painter is a function `(raster, area, random, glow)`. It draws inside `area` only, and draws into `glow` only when the texels should light themselves. In the game, every painter draws baked stamps through the compositor. The authoring painters that make the stamps are in [content/art/](../content/art/): [pixels.js](../content/art/pixels.js) holds the material painters, such as `cloth`, `leather`, `chain`, `plate`, `planks` and `stone`, and the drawing helpers, and [face.js](../content/art/face.js) paints hair on the faces of the head.
 
 Each character paints with a random generator seeded from its name and body id, so the same character always gets the same texels.
 
 ## Baked Parts
 
-The parts are moving from code in [kit.js](../js/character/kit.js), [outfit.js](../js/character/outfit.js) and [face.js](../js/art/face.js) to content files that the bake checks and writes to `assets/models/parts/`. One part of each kind has moved so far: face 1, long hair, the tunic, plate and tabard, the great helm, the ragged cloak, the sword, the lantern, and the bare chest, legs and feet. The game still dresses characters from the code; the [workbench](workbench.md) compares the two.
+Every face, nose, hair style, beard, marking, feature and equipment item is a part in [content/parts/](../content/parts/), one folder per slot. The bake checks each part and writes it to `assets/models/parts/`. Each part places its blocks exactly where the prototype's code did, on every playable body and variant; the stamps changed the texels a little, which the owner accepted.
 
 ### Sockets, Regions and Slots
 
@@ -159,16 +160,19 @@ The humanoid rig names the places where parts attach and paint:
 |---|---|
 | `sockets` | Points on a bone, such as `hand.R`, with an optional rotation. `grip.R` is the hand turned so that a held weapon points forwards with its tip low. Every bone is also a socket at its pivot |
 | `regions` | Areas of bone faces, such as `face`, `scalp`, `torso`, `sleeves` and `hands`, each a list of bones with optional faces and rows |
-| `slots` | The slots the rig offers, in the order their parts paint |
+| `slots` | The slots the rig offers, in the order their parts paint. `feature` holds the parts the body lists |
+| `gear` | The equipment slots, with the names the creator shows |
+| `stances` | For each stance, the rest angle of the arm that holds the part |
 | `base` | The layers every outfit body paints first, which is the skin |
 
 ### Parts
 
-A part file in `content/parts/<slot>/` exports a `PART`:
+A file in `content/parts/<slot>/` exports a `PART`, or `PARTS` for a family of parts such as the faces or the hair styles:
 
 | Field | Holds |
 |---|---|
-| `id`, `slot` | The part's id, which matches the catalogue item or style, and its slot |
+| `id`, `slot`, `name`, `order` | The part's id, its slot, the name the creator shows, and its place in the slot's list |
+| `tints`, `colour`, `trimColour` | For gear: the palettes of its main colour and trim, and the default of each |
 | `paint` | Layers that paint body regions |
 | `blocks` | Blocks with an `at` socket, an optional `mirror` socket, a `size`, a `centre`, an optional `rotation` and the layers of each face, with `all` as the fallback |
 | `hidesHair` | For headgear, whether the hair part's blocks are left out |
@@ -176,7 +180,7 @@ A part file in `content/parts/<slot>/` exports a `PART`:
 
 Sizes and centres are numbers or sums of box sizes, as in rigs. A block with a `mirror` is copied to the mirror socket with x, and the y and z rotations, negated.
 
-A layer names a `stamp`, a `tint`, and optionally the `faces` and `rows` it covers, a `place` rule and the `variants` it applies to. Rows count from the top, or from the bottom when negative, so `[0, -5]` is all but the bottom five rows. A tint is a channel (`skin`, `hair`, `eyes`, `primary` or `trim`), a fixed `#rrggbb` colour, or an object that adds a `shade` factor or a `mix` with another colour.
+A layer names a `stamp`, a `tint`, and optionally the `faces` and `rows` it covers, a `place` rule and the `variants` it applies to. Rows count from the top, or from the bottom when negative, so `[0, -5]` is all but the bottom five rows. A row value between -1 and 1 that is not whole is a fraction of the height, so `[0.38]` starts 38 percent of the way down. A tint is a channel (`skin`, `hair`, `eyes`, `primary` or `trim`), a fixed `#rrggbb` colour, or an object that adds a `shade` factor or a `mix` with another colour or channel.
 
 The place rule gives the horizontal and the vertical rule, such as `"tile tile"` or `"centre top"`:
 
@@ -184,13 +188,14 @@ The place rule gives the horizontal and the vertical rule, such as `"tile tile"`
 |---|---|
 | `tile` | Repeats the stamp, starting at an offset drawn from the character's seed |
 | `centre` | Centres the stamp once |
+| `left`, `right` | Aligns the stamp with the left or right edge (horizontal only) |
 | `top`, `bottom` | Aligns the stamp with the top or bottom edge (vertical only) |
 
 ### Stamps
 
 A stamp is a rectangle of texels that the bake paints once. A stamp file in [content/stamps/](../content/stamps/) exports `STAMPS`, each with a `size`, a unique `seed`, a `paint` function and, for a lit stamp, `glow: true`. The paint function draws in the colour it is given wherever the texels take a part's tint.
 
-The bake paints each stamp twice with the same seed, once in grey and once in another colour. Texels that change are tinted, and their grey value gives their shade. Texels that do not change are fixed colours. The bake packs every stamp into `models/stamps.png` and stores each texel's kind in its alpha:
+The bake paints each stamp twice with the same seed, once in grey and once in another colour. Texels that change are tinted, and their grey value gives their shade. Texels that do not change are fixed colours. The bake packs every stamp into `models/stamps.png` and stores each texel's kind in its alpha. It also writes `models/stamps.preview.png`, which shows tinted texels in grey and cut-outs in magenta, for looking at only.
 
 | Alpha | Kind |
 |---|---|
@@ -200,11 +205,11 @@ The bake paints each stamp twice with the same seed, once in grey and once in an
 | 254 | A fixed colour that also glows |
 | 255 | A fixed colour |
 
-[compositor.js](../js/kit/compositor.js) draws stamps under these rules, and [dresser.js](../js/kit/dresser.js) turns the worn parts into blocks and face layers. `new CharacterModel(appearance, { pipeline: "parts" })` builds a model this way. Features that have not moved, such as noses and ears, still come from the kit.
+[compositor.js](../js/kit/compositor.js) draws stamps under these rules, and [dresser.js](../js/kit/dresser.js) turns the worn parts into blocks and face layers.
 
 ## Animation
 
-[Animator](../js/character/animator.js) poses a rig whose `motion` is `biped`, and leaves any other rig at its rest angles. It turns joints each frame and never moves them, except to bob the torso above its rest position. It blends from idle to walking at 2.4 metres a second and to running at 5.2: the legs and arms swing in opposite phase, the torso bobs and leans, the head looks around when standing, and the cape swings back with speed. Held items change the arms' rest angles, and `wave()` raises the right arm for 2.2 seconds.
+[Animator](../js/character/animator.js) poses a rig whose `motion` is `biped`, and leaves any other rig at its rest angles. It turns joints each frame and never moves them, except to bob the torso above its rest position. It blends from idle to walking at 2.4 metres a second and to running at 5.2: the legs and arms swing in opposite phase, the torso bobs and leans, the head looks around when standing, and the cape swings back with speed. A held part's `stance` sets its arm's rest angle from the rig's `stances` and damps that arm's swing, and `wave()` raises the right arm for 2.2 seconds.
 
 ## Adding Content
 
@@ -212,21 +217,22 @@ Each change below ends with `npm test`. The character model test builds every op
 
 ### A Hair Style
 
-1. Add `{ id, name }` to `HAIR_STYLES` in [catalogue.js](../js/character/catalogue.js).
-2. Add a case to `addHair` in [kit.js](../js/character/kit.js) for any blocks the style adds, such as a tail or a crest, on the `head` joint.
-3. When the style changes the hair painted on the head itself, add a case to `hair` in [face.js](../js/art/face.js).
+1. Add an entry to [hair/styles.js](../content/parts/hair/styles.js) with its hairline stamp, its scalp stamps and any blocks the style adds on the `head` socket, such as a tail or a crest.
+2. When the style needs new texels, add stamps to [stamps/head.js](../content/stamps/head.js).
 
 ### An Equipment Item
 
-1. Add the item to its slot's list in `EQUIPMENT`, with its `primary` and `trim` palettes and default colours.
-2. When it paints the body, add a case to the slot's function in [outfit.js](../js/character/outfit.js), such as `paintChest`.
-3. When it adds blocks, add a case to the slot's function in [kit.js](../js/character/kit.js), such as `addHeadgear`.
-4. When a held item needs a different arm pose, extend `poseArms` in [animator.js](../js/character/animator.js).
+1. Add a file to the slot's folder in [content/parts/](../content/parts/), with the item's `name`, `order`, `tints` and default colours, its paint layers and its blocks.
+2. When it needs new texels, add a stamp to [content/stamps/](../content/stamps/).
+3. For a held item, give it a `stance` the rig's `stances` name, and hang its blocks from a hand or grip socket.
+4. Add it to an archetype in [archetypes.js](../content/archetypes.js) if villagers should wear it.
+
+Run `npm run bake`, check the item in the [workbench](workbench.md), then run `npm run bake -- --accept`.
 
 ### A Race
 
-1. Add a body file to [content/bodies/](../content/bodies/) on the `humanoid` rig, with `surface: "outfit"`, `playable: true`, a 16-texel head, its box sizes, its `ears` shape, its `skins`, and `hasTusks` if it has them. Use the variants, sliders and measures in [humanoid-shared.js](../content/bodies/humanoid-shared.js) unless the race needs its own.
-2. For a new ear shape, add a case to `addFeatures` in [kit.js](../js/character/kit.js) and the shape to `EARS` in [tools/bake/models.js](../tools/bake/models.js).
+1. Add a body file to [content/bodies/](../content/bodies/) on the `humanoid` rig, with `surface: "outfit"`, `playable: true`, a 16-texel head, its box sizes, its `skins`, and the `features` it wears, such as `earsRound`. Use the variants, sliders and measures in [humanoid-shared.js](../content/bodies/humanoid-shared.js) unless the race needs its own.
+2. For a new ear shape or other feature, add a part to [feature/features.js](../content/parts/feature/features.js).
 3. Add name syllables to [names.js](../js/character/names.js), or the race's random names use the human syllables.
 4. Run `npm run bake`, check the race in the [workbench](workbench.md), then run `npm run bake -- --accept`.
 

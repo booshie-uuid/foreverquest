@@ -7,6 +7,11 @@ export const PART =
 {
     id: "plate",
     slot: "chest",
+    name: "Plate and Tabard",
+    order: 7,
+    tints: { primary: "metal", trim: "cloth" },
+    colour: "#7a7e85",
+    trimColour: "#4a1a18",
     paint:
     [
         { region: "torso", ...CHAIN },

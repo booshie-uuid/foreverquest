@@ -4,6 +4,11 @@ export const PART =
 {
     id: "pitchfork",
     slot: "mainHand",
+    name: "Pitchfork",
+    order: 6,
+    tints: { primary: "cloth", trim: "metal" },
+    colour: "#4a3424",
+    trimColour: "#4a4e56",
     stance: "pole",
     blocks:
     [

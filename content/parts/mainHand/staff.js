@@ -2,6 +2,11 @@ export const PART =
 {
     id: "staff",
     slot: "mainHand",
+    name: "Staff",
+    order: 5,
+    tints: { primary: "cloth", trim: "metal" },
+    colour: "#2e241c",
+    trimColour: "#8a7240",
     stance: "pole",
     blocks:
     [

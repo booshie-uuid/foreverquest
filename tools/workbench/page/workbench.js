@@ -4,9 +4,9 @@ import { Log } from "../../../js/log.js";
 import { ModelViewer } from "./model-viewer.js";
 import { Renderer } from "../../../js/engine/renderer.js";
 
-const DEFAULTS = { body: "human", variant: "male", height: 0, build: 0, skin: "", gear: "default", seed: 1, motion: "idle", overlay: false, compare: false, yaw: 0.5, zoom: 1 };
+const DEFAULTS = { body: "human", variant: "male", height: 0, build: 0, skin: "", gear: "default", seed: 1, motion: "idle", overlay: false, yaw: 0.5, zoom: 1 };
 const NUMBERS = ["height", "build", "seed", "yaw", "zoom"];
-const SWITCHES = ["overlay", "compare"];
+const SWITCHES = ["overlay"];
 
 
 /******************************************************************************/

@@ -1,6 +1,5 @@
-import * as Catalogue from "../../js/character/catalogue.js";
+import * as Dresser from "../../js/kit/dresser.js";
 import * as Fitter from "../../js/kit/fitter.js";
-import * as Kit from "../../js/character/kit.js";
 import * as Residents from "../../js/game/residents.js";
 import * as crypto from "node:crypto";
 import { Appearance } from "../../js/character/appearance.js";
@@ -83,7 +82,6 @@ export function characterRecord(library, look)
     const appearance = new Appearance(library, look);
     const model = new CharacterModel(appearance);
     const fitted = model.plan.fit;
-    const dims = { ...fitted.boxes, scale: fitted.scale };
 
     model.root.updateMatrixWorld(true);
 
@@ -106,7 +104,7 @@ export function characterRecord(library, look)
         height: round(model.plan.height),
         joints,
         bodyBlocks: Fitter.bodyBlocks(fitted).map(blockRecord),
-        partBlocks: Kit.partBlocks(appearance, dims).map(blockRecord),
+        partBlocks: sorted(Dresser.dress(fitted, appearance, library).blocks.map(blockRecord)),
         meshes,
         triangles: model.triangleCount,
         sheet: { width: model.textures.map.image.width, height: model.textures.map.image.height, map: hash(model.textures.map.image.data), glow: hash(model.textures.glow.image.data) },
@@ -122,7 +120,8 @@ export function characterRecord(library, look)
 export function partSweep(library)
 {
     const sweep = {};
-    const fields = { nose: Catalogue.NOSES, hair: Catalogue.HAIR_STYLES, beard: Catalogue.BEARD_STYLES };
+    const fields = ["nose", "hair", "beard"];
+    const gear = library.rig("humanoid").gear;
 
     for(const body of library.playableBodies)
     {
@@ -131,16 +130,16 @@ export function partSweep(library)
             const label = body.id + " " + variant.id + " ";
             const base = { body: body.id, variant: variant.id, hair: "bald", beard: "none", equipment: {} };
 
-            for(const slot of Catalogue.SLOTS) { base.equipment[slot.id] = { item: "none" }; }
+            for(const slot of gear) { base.equipment[slot.id] = { item: "none" }; }
 
-            for(const [field, options] of Object.entries(fields))
+            for(const field of fields)
             {
-                for(const option of options) { sweep[label + field + "=" + option.id] = partBlocks(library, { ...base, [field]: option.id }); }
+                for(const option of library.partsFor(field)) { sweep[label + field + "=" + option.id] = partBlocks(library, { ...base, [field]: option.id }); }
             }
 
-            for(const slot of Catalogue.SLOTS)
+            for(const slot of gear)
             {
-                for(const item of Catalogue.EQUIPMENT[slot.id])
+                for(const item of library.partsFor(slot.id))
                 {
                     const equipment = { ...base.equipment, [slot.id]: { item: item.id } };
 
@@ -158,7 +157,13 @@ function partBlocks(library, look)
     const appearance = new Appearance(library, look);
     const fitted = Fitter.fit(library.rig(appearance.body.rig), appearance.body, { variant: appearance.get("variant"), height: appearance.get("height"), build: appearance.get("build") });
 
-    return Kit.partBlocks(appearance, { ...fitted.boxes, scale: fitted.scale }).map(blockRecord);
+    return sorted(Dresser.dress(fitted, appearance, library).blocks.map(blockRecord));
+}
+
+// The dresser lists part blocks in the rig's slot order, unlike the prototype.
+export function sorted(records)
+{
+    return [...records].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
 }
 
 

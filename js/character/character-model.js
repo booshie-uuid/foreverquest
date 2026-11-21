@@ -1,7 +1,5 @@
 import * as Dresser from "../kit/dresser.js";
 import * as Fitter from "../kit/fitter.js";
-import * as Kit from "./kit.js";
-import * as Outfit from "./outfit.js";
 import * as Placeholder from "./placeholder.js";
 import * as THREE from "three";
 import { BlockBuilder } from "../geometry/block-builder.js";
@@ -10,10 +8,9 @@ import { Sheet } from "./sheet.js";
 
 export class CharacterModel
 {
-    constructor(appearance, { pipeline = "legacy" } = {})
+    constructor(appearance)
     {
         this.appearance = appearance;
-        this.pipeline = pipeline;
         this.root = new THREE.Group();
         this.body = new THREE.Group();
         this.joints = { root: this.body };
@@ -79,15 +76,13 @@ export class CharacterModel
 
     assemble(look, fitted)
     {
-        const body = [...Fitter.bodyBlocks(fitted)];
-        const dims = { ...fitted.boxes, scale: fitted.scale };
+        const body = Fitter.bodyBlocks(fitted);
 
         if(look.body.surface !== "outfit") { return { blocks: body, layers: Placeholder.layers(look, fitted) }; }
-        if(this.pipeline === "legacy") { return { blocks: [...body, ...Kit.partBlocks(look, dims)], layers: Outfit.layers(look, dims) }; }
 
         const dressed = Dresser.dress(fitted, look, look.library);
 
-        return { blocks: [...body, ...Kit.featureBlocks(look), ...dressed.blocks], layers: dressed.layers };
+        return { blocks: [...body, ...dressed.blocks], layers: dressed.layers };
     }
 
     static planOf(fitted)

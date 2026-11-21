@@ -2,11 +2,13 @@ import * as Head from "../../stamps/head.js";
 
 const FACE = { region: "face", place: "centre centre" };
 
-function face(id, shape)
+function face(id, shape, order)
 {
     return {
         id,
         slot: "face",
+        name: shape.name,
+        order,
         paint:
         [
             { ...FACE, stamp: "face." + id + ".brows", tint: { of: "hair", shade: 0.75 } },
@@ -20,4 +22,4 @@ function face(id, shape)
     };
 }
 
-export const PARTS = Object.entries(Head.FACES).map(([id, shape]) => face(id, shape));
+export const PARTS = Object.entries(Head.FACES).map(([id, shape], order) => face(id, shape, order));

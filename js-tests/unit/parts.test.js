@@ -1,5 +1,4 @@
 import * as Capture from "../reference/capture.js";
-import * as Catalogue from "../../js/character/catalogue.js";
 import * as Compositor from "../../js/kit/compositor.js";
 import * as Dresser from "../../js/kit/dresser.js";
 import * as Fitter from "../../js/kit/fitter.js";
@@ -16,7 +15,7 @@ import { Raster } from "../../js/engine/raster.js";
 const library = await TestAssets.library();
 const REFERENCE = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "..", "reference", "prototype.json"), "utf8"));
 const LOOK_SLOTS = ["nose", "hair", "face", "beard", "markings"];
-const BARE = Object.fromEntries(Catalogue.SLOTS.map((slot) => [slot.id, { item: "none" }]));
+const BARE = Object.fromEntries(library.rig("humanoid").gear.map((slot) => [slot.id, { item: "none" }]));
 
 // A 4 by 2 stamp: a tinted row at shade 1.5 over a fixed, a glowing, a clear
 // and a skipped texel.
@@ -94,8 +93,67 @@ describe("Compositor", () =>
     });
 });
 
+function face(changes)
+{
+    const look = new Appearance(library, { face: "1", hair: "bald", beard: "none", markings: "none", eyes: "#3d4a3a", ...changes });
+    const fitted = Fitter.fit(library.rig("humanoid"), look.body, { variant: look.get("variant") });
+    const raster = new Raster(16, 16);
+    const area = { x: 0, y: 0, w: 16, h: 16 };
+
+    for(const painter of Dresser.dress(fitted, look, library).layers.head.front) { painter(raster, area, new Random(5), new Raster(16, 16)); }
+
+    return raster;
+}
+
+function differences(a, b)
+{
+    return a.data.filter((value, i) => value !== b.data[i]).length;
+}
+
+describe("Faces", () =>
+{
+    it("paints the iris in the eye colour", () =>
+    {
+        const raster = face({ eyes: "#6a2a2a" });
+
+        assert.deepEqual(raster.get(4, 8).slice(0, 3), [0x6a, 0x2a, 0x2a]);
+        assert.deepEqual(raster.get(11, 8).slice(0, 3), [0x6a, 0x2a, 0x2a]);
+    });
+
+    it("changes the face for each beard and marking", () =>
+    {
+        const plain = face({});
+
+        for(const beard of ["stubble", "moustache", "full"]) { assert.ok(differences(plain, face({ beard })) > 8, beard); }
+        for(const markings of ["scar", "weathered", "warpaint", "tattoo"]) { assert.ok(differences(plain, face({ markings })) > 4, markings); }
+    });
+});
+
 describe("Dresser", () =>
 {
+    it("adds tusks for orcs only", () =>
+    {
+        const tusks = (body) =>
+        {
+            const look = new Appearance(library, { body, equipment: BARE });
+            const fitted = Fitter.fit(library.rig("humanoid"), look.body, { variant: "male" });
+
+            return Dresser.dress(fitted, look, library).blocks.filter((block) => block.size.join() === "1,3,1").length;
+        };
+
+        assert.equal(tusks("orc"), 2);
+        assert.equal(tusks("human"), 0);
+    });
+
+    it("holds weapons in the hands and hangs tails from the legs", () =>
+    {
+        const look = new Appearance(library, { equipment: { chest: { item: "coat" }, mainHand: { item: "sword" }, offHand: { item: "lantern" } } });
+        const fitted = Fitter.fit(library.rig("humanoid"), look.body, { variant: "male" });
+        const joints = new Set(Dresser.dress(fitted, look, library).blocks.map((block) => block.joint));
+
+        assert.ok(joints.has("armR") && joints.has("armL") && joints.has("legL") && joints.has("legR"));
+    });
+
     it("places every baked part's blocks where the prototype placed them, on every body and variant", () =>
     {
         let checked = 0;
@@ -144,7 +202,7 @@ describe("Dresser", () =>
             for(const variant of body.variants)
             {
                 const look = { body: body.id, variant: variant.id, face: "1", hair: "long", beard: "none", markings: "none", equipment: { head: { item: "helm" }, chest: { item: "plate" }, back: { item: "cloak" }, mainHand: { item: "sword" }, offHand: { item: "lantern" } } };
-                const model = new CharacterModel(new Appearance(library, look), { pipeline: "parts" });
+                const model = new CharacterModel(new Appearance(library, look));
 
                 for(const mesh of model.meshes)
                 {

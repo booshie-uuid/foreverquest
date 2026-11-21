@@ -4,6 +4,10 @@ export const PART =
 {
     id: "lantern",
     slot: "offHand",
+    name: "Lantern",
+    order: 3,
+    tints: { primary: "metal" },
+    colour: "#2e3034",
     stance: "lantern",
     blocks:
     [

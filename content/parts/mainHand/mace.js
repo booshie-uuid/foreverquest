@@ -5,6 +5,11 @@ export const PART =
 {
     id: "mace",
     slot: "mainHand",
+    name: "Mace",
+    order: 3,
+    tints: { primary: "metal", trim: "cloth" },
+    colour: "#4a4e56",
+    trimColour: "#2e241c",
     stance: "blade",
     blocks:
     [

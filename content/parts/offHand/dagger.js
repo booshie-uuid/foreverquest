@@ -3,6 +3,11 @@ export const PART =
 {
     id: "dagger",
     slot: "offHand",
+    name: "Dagger",
+    order: 4,
+    tints: { primary: "metal", trim: "cloth" },
+    colour: "#9a9ea4",
+    trimColour: "#2e241c",
     stance: "dagger",
     blocks:
     [

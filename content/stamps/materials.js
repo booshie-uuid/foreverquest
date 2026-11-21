@@ -1,4 +1,4 @@
-import * as Pixels from "../../js/art/pixels.js";
+import * as Pixels from "../art/pixels.js";
 
 const TILE = [48, 48];
 

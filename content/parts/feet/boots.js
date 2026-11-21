@@ -4,6 +4,10 @@ export const PART =
 {
     id: "boots",
     slot: "feet",
+    name: "Tall Boots",
+    order: 2,
+    tints: { primary: "cloth" },
+    colour: "#2e241c",
     paint:
     [
         { region: "legs", faces: Shared.SIDES, rows: [-16], stamp: "leather", tint: "primary" },

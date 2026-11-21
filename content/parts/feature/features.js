@@ -3,7 +3,7 @@ const EAR = [{ stamp: "grit.flat", tint: { of: "skin", shade: 0.92 } }];
 
 function ears(id, blocks)
 {
-    return { id, slot: "feature", blocks: blocks.map((block) => ({ at: "head", mirror: "head", faces: { all: EAR }, ...block })) };
+    return { id, slot: "feature", name: id, blocks: blocks.map((block) => ({ at: "head", mirror: "head", faces: { all: EAR }, ...block })) };
 }
 
 export const PARTS =
@@ -15,6 +15,7 @@ export const PARTS =
     {
         id: "tusks",
         slot: "feature",
+        name: "Tusks",
         blocks: [{ at: "head", mirror: "head", size: [1, 3, 1], centre: [3, 3.5, 8.5], faces: { all: [{ stamp: "grit.flat", tint: "#cfc6ae" }] } }],
     },
 ];

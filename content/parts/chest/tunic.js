@@ -6,6 +6,11 @@ export const PART =
 {
     id: "tunic",
     slot: "chest",
+    name: "Tunic",
+    order: 2,
+    tints: { primary: "cloth", trim: "cloth" },
+    colour: "#3e4a2a",
+    trimColour: "#4a3424",
     paint:
     [
         { region: "torso", ...CLOTH },

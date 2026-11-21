@@ -4,6 +4,11 @@ export const PART =
 {
     id: "helm",
     slot: "head",
+    name: "Great Helm",
+    order: 4,
+    tints: { primary: "metal", trim: "metal" },
+    colour: "#4a4e56",
+    trimColour: "#8a7240",
     hidesHair: true,
     blocks:
     [

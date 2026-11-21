@@ -4,6 +4,10 @@ export const PART =
 {
     id: "coif",
     slot: "head",
+    name: "Mail Coif",
+    order: 2,
+    tints: { primary: "metal" },
+    colour: "#7a7e85",
     hidesHair: true,
     blocks:
     [

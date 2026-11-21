@@ -1,4 +1,4 @@
-import * as Pixels from "../art/pixels.js";
+import * as Colour from "../art/colour.js";
 
 // Stamp texel kinds, stored in the alpha channel. A tinted texel stores its
 // shade in red, as a multiple of GREY.
@@ -24,10 +24,10 @@ export function resolve(tint, colours)
     let colour = tint.colour ?? colours[tint.of];
 
     if(!colour) { return null; }
-    if(tint.mix) { colour = Pixels.mix(colour, colours[tint.mix] ?? tint.mix, tint.amount); }
-    if(tint.shade) { colour = Pixels.shade(colour, tint.shade); }
+    if(tint.mix) { colour = Colour.mix(colour, colours[tint.mix] ?? tint.mix, tint.amount); }
+    if(tint.shade) { colour = Colour.shade(colour, tint.shade); }
 
-    return Pixels.rgb(colour);
+    return Colour.rgb(colour);
 }
 
 
@@ -95,7 +95,7 @@ function write(texel, colour, raster, glow, x, y)
 
     if(kind === TINTED)
     {
-        raster.set(x, y, Pixels.shade(colour ?? [GREY, GREY, GREY, 255], texel[0] / GREY));
+        raster.set(x, y, Colour.shade(colour ?? [GREY, GREY, GREY, 255], texel[0] / GREY));
         return;
     }
 

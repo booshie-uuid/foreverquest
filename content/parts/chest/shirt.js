@@ -6,6 +6,10 @@ export const PART =
 {
     id: "shirt",
     slot: "chest",
+    name: "Shirt",
+    order: 1,
+    tints: { primary: "cloth" },
+    colour: "#7a705c",
     paint:
     [
         { region: "torso", ...CLOTH },
