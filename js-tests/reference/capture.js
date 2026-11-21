@@ -1,11 +1,10 @@
 import * as Dresser from "../../js/kit/dresser.js";
 import * as Fitter from "../../js/kit/fitter.js";
-import * as Residents from "../../js/game/residents.js";
+import * as Npcs from "../../content/npcs/hearthmere.js";
 import * as crypto from "node:crypto";
 import { Appearance } from "../../js/character/appearance.js";
 import { CharacterModel } from "../../js/character/character-model.js";
 import { Random } from "../../js/util/random.js";
-import { World } from "../../js/world/world.js";
 
 const RANDOM_SEEDS = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233];
 const PLACES = 6;
@@ -56,7 +55,7 @@ export function appearanceInputs(library)
 {
     const inputs = [{ label: "default", look: new Appearance(library).toJSON() }];
 
-    for(const resident of Residents.RESIDENTS) { inputs.push({ label: "resident " + resident.look.name, look: new Appearance(library, resident.look).toJSON() }); }
+    for(const npc of Object.values(Npcs.NPCS)) { inputs.push({ label: "resident " + npc.name, look: new Appearance(library, npc.look).toJSON() }); }
 
     for(const body of library.playableBodies)
     {
@@ -176,27 +175,14 @@ export function worldTexturesRecord(atlas)
     return { layers: [...atlas.names], upload: hash(atlas.upload) };
 }
 
-export function zoneRecord(materials)
+// Meshes are left out: the zone draws in chunks.
+export function zoneRecord(zone)
 {
-    const world = new World(materials, 7);
-    const terrain = world.terrain;
-    const meshes = {};
-
-    world.scene.traverse((node) =>
-    {
-        if(node.name !== "terrain" && node.name !== "props") { return; }
-
-        const geometry = node.geometry;
-
-        meshes[node.name] = hash(geometry.getAttribute("position").array, geometry.getAttribute("normal").array, geometry.getAttribute("uv").array, geometry.getAttribute("layer").array);
-    });
-
     return {
-        size: terrain.size,
-        levels: hash(terrain.levels),
-        types: hash(new TextEncoder().encode(terrain.types.join(","))),
-        colliders: world.colliders.map((collider) => Object.fromEntries(Object.entries(collider).map(([key, value]) => [key, round(value)]))),
-        lightSpots: world.lightSpots.map(round),
-        meshes,
+        size: zone.size,
+        levels: hash(zone.levels),
+        types: hash(new TextEncoder().encode(zone.types.join(","))),
+        colliders: zone.colliders.map((collider) => Object.fromEntries(Object.entries(collider).map(([key, value]) => [key, round(value)]))),
+        lightSpots: zone.lightSpots.map(round),
     };
 }

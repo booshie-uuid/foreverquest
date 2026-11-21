@@ -1,6 +1,7 @@
 {
     "id": "hearthmere",
     "name": "Hearthmere",
+    "welcome": ["Welcome to Hearthmere. Click the ground to walk, or click a villager to talk.", "Mirelle the tailor can change your appearance."],
     "size": 96,
     "step": 0.25,
     "waterLevel": -0.1,

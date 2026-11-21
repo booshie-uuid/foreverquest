@@ -8,6 +8,7 @@ import { describe, it } from "node:test";
 const REFERENCE = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "..", "reference", "prototype.json"), "utf8"));
 const materials = await TestAssets.materials();
 const library = await TestAssets.library();
+const hearthmere = await TestAssets.zone("hearthmere");
 
 describe("Prototype reference", () =>
 {
@@ -40,8 +41,25 @@ describe("Prototype reference", () =>
         assert.deepEqual(Capture.worldTexturesRecord(materials.atlas), REFERENCE.worldTextures);
     });
 
-    it("builds the same zone tiles, colliders, lights and meshes", () =>
+    // The zone file stores scales to six places, so a scaled radius can
+    // differ from the reference in its sixth place.
+    it("bakes Hearthmere with the same tiles, colliders and light spots", () =>
     {
-        assert.deepEqual(Capture.zoneRecord(materials), REFERENCE.zone);
+        const actual = Capture.zoneRecord(hearthmere);
+        const expected = REFERENCE.zone;
+        const near = (a, b, label) => assert.ok(Math.abs(a - b) <= 1e-5, label + ": " + a + " is not " + b);
+
+        assert.deepEqual([actual.size, actual.levels, actual.types], [expected.size, expected.levels, expected.types]);
+        assert.equal(actual.colliders.length, expected.colliders.length);
+        assert.equal(actual.lightSpots.length, expected.lightSpots.length);
+
+        expected.colliders.forEach((collider, i) =>
+        {
+            assert.deepEqual(Object.keys(actual.colliders[i]).sort(), Object.keys(collider).sort(), "collider " + i);
+
+            for(const [key, value] of Object.entries(collider)) { near(actual.colliders[i][key], value, "collider " + i + " " + key); }
+        });
+
+        expected.lightSpots.forEach((spot, i) => spot.forEach((value, axis) => near(actual.lightSpots[i][axis], value, "light " + i)));
     });
 });

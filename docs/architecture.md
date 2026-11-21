@@ -22,7 +22,7 @@ flowchart TB
 
     subgraph domain_layer ["Domain"]
         character[Character kit]
-        world[World]
+        world[Zone data and view]
         game_logic[Actors and NPCs]
     end
 
@@ -53,7 +53,7 @@ flowchart TB
 |---|---|---|
 | Application | [js/](../js/) | `main.js` opens the asset source and boots the app. `App` loads the library of rigs and bodies and the world atlas, then owns the renderer, the material library, the graphics settings, the player's appearance and both screens. `CharacterStore` saves the appearance to `localStorage` |
 | Screens | [js/ui/](../js/ui/), [js/game/](../js/game/) | `CreatorScreen` is the character creator. `GameScreen` runs the world: input, camera, actors, talking and the HUD |
-| Domain | [js/kit/](../js/kit/), [js/character/](../js/character/), [js/world/](../js/world/), [js/game/](../js/game/) | `Library` holds the baked rigs, bodies, parts, stamps, palettes and archetypes. The fitter sizes and places a body's bones, the dresser lists the worn parts' blocks and face layers, and the compositor paints stamps. The character kit turns an `Appearance` into a `CharacterModel`. `World` builds the terrain, props, lights and collision. `Actor` moves a character through the world, and `NpcBrain` wanders and talks |
+| Domain | [js/kit/](../js/kit/), [js/character/](../js/character/), [js/sim/](../js/sim/), [js/render/](../js/render/), [js/game/](../js/game/) | `Library` holds the baked rigs, bodies, parts, stamps, palettes and archetypes. The fitter sizes and places a body's bones, the dresser lists the worn parts' blocks and face layers, and the compositor paints stamps. The character kit turns an `Appearance` into a `CharacterModel`. `ZoneData` holds a zone's tiles, placed props, colliders and light spots, with no Three.js or page. `ZoneView` draws a zone in chunks with its water, sky and lights. `Actor` moves a character through a zone, and `NpcBrain` wanders and talks |
 | Support | [js/art/](../js/art/), [js/geometry/](../js/geometry/), [js/engine/](../js/engine/) | The colour maths, `BlockBuilder`, `Raster`, `AssetSource`, the PNG decoder, `WorldAtlas`, `Renderer`, `MaterialLibrary` and `GraphicsSettings` |
 | Utilities | [js/util/](../js/util/) | Seeded random numbers and value noise |
 
@@ -75,7 +75,7 @@ sequenceDiagram
     participant renderer as Renderer
     participant screen as GameScreen
     participant actors as Actors
-    participant world as World
+    participant world as ZoneData
     participant hud as Hud
 
     renderer->>screen: update(delta)
@@ -110,14 +110,14 @@ The player's `Appearance` lives in `App`. The creator edits a separate draft cop
 | Character kit | Texels, where `Fitter.TEXEL` is 1.8 / 88 metres (about 2 cm) | Each block's size and centre are in texels, relative to its joint |
 | Block faces | Texels on the face | u runs left to right and v bottom to top as seen from outside the block (see [block-builder.js](../js/geometry/block-builder.js)) |
 | Painter areas | Texels in a raster | `{ x, y, w, h }` with y counting down from the top row. Drawing wraps inside the area |
-| Terrain | One-metre tiles | Tile heights rise in steps of `Terrain.STEP`, 0.25 metres |
+| Zone tiles | One-metre tiles | Tile heights rise in steps of the zone's `step`, 0.25 metres in every zone today |
 | World textures | 16 texels a metre | Each layer is 32 by 32 texels and tiles every 2 metres |
 
 Rasters are painted top-down and uploaded to the GPU bottom-up, so `Sheet.texture()` and `WorldAtlas` flip the rows.
 
 ## Rendering
 
-The world uses one material, `MaterialLibrary.world`. It is a Lambert material patched to read a texture array: every world vertex carries a `uv` and a `layer`, and the layers that the atlas marks as glow also light themselves. Each character has its own Lambert material whose map is its texture sheet and whose emissive map holds glowing texels such as a lantern. A directional moonlight casts shadow maps, and a point light sits at each lit window and lamp.
+The world uses one material, `MaterialLibrary.world`. It is a Lambert material patched to read a texture array: every world vertex carries a `uv` and a `layer`, and the layers that the atlas marks as glow also light themselves. Each character has its own Lambert material whose map is its texture sheet and whose emissive map holds glowing texels such as a lantern. A directional moonlight casts shadow maps, and six point lights follow the lit windows and lamps nearest the player.
 
 The Retro toggle sets the renderer's pixel ratio so that it draws 640 pixels across, and the canvas scales the picture up with `image-rendering: pixelated`.
 

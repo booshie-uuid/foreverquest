@@ -1,6 +1,6 @@
 # Workbench
 
-The workbench is a page for looking at baked assets outside the game. It reads the same files the game reads, so it shows what the game will show. It holds the model viewer today; a prop viewer and a zone editor are planned.
+The workbench is a page for looking at baked assets outside the game. It reads the same files the game reads, so it shows what the game will show. It holds a model viewer and a prop viewer, which the buttons at the top right switch between; a zone editor is planned.
 
 ## Opening the Workbench
 
@@ -25,6 +25,10 @@ The model viewer shows one body at a time, from any rig, including creature bodi
 The panel at the bottom right shows the rig, the number of bones and triangles, the sheet size and the model's height.
 
 The page keeps the view in its address, such as `?body=wolf&overlay=bones&yaw=1.1`, so a link or a reload opens the same view.
+
+## Prop Viewer
+
+The prop viewer, at `?view=props`, shows one prefab at a time. The Prefab stepper steps through every prefab in alphabetical order, and "Colliders and lights" outlines each collider on the ground and marks each light spot. Drag turns the prop and the mouse wheel zooms. The address keeps the view, such as `?view=props&prefab=house.inn&overlay=1`.
 
 ## Capturing a View
 

@@ -1,6 +1,6 @@
 {
     "files": {
-        "migrations.json": "05423f8390de60769f4fa43ba6b1f0132691bcfb437928c5eee035c619067b2c",
+        "migrations.json": "f9802d9fb9eb1593b49d95db5b979a7b07dc9c86ad7792798bd41545a4465c43",
         "models/appearance.json": "8cf415eb281d3f71d9b89fc40f092eff9f6c23a35b7b23de38916110d483dfd4",
         "models/archetypes.json": "2be2c9e982bea9d46e186a6ea92b6fe9947342c48002d34b68eea53d51ec8604",
         "models/bodies/dwarf.json": "38e57469ebe3013204b9a8d100de33f136baf8697a582d20830ed1765dd207ec",
@@ -101,8 +101,13 @@
         "models/stamps.json": "b6da78337ef6cc0431b3b0112287bd53c0fcc2c2bee05b6feb9da068d4fe8e1e",
         "models/stamps.png": "bfb9e3399c779021d4fd7702c8ca899e76d2777879be2fc9de12417134558cb0",
         "models/stamps.preview.png": "9f2389b18e2ba3e94058e93a6cc716a7a13e57e42b956b2d71c6f522bab52f9b",
+        "npcs.json": "9b06f5c5aacaa28191302bb956ccf05b4d2beafab2ac9917b407f3bdc2cb0491",
+        "props/prefabs.json": "1dfa56c8e1c6b15d5a297d29f01df6ba989df7e944d71b0a678288f4e9cedd5c",
         "textures/world.json": "952d81b42134e8c39465bec24af55f88fb6454e8642a5ce8d85d4a2b599b1d39",
-        "textures/world.png": "bb5358e5ce874d26433d9fe68a985ffbe6e5aba2cfb363879792f58014e9648e"
+        "textures/world.png": "bb5358e5ce874d26433d9fe68a985ffbe6e5aba2cfb363879792f58014e9648e",
+        "zones/hearthmere.json": "498088273d973a25575caf88a993b0a4153886dc7b2b671c91f58e3697fc77e2",
+        "zones/index.json": "5038e8ebfc486011d34ea5033b4bc4c7a43f2822be572abeab4377303730800a",
+        "zones/testfield.json": "96b93c49e9f22bd30d7040153aa4b493487d30d4c57f40c7c183369b7b16f43d"
     },
     "ids": {
         "action": [
@@ -134,6 +139,15 @@
         "clip": [
             "humanoid",
             "quadruped"
+        ],
+        "npc": [
+            "aldric",
+            "brom",
+            "grukk",
+            "ilyra",
+            "mirelle",
+            "osric",
+            "pip"
         ],
         "part": [
             "back/cape",
@@ -216,6 +230,83 @@
             "offHand/heater",
             "offHand/lantern",
             "offHand/none"
+        ],
+        "prefab": [
+            "barrel",
+            "bush.0",
+            "bush.1",
+            "bush.2",
+            "bush.3",
+            "bush.4",
+            "bush.5",
+            "bush.6",
+            "bush.7",
+            "cart",
+            "chapel",
+            "cottage",
+            "crate50",
+            "crate55",
+            "crate65",
+            "crate70",
+            "deadTree.0",
+            "deadTree.1",
+            "deadTree.2",
+            "deadTree.3",
+            "deadTree.4",
+            "deadTree.5",
+            "deadTree.6",
+            "deadTree.7",
+            "gibbet",
+            "grave.0",
+            "grave.1",
+            "grave.2",
+            "grave.3",
+            "grave.4",
+            "grave.5",
+            "grave.6",
+            "grave.7",
+            "house.croft",
+            "house.inn",
+            "house.slate",
+            "house.thatch",
+            "lampPost",
+            "oak.0",
+            "oak.1",
+            "oak.2",
+            "oak.3",
+            "oak.4",
+            "oak.5",
+            "oak.6",
+            "oak.7",
+            "pedestal",
+            "pine.0",
+            "pine.1",
+            "pine.2",
+            "pine.3",
+            "pine.4",
+            "pine.5",
+            "pine.6",
+            "pine.7",
+            "rock.0",
+            "rock.1",
+            "rock.2",
+            "rock.3",
+            "rock.4",
+            "rock.5",
+            "rock.6",
+            "rock.7",
+            "sacks",
+            "signpost",
+            "stocks",
+            "weeds.0",
+            "weeds.1",
+            "weeds.2",
+            "weeds.3",
+            "weeds.4",
+            "weeds.5",
+            "weeds.6",
+            "weeds.7",
+            "well"
         ],
         "rig": [
             "humanoid",
@@ -318,6 +409,10 @@
             "stone",
             "thatch",
             "timber"
+        ],
+        "zone": [
+            "hearthmere",
+            "testfield"
         ]
     }
 }

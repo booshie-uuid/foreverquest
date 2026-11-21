@@ -10,4 +10,7 @@ export const IDS =
     "stamp": {},
     "clip": {},
     "action": {},
+    "prefab": {},
+    "zone": {},
+    "npc": {},
 };

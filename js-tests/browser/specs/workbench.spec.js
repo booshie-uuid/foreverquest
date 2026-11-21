@@ -68,4 +68,27 @@ export const tests =
             assert.equal(wolf.overlay, 0);
         },
     },
+    {
+        name: "the prop viewer shows a prefab with its colliders and lights, and steps to the next",
+        run: async ({ page, baseUrl }) =>
+        {
+            await openViewer(page, baseUrl, "view=props&prefab=lampPost&overlay=1");
+
+            const lamp = await page.evaluate(() =>
+            {
+                const viewer = window.workbench.viewer;
+
+                return { prefab: viewer.prefabId, overlay: viewer.overlay.children.length, triangles: viewer.mesh.geometry.getAttribute("position").count / 3 };
+            });
+
+            assert.equal(lamp.prefab, "lampPost");
+            assert.equal(lamp.overlay, 2);
+            assert.ok(lamp.triangles > 0);
+
+            await page.click("[aria-label='Next Prefab']");
+
+            assert.notEqual(await page.evaluate(() => window.workbench.viewer.prefabId), "lampPost");
+            assert.match(await page.evaluate(() => location.search), /view=props/);
+        },
+    },
 ];

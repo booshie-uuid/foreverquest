@@ -8,13 +8,17 @@ import { Library } from "./kit/library.js";
 import { MaterialLibrary } from "./engine/materials.js";
 import { Renderer } from "./engine/renderer.js";
 import { WorldAtlas } from "./engine/world-atlas.js";
+import { ZoneData } from "./sim/zone-data.js";
 
 export class App
 {
-    constructor(container, storage, assets)
+    constructor(container, storage, assets, { zone = "hearthmere" } = {})
     {
         this.container = container;
         this.assets = assets;
+        this.startZone = zone;
+        this.content = null;
+        this.zone = null;
         this.store = new CharacterStore(storage);
         this.renderer = new Renderer(container);
         this.graphics = new GraphicsSettings(this.renderer);
@@ -36,6 +40,8 @@ export class App
         {
             this.library = await Library.load(this.assets);
             this.materials = new MaterialLibrary(await WorldAtlas.load(this.assets));
+            this.content = { prefabs: await this.assets.json("props/prefabs.json"), people: await this.assets.json("npcs.json") };
+            this.zone = await this.loadZone(this.startZone);
         }
         finally
         {
@@ -47,6 +53,7 @@ export class App
             this.container,
             this.library,
             this.materials,
+            this.content.prefabs,
             this.graphics,
             (draft) => this.confirmCreator(draft),
             () => this.showGame(),
@@ -55,6 +62,17 @@ export class App
         this.showCreator("create");
         this.renderer.start();
         this.isReady = true;
+    }
+
+    async loadZone(id)
+    {
+        return new ZoneData(await this.assets.json("zones/" + id + ".json"), this.content.prefabs);
+    }
+
+    async travel(id)
+    {
+        this.zone = await this.loadZone(id);
+        this.game?.enterZone(this.zone);
     }
 
     get screen()
@@ -79,7 +97,7 @@ export class App
     {
         if(!this.game)
         {
-            this.game = new GameScreen(this.container, this.renderer.canvas, this.appearance, this.materials, this.graphics, () => this.showCreator("edit"));
+            this.game = new GameScreen(this.container, this.renderer.canvas, this.appearance, this.materials, this.graphics, () => this.showCreator("edit"), this.content, this.zone);
         }
 
         this.renderer.setScreen(this.game);

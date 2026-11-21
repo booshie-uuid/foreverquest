@@ -39,3 +39,16 @@
     padding: 8px 12px;
     font-variant-numeric: tabular-nums;
 }
+
+.workbench-views
+{
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    padding: 6px;
+}
+
+.workbench-views a
+{
+    text-decoration: none;
+}

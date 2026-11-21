@@ -1,10 +1,10 @@
 import * as Controls from "./controls.js";
-import * as Props from "../world/props.js";
+import * as PropMesher from "../render/prop-mesher.js";
 import * as THREE from "three";
 import { Appearance } from "../character/appearance.js";
+import { BlockBuilder } from "../geometry/block-builder.js";
 import { CharacterModel } from "../character/character-model.js";
 import { ClipPlayer } from "../kit/clip-player.js";
-import { PropBuilder } from "../world/prop-builder.js";
 import { Random } from "../util/random.js";
 
 const PANEL_WIDTH = 380;
@@ -31,10 +31,11 @@ const POSES =
 
 export class CreatorScreen
 {
-    constructor(container, library, materials, graphics, onConfirm, onCancel)
+    constructor(container, library, materials, prefabs, graphics, onConfirm, onCancel)
     {
         this.library = library;
         this.materials = materials;
+        this.prefabs = prefabs;
         this.graphics = graphics;
         this.onConfirm = onConfirm;
         this.onCancel = onCancel;
@@ -103,20 +104,9 @@ export class CreatorScreen
 
     buildPedestal()
     {
-        const builder = new PropBuilder(this.materials.atlas);
+        const builder = new BlockBuilder();
 
-        for(let x = -3; x < 3; x++)
-        {
-            for(let z = -2; z < 2; z++)
-            {
-                const isEdge = Math.abs(x + 0.5) > 1.5 || Math.abs(z + 0.5) > 1;
-
-                Props.block(builder, [1, 0.5, 1], [x + 0.5, isEdge ? -0.3 : -0.25, z + 0.5], { top: isEdge ? "mud" : "cobble", all: "earth" });
-            }
-        }
-
-        Props.block(builder, [0.6, 0.85, 0.6], [-2.4, 0.425, -1.5], { top: "oldPlanks", all: "planks" });
-        Props.block(builder, [0.55, 0.55, 0.55], [2.5, 0.275, -1.6], "oldPlanks", [0, 0.4, 0]);
+        PropMesher.addPrefab(builder, this.materials.atlas, this.prefabs.pedestal, { x: 0, y: 0, z: 0, angle: 0, scale: 1 });
 
         const mesh = new THREE.Mesh(builder.build(), this.materials.world);
 

@@ -1,6 +1,6 @@
 # ForeverQuest
 
-ForeverQuest is a proof of concept for a browser role-playing game in the style of early online RPGs. It has a character creator and a small village to walk around. Every model and every texture in it is made by code, not drawn by hand, so new art is a code change. Authoring code in [content/](content/) is baked into asset files that the game loads. The world textures and every part of the characters are baked; the village is still generated when the page loads. A workbench page shows baked models outside the game.
+ForeverQuest is a proof of concept for a browser role-playing game in the style of early online RPGs. It has a character creator and a small village to walk around. Every model and every texture in it is made by code, not drawn by hand, so new art is a code change. Authoring code in [content/](content/) is baked into asset files that the game loads. The world textures, every part of the characters, the props and the zones are baked; the game generates no art when it runs. A workbench page shows baked models outside the game.
 
 The game runs on HTML5 and WebGL. Its only runtime library is [Three.js](https://threejs.org/) 0.187, which renders the scenes. A copy of Three.js sits in [libs/three/](libs/three/), so the game runs without an install step.
 
@@ -116,11 +116,11 @@ To add a world texture, add a name, a seed and a painter to `TEXTURES` in [conte
 
 ## The World
 
-The village of Hearthmere sits on a grid of 96 by 96 one-metre tiles. [Terrain](js/world/terrain.js) raises each tile in quarter-metre steps from seeded noise, flattens the village, sinks a lake and lays paths, then types each tile as grass, moss, mud, cobble, sand or stone. Where the ground drops, the tile shows an earth or rock face.
+The village of Hearthmere is a zone file, [content/zones/hearthmere.json](content/zones/hearthmere.json): a grid of 96 by 96 one-metre tiles in quarter-metre steps, typed as grass, moss, mud, cobble, sand or stone, with the props placed on it. Where the ground drops, the tile shows an earth or rock face.
 
-[Props](js/world/props.js) builds every prop from textured blocks: jettied timber houses on stone plinths with stepped slate or thatch roofs, stone cottages, a chapel with a bell tower, a graveyard, a well, lamp posts, stocks, a cart, barrels, crates, sacks, fences, a signpost, a gibbet, pines, oaks, dead trees, rocks, bushes and weeds. [World](js/world/world.js) places them and merges them into one mesh, so the props draw in one call. All world blocks share one material, which reads its textures from one texture array.
+Every prop is a prefab built from textured blocks by [content/art/props.js](content/art/props.js): jettied timber houses on stone plinths with stepped slate or thatch roofs, stone cottages, a chapel with a bell tower, a graveyard, a well, lamp posts, stocks, a cart, barrels, crates, sacks, fences, a signpost, a gibbet, pines, oaks, dead trees, rocks, bushes and weeds. The game draws a zone in chunks of 16 by 16 tiles, and every world block shares one material, which reads its textures from one texture array.
 
-Characters can step up at most half a metre from one tile to the next, and cannot enter the lake. Fourteen villagers walk around the village. Seven have set appearances and lines in [residents.js](js/game/residents.js). The other seven come from the same random generator as the creator's Randomise button.
+Characters can step up at most half a metre from one tile to the next, and cannot enter the lake. Fourteen villagers walk around the village. Seven have set appearances and lines in [content/npcs/](content/npcs/). The other seven come from the same random generator as the creator's Randomise button. [docs/world.md](docs/world.md) describes zones.
 
 ## Project Layout
 
@@ -130,7 +130,8 @@ Characters can step up at most half a metre from one tile to the next, and canno
 | [js/geometry/](js/geometry/) | BlockBuilder, which turns blocks into meshes |
 | [js/kit/](js/kit/) | The library of baked content, the fitter, the dresser, the compositor, the stamp sheet and the clip player |
 | [js/character/](js/character/) | The appearance record, the names, the texture sheet, the character model and the placeholder painter |
-| [js/world/](js/world/) | Terrain, props, world textures, water and the world's collision |
+| [js/sim/](js/sim/) | A zone's data and collision, which run without a renderer |
+| [js/render/](js/render/) | A zone's view: the chunked terrain and prop meshes, water, sky and lights |
 | [js/game/](js/game/) | Actors, villager behaviour, camera, input and the in-game HUD |
 | [js/ui/](js/ui/) | The character creator and its controls |
 | [js/engine/](js/engine/) | The WebGL renderer loop, the asset source and PNG decoder, the world atlas and material, the raster and the graphics settings |

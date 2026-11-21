@@ -55,6 +55,14 @@ export class Hud
         this.nameCard.replaceChildren(name, detail);
     }
 
+    forget(actor)
+    {
+        this.plates.get(actor)?.remove();
+        this.plates.delete(actor);
+        this.bubbles.get(actor)?.node.remove();
+        this.bubbles.delete(actor);
+    }
+
     setRunning(isRunning)
     {
         this.runButton.textContent = isRunning ? "Run: On" : "Run: Off";

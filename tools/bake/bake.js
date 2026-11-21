@@ -2,8 +2,10 @@ import * as Clips from "./clips.js";
 import * as Migrations from "../../content/migrations.js";
 import * as Models from "./models.js";
 import * as Parts from "./parts.js";
+import * as Props from "./props.js";
 import * as Stamps from "./stamps.js";
 import * as WorldTextures from "./world-textures.js";
+import * as Zones from "./zones.js";
 import * as childProcess from "node:child_process";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
@@ -16,7 +18,7 @@ const ASSETS = path.join(ROOT, "assets");
 const LOCK = path.join(ROOT, "assets.lock.json");
 const WATCHED = ["content", "js"];
 const WATCH_DELAY_MS = 200;
-const BAKERS = [WorldTextures, Stamps, Models, Parts, Clips];
+const BAKERS = [WorldTextures, Stamps, Models, Parts, Clips, Props, Zones];
 const USAGE = "Usage: node tools/bake/bake.js [--accept] [--watch]";
 
 

@@ -5,7 +5,7 @@ import { Raster } from "../../js/engine/raster.js";
 
 const NAME_PATTERN = /^[a-z][A-Za-z0-9]*$/;
 
-export function bake(problems)
+export function bake(problems, context = {})
 {
     const { SIZE, TEXELS_PER_METRE, TEXTURES } = WorldTextures;
     const strip = new Raster(SIZE, SIZE * TEXTURES.length);
@@ -29,6 +29,8 @@ export function bake(problems)
             break;
         }
     }
+
+    context.worldTextures = [...names];
 
     const index =
     {

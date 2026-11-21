@@ -2,7 +2,7 @@
 
 ForeverQuest separates the code that makes art from the code that plays the game. Authoring code in [content/](../content/) paints and builds the art. The bake runs that code and writes asset files into `assets/`. The game reads only those files, so it holds no painter or generator for anything that has been baked.
 
-The world textures and everything that makes up a character are baked: rigs, bodies, parts, stamps, clips, palettes, archetypes and appearance defaults. Props and the zone still run their generators in the game, and move to the bake in later stages of the restructure.
+Everything the game draws is baked: the world textures, everything that makes up a character (rigs, bodies, parts, stamps, clips, palettes, archetypes and appearance defaults), the prop prefabs, the zones and the villagers.
 
 ## The Boundary
 
@@ -58,7 +58,7 @@ The lock file records what the owner has accepted. After each bake, the asset lo
 
 ## Ids and Migrations
 
-The lock file also records every content id by kind: each world texture, rig, body, stamp and part, each part as `slot/id`, and each body's variants as `body/variant`. A bake fails when an id that the lock file records is gone, unless [migrations.js](../content/migrations.js) maps it to a replacement that still exists. The bake writes the maps to `migrations.json`, and saved characters load through them.
+The lock file also records every content id by kind: each world texture, rig, body, stamp, part, clip, action, prefab, zone and villager, each part as `slot/id`, and each body's variants as `body/variant`. A bake fails when an id that the lock file records is gone, unless [migrations.js](../content/migrations.js) maps it to a replacement that still exists. The bake writes the maps to `migrations.json`, and saved characters load through them.
 
 ```javascript
 export const IDS =
@@ -82,6 +82,9 @@ export const IDS =
 | `models/stamps.preview.png` | A viewable copy of the stamp sheet, which the game does not read |
 | `models/clips/index.json`, `models/clips/<rig>.json` | The rigs that have clips, and each rig's clips and actions |
 | `models/palettes.json`, `models/archetypes.json`, `models/appearance.json` | The colour palettes, the villager archetypes, and the appearance defaults and random rules |
+| `props/prefabs.json` | Every prefab's blocks, colliders and light spots |
+| `zones/index.json`, `zones/<id>.json` | The zone ids, and each zone with its runs built |
+| `npcs.json` | Every villager, and the shared lines crowds say |
 | `migrations.json` | The id maps from [migrations.js](../content/migrations.js) |
 
 Texels are stored as 8-bit RGBA PNG, so any image viewer opens them. The bake writes PNG with Node's built-in `zlib` and no row filters, so the same texels always give the same bytes.

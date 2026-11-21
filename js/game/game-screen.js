@@ -1,4 +1,3 @@
-import * as Residents from "./residents.js";
 import * as THREE from "three";
 import { Actor } from "./actor.js";
 import { Appearance } from "../character/appearance.js";
@@ -7,11 +6,9 @@ import { Hud } from "./hud.js";
 import { Input } from "./input.js";
 import { NpcBrain } from "./npc-brain.js";
 import { Random } from "../util/random.js";
-import { World } from "../world/world.js";
+import { ZoneView } from "../render/zone-view.js";
 
 const TALK_RANGE = 2.2;
-const SPAWN = { x: 1.6, z: 9.5 };
-const VILLAGER_COUNT = 7;
 const ORBIT_SPEED = 1.8;
 
 
@@ -21,12 +18,16 @@ const ORBIT_SPEED = 1.8;
 
 export class GameScreen
 {
-    constructor(container, canvas, appearance, materials, graphics, onAppearance)
+    constructor(container, canvas, appearance, materials, graphics, onAppearance, content, zone)
     {
         this.library = appearance.library;
+        this.materials = materials;
+        this.content = content;
         this.onAppearance = onAppearance;
         this.size = { width: 1, height: 1 };
-        this.world = new World(materials, 7);
+        this.zone = null;
+        this.world = null;
+        this.npcs = [];
         this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 500);
         this.rig = new CameraRig(this.camera);
         this.input = new Input(canvas);
@@ -40,10 +41,7 @@ export class GameScreen
         });
 
         this.player = new Actor(appearance);
-        this.player.placeAt(SPAWN.x, SPAWN.z, this.world, Math.PI);
-        this.world.scene.add(this.player.root);
-        this.npcs = this.spawnResidents();
-        this.actors = [this.player, ...this.npcs];
+        this.enterZone(zone);
 
         this.rig.yaw = 0;
         this.input.on("click", (x, y) => this.onClick(x, y));
@@ -53,27 +51,66 @@ export class GameScreen
         appearance.onChange(() => this.hud.setPlayer(appearance));
 
         this.hud.setPlayer(appearance);
-        this.hud.system("Welcome to Hearthmere. Click the ground to walk, or click a villager to talk.");
-        this.hud.system("Mirelle the tailor can change your appearance.");
     }
 
-    spawnResidents()
-    {
-        const random = new Random(4242);
-        const npcs = [];
+    /* ZONES ******************************************************************/
 
-        for(const resident of Residents.RESIDENTS)
+    get actors()
+    {
+        return [this.player, ...this.npcs];
+    }
+
+    enterZone(zone)
+    {
+        if(this.zone) { this.leaveZone(); }
+
+        this.zone = zone;
+        this.world = new ZoneView(zone, this.content.prefabs, this.materials);
+        this.player.placeAt(zone.spawn.x, zone.spawn.z, zone, zone.spawn.heading);
+        this.world.scene.add(this.player.root);
+        this.npcs = this.spawnPeople(zone.people);
+
+        for(const line of zone.welcome) { this.hud.system(line); }
+    }
+
+    leaveZone()
+    {
+        for(const npc of this.npcs)
         {
-            npcs.push(this.spawn(new Appearance(this.library, resident.look), resident, random));
+            this.hud.forget(npc);
+            npc.dispose();
         }
 
-        for(let i = 0; i < VILLAGER_COUNT; i++)
-        {
-            const angle = (i / VILLAGER_COUNT) * Math.PI * 2 + 0.3;
-            const resident = { home: [Math.cos(angle) * 11, Math.sin(angle) * 11], roam: 9, lines: Residents.VILLAGER_LINES };
-            const look = Appearance.randomData(this.library, random, { archetype: i % 3 === 0 ? undefined : "villager" });
+        this.npcs = [];
+        this.pendingTalk = null;
+        this.player.root.removeFromParent();
+        this.world.dispose();
+    }
 
-            npcs.push(this.spawn(new Appearance(this.library, look), resident, random));
+    // The residents come first and the crowd after, from one random stream,
+    // so a zone always gets the same villagers.
+    spawnPeople(people)
+    {
+        const random = new Random(people.seed);
+        const npcs = [];
+
+        for(const placed of people.residents)
+        {
+            const npc = this.content.people.npcs[placed.npc];
+
+            npcs.push(this.spawn(new Appearance(this.library, npc.look), { home: placed.home, roam: placed.roam, lines: npc.lines, role: npc.role }, random));
+        }
+
+        const crowd = people.crowd;
+
+        for(let i = 0; i < (crowd?.count ?? 0); i++)
+        {
+            const angle = (i / crowd.count) * Math.PI * 2 + crowd.startAngle;
+            const home = [crowd.centre[0] + Math.cos(angle) * crowd.radius, crowd.centre[1] + Math.sin(angle) * crowd.radius];
+            const archetype = crowd.archetypes[i % crowd.archetypes.length] ?? undefined;
+            const look = Appearance.randomData(this.library, random, { archetype });
+
+            npcs.push(this.spawn(new Appearance(this.library, look), { home, roam: crowd.roam, lines: this.content.people.lines[crowd.lines] }, random));
         }
 
         return npcs;
@@ -84,7 +121,7 @@ export class GameScreen
         const actor = new Actor(appearance);
 
         actor.brain = new NpcBrain(actor, resident, random);
-        actor.placeAt(resident.home[0], resident.home[1], this.world, random.range(0, Math.PI * 2));
+        actor.placeAt(resident.home[0], resident.home[1], this.zone, random.range(0, Math.PI * 2));
         this.world.scene.add(actor.root);
 
         return actor;
@@ -108,7 +145,7 @@ export class GameScreen
             return;
         }
 
-        const hits = this.raycaster.intersectObjects([this.world.terrainMesh, this.world.water.mesh], false);
+        const hits = this.raycaster.intersectObjects([...this.world.terrainMeshes, this.world.water.mesh], false);
 
         if(hits.length === 0) { return; }
 
@@ -232,10 +269,10 @@ export class GameScreen
         this.steerFromKeys(delta);
         this.updateTalk();
 
-        for(const npc of this.npcs) { npc.brain.update(delta, this.world); }
-        for(const actor of this.actors) { actor.update(delta, this.world); }
+        for(const npc of this.npcs) { npc.brain.update(delta, this.zone); }
+        for(const actor of this.actors) { actor.update(delta, this.zone); }
 
-        this.rig.update(delta, this.player.position, this.player.measures.focus, (x, z) => this.world.heightAt(x, z));
+        this.rig.update(delta, this.player.position, this.player.measures.focus, (x, z) => this.zone.heightAt(x, z));
         this.world.update(delta, this.camera, this.player.position);
         this.hud.update(delta, this.camera, this.actors, this.player, this.size);
     }

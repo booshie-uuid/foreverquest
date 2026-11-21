@@ -25,7 +25,7 @@ async function main()
         characters,
         parts: Capture.partSweep(library),
         worldTextures: Capture.worldTexturesRecord(materials.atlas),
-        zone: Capture.zoneRecord(materials),
+        zone: Capture.zoneRecord(await TestAssets.zone("hearthmere")),
     };
 
     fs.writeFileSync(OUTPUT, JSON.stringify(reference) + "\n");

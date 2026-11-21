@@ -22,7 +22,8 @@ async function start()
 
     try
     {
-        const app = new App(container, readStorage(), await AssetSource.http("assets/"));
+        const zone = new URLSearchParams(location.search).get("zone") ?? undefined;
+        const app = new App(container, readStorage(), await AssetSource.http("assets/"), { zone });
 
         window.foreverQuest = app;
         await app.start();

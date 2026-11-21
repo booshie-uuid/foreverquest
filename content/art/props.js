@@ -1,20 +1,13 @@
-// `builder` must be a PropBuilder.
+const FACES = ["front", "back", "left", "right", "top", "bottom"];
+
+// Records a block in metres. `faces` is a world texture name for every face,
+// or a map from face names to texture names with "all" as the fallback; a face
+// mapped to null is left out. `builder.blocks` collects the records.
 export function block(builder, size, at, faces, rotation = null)
 {
-    const atlas = builder.atlas;
-    const perMetre = atlas.uvPerMetre;
-    const nameOf = (face) => (typeof faces === "string" ? faces : faces[face] ?? faces.all);
-    const offsetU = ((at[0] * 0.37 + at[2] * 0.61) * perMetre) % 1;
-    const offsetV = (at[1] * perMetre) % 1;
+    const nameOf = (face) => (typeof faces === "string" ? faces : faces[face] ?? faces.all ?? null);
 
-    builder.add(size, at, rotation, (face, width, height) =>
-    {
-        const name = nameOf(face);
-
-        if(!name) { return null; }
-
-        return { uv: [offsetU, offsetV, offsetU + width * perMetre, offsetV + height * perMetre], layer: atlas.layer(name) };
-    });
+    builder.blocks.push({ size, at, rotation, faces: Object.fromEntries(FACES.map((face) => [face, nameOf(face)])) });
 }
 
 function placed(builder, x, y, z, angle)

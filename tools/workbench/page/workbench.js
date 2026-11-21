@@ -1,10 +1,15 @@
+import * as Controls from "../../../js/ui/controls.js";
 import { AssetSource } from "../../../js/engine/asset-source.js";
 import { Library } from "../../../js/kit/library.js";
 import { Log } from "../../../js/log.js";
+import { MaterialLibrary } from "../../../js/engine/materials.js";
 import { ModelViewer } from "./model-viewer.js";
+import { PropViewer } from "./prop-viewer.js";
 import { Renderer } from "../../../js/engine/renderer.js";
+import { WorldAtlas } from "../../../js/engine/world-atlas.js";
 
-const DEFAULTS = { body: "human", variant: "male", height: 0, build: 0, skin: "", gear: "default", seed: 1, motion: "idle", overlay: false, yaw: 0.5, zoom: 1 };
+const VIEWS = [{ id: "models", name: "Models" }, { id: "props", name: "Props" }];
+const DEFAULTS = { view: "models", prefab: "", body: "human", variant: "male", height: 0, build: 0, skin: "", gear: "default", seed: 1, motion: "idle", overlay: false, yaw: 0.5, zoom: 1 };
 const NUMBERS = ["height", "build", "seed", "yaw", "zoom"];
 const SWITCHES = ["overlay"];
 
@@ -51,6 +56,22 @@ function writeState(state)
 /* START                                                                      */
 /******************************************************************************/
 
+function viewSwitch(current)
+{
+    const group = Controls.element("nav", "panel toggle-group workbench-views");
+
+    for(const view of VIEWS)
+    {
+        const link = Controls.element("a", "toggle", view.name);
+
+        link.href = "?view=" + view.id;
+        link.classList.toggle("is-active", view.id === current);
+        group.append(link);
+    }
+
+    return group;
+}
+
 async function start()
 {
     const container = document.getElementById("app");
@@ -58,9 +79,14 @@ async function start()
     try
     {
         const renderer = new Renderer(container);
-        const library = await Library.load(await AssetSource.http("../../assets/"));
-        const viewer = new ModelViewer(container, renderer.canvas, library, readState(), writeState);
+        const assets = await AssetSource.http("../../assets/");
+        const library = await Library.load(assets);
+        const state = readState();
+        const viewer = state.view === "props"
+            ? new PropViewer(container, renderer.canvas, new MaterialLibrary(await WorldAtlas.load(assets)), await assets.json("props/prefabs.json"), state, writeState)
+            : new ModelViewer(container, renderer.canvas, library, state, writeState);
 
+        container.append(viewSwitch(state.view));
         window.workbench = { renderer, library, viewer, isReady: false };
         renderer.setScreen(viewer);
         renderer.start();
