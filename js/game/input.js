@@ -41,6 +41,11 @@ export class Input
     on(type, listener)
     {
         this.listeners[type].push(listener);
+
+        return () =>
+        {
+            this.listeners[type] = this.listeners[type].filter((entry) => entry !== listener);
+        };
     }
 
     emit(type, ...args)

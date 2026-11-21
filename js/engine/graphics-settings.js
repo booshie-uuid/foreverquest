@@ -20,6 +20,11 @@ export class GraphicsSettings
     onChange(listener)
     {
         this.listeners.push(listener);
+
+        return () =>
+        {
+            this.listeners = this.listeners.filter((entry) => entry !== listener);
+        };
     }
 
     emitChange()

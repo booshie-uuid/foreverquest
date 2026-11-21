@@ -32,12 +32,11 @@ export class NpcBrain
         this.talkTime = TALK_SECONDS;
         this.actor.stop();
         this.actor.face(other.position);
-        this.actor.animator.wave();
 
         return line.replace("{name}", other.name);
     }
 
-    update(delta, world)
+    tick(delta, zone)
     {
         const actor = this.actor;
 
@@ -56,12 +55,12 @@ export class NpcBrain
 
         this.pause = this.random.range(2, 7);
 
-        const destination = this.pickDestination(world);
+        const destination = this.pickDestination(zone);
 
         if(destination) { actor.moveTo(destination); }
     }
 
-    pickDestination(world)
+    pickDestination(zone)
     {
         for(let attempt = 0; attempt < 8; attempt++)
         {
@@ -69,9 +68,9 @@ export class NpcBrain
             const distance = this.random.range(1, this.resident.roam);
             const x = this.home.x + Math.cos(angle) * distance;
             const z = this.home.z + Math.sin(angle) * distance;
-            const resolved = world.resolveStep({ x, z }, { x, z }, this.actor.radius);
+            const resolved = zone.resolveStep({ x, z }, { x, z }, this.actor.radius);
 
-            if(Math.hypot(resolved.x - x, resolved.z - z) < 0.01 && world.isWalkable(x, z)) { return { x, z }; }
+            if(Math.hypot(resolved.x - x, resolved.z - z) < 0.01 && zone.isWalkable(x, z)) { return { x, z }; }
         }
 
         return null;

@@ -43,7 +43,7 @@ A run lays a prop along a line of points and follows the ground, such as a fence
 
 ## Collision and Movement
 
-`ZoneData.resolveStep(from, to, radius)` pushes a moving circle out of every nearby circle and box collider, twice over, then checks the tile it lands on. The step is refused when that tile is under water, within 2 metres of the zone's edge, or more than half a metre above the tile the actor stands on. An actor eases its height towards the tile under it, so a quarter-metre step reads as a short climb.
+`ZoneData.resolveStep(from, to, radius)` pushes a moving circle out of every nearby circle and box collider, twice over, then checks the tile it lands on. The step is refused when that tile is under water, within 2 metres of the zone's edge, or more than half a metre above the tile the entity stands on. An entity eases its height towards the tile under it, so a quarter-metre step reads as a short climb.
 
 The zone keeps its colliders in a grid of 4-metre cells. A step tests only the colliders in the cells near it, in the zone's order, so it resolves exactly as a test of every collider would. `ZoneData` uses no Three.js and no page, so the simulation can run without a renderer.
 

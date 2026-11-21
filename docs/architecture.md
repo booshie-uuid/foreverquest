@@ -23,7 +23,7 @@ flowchart TB
     subgraph domain_layer ["Domain"]
         character[Character kit]
         world[Zone data and view]
-        game_logic[Actors and NPCs]
+        game_logic[Simulation and views]
     end
 
     subgraph support_layer ["Support"]
@@ -52,8 +52,8 @@ flowchart TB
 | Layer | Folder | Modules |
 |---|---|---|
 | Application | [js/](../js/) | `main.js` opens the asset source and boots the app. `App` loads the library of rigs and bodies and the world atlas, then owns the renderer, the material library, the graphics settings, the player's appearance and both screens. `CharacterStore` saves the appearance to `localStorage` |
-| Screens | [js/ui/](../js/ui/), [js/game/](../js/game/) | `CreatorScreen` is the character creator. `GameScreen` runs the world: input, camera, actors, talking and the HUD |
-| Domain | [js/kit/](../js/kit/), [js/character/](../js/character/), [js/sim/](../js/sim/), [js/render/](../js/render/), [js/game/](../js/game/) | `Library` holds the baked rigs, bodies, parts, stamps, palettes and archetypes. The fitter sizes and places a body's bones, the dresser lists the worn parts' blocks and face layers, and the compositor paints stamps. The character kit turns an `Appearance` into a `CharacterModel`. `ZoneData` holds a zone's tiles, placed props, colliders and light spots, with no Three.js or page. `ZoneView` draws a zone in chunks with its water, sky and lights. `Actor` moves a character through a zone, and `NpcBrain` wanders and talks |
+| Screens | [js/ui/](../js/ui/), [js/game/](../js/game/) | `CreatorScreen` is the character creator. `GameScreen` turns input into simulation commands and events into the HUD, and runs the ticks, the views and the camera |
+| Domain | [js/kit/](../js/kit/), [js/character/](../js/character/), [js/sim/](../js/sim/), [js/render/](../js/render/), [js/game/](../js/game/) | `Library` holds the baked rigs, bodies, parts, stamps, palettes and archetypes. The fitter sizes and places a body's bones, the dresser lists the worn parts' blocks and face layers, and the compositor paints stamps. The character kit turns an `Appearance` into a `CharacterModel`. `ZoneData` holds a zone's tiles, placed props, colliders and light spots, with no Three.js or page. `ZoneView` draws a zone in chunks with its water, sky and lights. `Simulation` advances the entities on a fixed tick, `NpcBrain` wanders and talks, and `EntityView` draws an entity between ticks |
 | Support | [js/art/](../js/art/), [js/geometry/](../js/geometry/), [js/engine/](../js/engine/) | The colour maths, `BlockBuilder`, `Raster`, `AssetSource`, the PNG decoder, `WorldAtlas`, `Renderer`, `MaterialLibrary` and `GraphicsSettings` |
 | Utilities | [js/util/](../js/util/) | Seeded random numbers and value noise |
 
@@ -65,30 +65,41 @@ The modules below the screens use no DOM, so the unit suite in [js-tests/unit/](
 
 `Renderer` owns the `WebGLRenderer` and one active screen. A screen is any object with `show()`, `hide()`, `resize(width, height)`, `update(delta)` and `render(webgl)`. `App` swaps between the creator and the game with `renderer.setScreen()`.
 
-Each animation frame, `Renderer` measures the time since the last frame, caps it at 50 ms, then calls `update` and `render` on the screen. The sequence below shows one frame of the game screen.
+Each animation frame, `Renderer` measures the time since the last frame, caps it at 50 ms, then calls `update` and `render` on the screen.
+
+## Simulation and Views
+
+The game screen keeps the game's state apart from what draws it. [Simulation](../js/sim/simulation.js) holds the zone's data and an [Entity](../js/sim/entity.js) for the player and each villager: plain state such as position, heading and target, with no Three.js and no page. It advances on a fixed tick of 20 a second, so it gives the same result at any frame rate and could run on a server. An [EntityView](../js/render/entity-view.js) for each entity owns its character model and clips, and draws the entity between the last two ticks.
+
+The game screen turns input into commands, such as `moveTo`, `steer`, `stop`, `run`, `talk` and `wave`, which the simulation applies at the start of its next tick. The simulation reports what happened as events: `entered`, `said`, `waved` and `running`. The game screen turns those into chat lines, bubbles, waves and the tailor's creator. The sequence below shows one frame.
 
 ```mermaid
 sequenceDiagram
     accTitle: One Game Frame
-    accDescr: The renderer asks the game screen to update; the screen reads input, advances talking, villagers and actors, moves the camera, updates the world and the HUD, and then the renderer draws the scene
+    accDescr: The game screen turns keys into commands, runs as many fixed ticks as the time allows, then draws each view between ticks and moves the camera and the HUD
 
     participant renderer as Renderer
     participant screen as GameScreen
-    participant actors as Actors
-    participant world as ZoneData
+    participant sim as Simulation
+    participant views as EntityViews
     participant hud as Hud
 
     renderer->>screen: update(delta)
-    screen->>screen: Steer the player from keys
-    screen->>screen: Advance a pending talk
-    screen->>actors: Run each NpcBrain
-    screen->>actors: update(delta, world)
-    actors->>world: resolveStep(from, to)
+    screen->>sim: Command a steer or stop
+    loop Each whole tick of time
+        screen->>views: Capture the last state
+        screen->>sim: tick()
+        sim-->>screen: Events
+    end
+    screen->>views: Draw between ticks
     screen->>screen: Move the camera rig
-    screen->>world: update(delta, camera, player)
     screen->>hud: Place nameplates and bubbles
     renderer->>screen: render(webgl)
 ```
+
+A tick applies the queued commands, moves the player towards a villager they are talking to, runs each villager's [NpcBrain](../js/sim/npc-brain.js), then moves every entity against the zone's colliders. The screen catches up at most five ticks a frame, so a very slow frame slows the game rather than freezing it.
+
+`GameScreen.pause()` stops the ticks and `stepTicks(count)` runs a number of them at once. The browser specs use both, so they measure in ticks, not seconds.
 
 ## State and Events
 
@@ -99,6 +110,9 @@ Each class owns its state and changes it only through its own methods. A class t
 | `Appearance` | A field, an item or a tint changes, or the record is replaced | `CharacterModel` rebuilds; `CreatorScreen` redraws its tab; `GameScreen` updates the HUD name card |
 | `CharacterModel` | It finishes a rebuild | `CreatorScreen` updates the triangle count |
 | `GraphicsSettings` | Retro mode changes | The Retro toggle buttons |
+| `Simulation` | An entity enters, says a line, waves, or starts or stops running | `GameScreen` updates the chat, bubbles, views and HUD |
+
+Every `onChange` and `onEvent` returns a function that unsubscribes the listener. The game screen and the creator keep these functions and call them in `dispose()`, which also frees their models, views and DOM.
 
 The player's `Appearance` lives in `App`. The creator edits a separate draft copy, and `App` copies the draft back with `appearance.replace()` when the player saves. Every view of the player rebuilds from that one change event.
 
@@ -123,4 +137,4 @@ The Retro toggle sets the renderer's pixel ratio so that it draws 640 pixels acr
 
 ## Testing and Debugging
 
-`main.js` exposes the app as `window.foreverQuest`. The browser specs in [js-tests/browser/specs/](../js-tests/browser/specs/) read game state through it, such as `foreverQuest.game.player.position`. [js-tests/README.md](../js-tests/README.md) describes both test suites and when to run them.
+`main.js` exposes the app as `window.foreverQuest`. The browser specs in [js-tests/browser/specs/](../js-tests/browser/specs/) read game state through it, such as `foreverQuest.game.player.position`, and step the simulation with `foreverQuest.game.stepTicks(count)`. [js-tests/README.md](../js-tests/README.md) describes both test suites and when to run them.

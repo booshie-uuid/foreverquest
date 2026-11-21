@@ -58,8 +58,11 @@ export class CreatorScreen
         this.element = this.buildDom();
         container.append(this.element);
 
-        this.draft.onChange((look, key) => this.onDraftChange(key));
-        this.model.onChange(() => this.updateStats());
+        this.unsubscribers =
+        [
+            this.draft.onChange((look, key) => this.onDraftChange(key)),
+            this.model.onChange(() => this.updateStats()),
+        ];
         this.renderTab();
         this.updateStats();
         this.hide();
@@ -168,7 +171,8 @@ export class CreatorScreen
         ];
 
         this.stats = Controls.element("span", "stats");
-        bar.append(poses, views, Controls.graphicsToggles(this.graphics), this.stats);
+        this.toggles = Controls.graphicsToggles(this.graphics);
+        bar.append(poses, views, this.toggles.element, this.stats);
 
         return bar;
     }
@@ -420,5 +424,16 @@ export class CreatorScreen
     render(webgl)
     {
         webgl.render(this.scene, this.camera);
+    }
+
+    dispose()
+    {
+        for(const unsubscribe of this.unsubscribers) { unsubscribe(); }
+
+        this.detachPointer?.();
+        this.toggles.dispose();
+        this.model.dispose();
+        this.scene.traverse((node) => node.geometry?.dispose());
+        this.element.remove();
     }
 }

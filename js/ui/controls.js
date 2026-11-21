@@ -94,6 +94,8 @@ export function textInput(label, value, onChange, key)
     return row(label, control, key);
 }
 
+// Returns the toggles' element, and a dispose function that stops them
+// following the settings.
 export function graphicsToggles(graphics)
 {
     const group = element("div", "toggle-group");
@@ -102,9 +104,8 @@ export function graphicsToggles(graphics)
 
     retro.dataset.action = "retro";
     retro.title = "Render 640 pixels wide and scale up with hard pixel edges";
-    graphics.onChange(refresh);
     refresh();
     group.append(retro);
 
-    return group;
+    return { element: group, dispose: graphics.onChange(refresh) };
 }

@@ -130,9 +130,9 @@ Characters can step up at most half a metre from one tile to the next, and canno
 | [js/geometry/](js/geometry/) | BlockBuilder, which turns blocks into meshes |
 | [js/kit/](js/kit/) | The library of baked content, the fitter, the dresser, the compositor, the stamp sheet and the clip player |
 | [js/character/](js/character/) | The appearance record, the names, the texture sheet, the character model and the placeholder painter |
-| [js/sim/](js/sim/) | A zone's data and collision, which run without a renderer |
-| [js/render/](js/render/) | A zone's view: the chunked terrain and prop meshes, water, sky and lights |
-| [js/game/](js/game/) | Actors, villager behaviour, camera, input and the in-game HUD |
+| [js/sim/](js/sim/) | The simulation: entities, villager behaviour, a zone's data and collision, on a fixed tick and without a renderer |
+| [js/render/](js/render/) | The views: a zone's chunked terrain and prop meshes, water, sky and lights, and each entity's model between ticks |
+| [js/game/](js/game/) | The game screen, camera, input and the in-game HUD |
 | [js/ui/](js/ui/) | The character creator and its controls |
 | [js/engine/](js/engine/) | The WebGL renderer loop, the asset source and PNG decoder, the world atlas and material, the raster and the graphics settings |
 | [content/](content/) | Authoring code and data that the bake turns into assets: painters, stamps, rigs, bodies, parts, palettes, archetypes and the id migrations |

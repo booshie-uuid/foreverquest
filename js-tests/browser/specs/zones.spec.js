@@ -19,7 +19,7 @@ function state()
         npcs: game.npcs.map((npc) => npc.name),
         plates: document.querySelectorAll(".nameplate").length,
         player: { x: game.player.position.x, z: game.player.position.z },
-        isInScene: game.player.root.parent === game.world.scene,
+        isInScene: game.playerView.root.parent === game.world.scene,
     };
 }
 

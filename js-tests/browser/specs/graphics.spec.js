@@ -50,7 +50,7 @@ export const tests =
 
                 return {
                     isEnabled: window.foreverQuest.renderer.webgl.shadowMap.enabled,
-                    playerCasts: game.player.model.meshes.every((mesh) => mesh.castShadow),
+                    playerCasts: game.playerView.model.meshes.every((mesh) => mesh.castShadow),
                     moonCasts: game.world.moon.castShadow,
                 };
             });

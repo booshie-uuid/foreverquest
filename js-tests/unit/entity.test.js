@@ -1,9 +1,9 @@
 import * as TestAssets from "../helpers/assets.js";
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { Actor } from "../../js/game/actor.js";
 import { Appearance } from "../../js/character/appearance.js";
 import { CharacterStore } from "../../js/character-store.js";
+import { Entity } from "../../js/sim/entity.js";
 
 const library = await TestAssets.library();
 
@@ -23,14 +23,14 @@ const WALL =
 
 function run(actor, world, seconds)
 {
-    for(let time = 0; time < seconds; time += 0.02) { actor.update(0.02, world); }
+    for(let time = 0; time < seconds; time += 0.05) { actor.tick(0.05, world); }
 }
 
-describe("Actor", () =>
+describe("Entity", () =>
 {
     it("walks to a target, stands on the ground and faces the way it went", () =>
     {
-        const actor = new Actor(new Appearance(library));
+        const actor = new Entity(1, new Appearance(library));
 
         actor.placeAt(0, 0, OPEN_FIELD);
         actor.moveTo({ x: 4, z: 0 });
@@ -44,8 +44,8 @@ describe("Actor", () =>
 
     it("runs faster than it walks", () =>
     {
-        const walker = new Actor(new Appearance(library));
-        const runner = new Actor(new Appearance(library));
+        const walker = new Entity(1, new Appearance(library));
+        const runner = new Entity(1, new Appearance(library));
 
         runner.setRunning(true);
 
@@ -61,7 +61,7 @@ describe("Actor", () =>
 
     it("gives up a target it cannot move towards", () =>
     {
-        const actor = new Actor(new Appearance(library));
+        const actor = new Entity(1, new Appearance(library));
 
         actor.placeAt(0, 0, WALL);
         actor.moveTo({ x: 5, z: 5 });

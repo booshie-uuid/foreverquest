@@ -29,7 +29,8 @@ export class Hud
         this.runButton.dataset.action = "run";
         const settings = Controls.element("div", "panel hud-settings");
 
-        settings.append(Controls.graphicsToggles(graphics));
+        this.toggles = Controls.graphicsToggles(graphics);
+        settings.append(this.toggles.element);
         buttons.append(settings, this.runButton, appearanceButton);
 
         this.element.append(this.labels, this.nameCard, help, this.chat, buttons);
@@ -53,6 +54,14 @@ export class Hud
         const detail = Controls.element("span", "", appearance.variant.name + " " + appearance.body.name);
 
         this.nameCard.replaceChildren(name, detail);
+    }
+
+    dispose()
+    {
+        this.toggles.dispose();
+        this.element.remove();
+        this.plates.clear();
+        this.bubbles.clear();
     }
 
     forget(actor)

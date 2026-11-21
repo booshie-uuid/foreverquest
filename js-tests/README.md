@@ -92,6 +92,7 @@ Each tag names one capability of the game. A spec lists its tags in `covers`.
 - Name a spec `<capability>.spec.js`, and add each tag it covers to the capability map.
 - Wait for `window.foreverQuest.isReady` before interacting with the game.
 - Drive player actions with real input (`click`, `clickAt`, `mouseDrag`, `press`), and read game state with `evaluate`.
+- Measure game time in ticks, not seconds. Pause the simulation with `foreverQuest.game.pause()`, give the input, then advance it with `foreverQuest.game.stepTicks(count)`, at 20 ticks a second. A spec that waits in real time depends on the frame rate under software rendering.
 - Code inside an `evaluate` or `waitFor` callback runs in the page. The lint gives `js-tests/browser/` both Node and browser globals for this reason.
 - Write test output to `local/`, which git ignores.
 

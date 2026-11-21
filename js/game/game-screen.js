@@ -1,15 +1,13 @@
 import * as THREE from "three";
-import { Actor } from "./actor.js";
-import { Appearance } from "../character/appearance.js";
 import { CameraRig } from "./camera-rig.js";
+import { EntityView } from "../render/entity-view.js";
 import { Hud } from "./hud.js";
 import { Input } from "./input.js";
-import { NpcBrain } from "./npc-brain.js";
-import { Random } from "../util/random.js";
+import { Simulation } from "../sim/simulation.js";
 import { ZoneView } from "../render/zone-view.js";
 
-const TALK_RANGE = 2.2;
 const ORBIT_SPEED = 1.8;
+const MAX_TICKS_PER_FRAME = 5;
 
 
 /******************************************************************************/
@@ -20,19 +18,20 @@ export class GameScreen
 {
     constructor(container, canvas, appearance, materials, graphics, onAppearance, content, zone)
     {
-        this.library = appearance.library;
         this.materials = materials;
         this.content = content;
         this.onAppearance = onAppearance;
         this.size = { width: 1, height: 1 };
-        this.zone = null;
         this.world = null;
-        this.npcs = [];
+        this.views = new Map();
+        this.accumulator = 0;
+        this.isPaused = false;
+        this.steering = { x: 0, z: 0 };
         this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 500);
         this.rig = new CameraRig(this.camera);
         this.input = new Input(canvas);
         this.raycaster = new THREE.Raycaster();
-        this.pendingTalk = null;
+        this.sim = new Simulation(appearance.library, content.people);
 
         this.hud = new Hud(container, graphics,
         {
@@ -40,91 +39,96 @@ export class GameScreen
             onAppearance: () => this.onAppearance(),
         });
 
-        this.player = new Actor(appearance);
+        this.unsubscribers =
+        [
+            this.sim.onEvent((event) => this.onEvent(event)),
+            appearance.onChange(() => this.hud.setPlayer(appearance)),
+            this.input.on("click", (x, y) => this.onClick(x, y)),
+            this.input.on("orbit", (dx, dy) => this.rig.orbit(-dx * 0.008, dy * 0.006)),
+            this.input.on("zoom", (factor) => this.rig.zoom(factor)),
+            this.input.on("key", (code) => this.onKey(code)),
+        ];
+
+        this.sim.setPlayer(appearance);
         this.enterZone(zone);
-
-        this.rig.yaw = 0;
-        this.input.on("click", (x, y) => this.onClick(x, y));
-        this.input.on("orbit", (dx, dy) => this.rig.orbit(-dx * 0.008, dy * 0.006));
-        this.input.on("zoom", (factor) => this.rig.zoom(factor));
-        this.input.on("key", (code) => this.onKey(code));
-        appearance.onChange(() => this.hud.setPlayer(appearance));
-
         this.hud.setPlayer(appearance);
+    }
+
+    get zone()
+    {
+        return this.sim.zone;
+    }
+
+    get player()
+    {
+        return this.sim.player;
+    }
+
+    get npcs()
+    {
+        return this.sim.npcs;
+    }
+
+    get playerView()
+    {
+        return this.views.get(this.player.id);
     }
 
     /* ZONES ******************************************************************/
 
-    get actors()
-    {
-        return [this.player, ...this.npcs];
-    }
-
     enterZone(zone)
     {
-        if(this.zone) { this.leaveZone(); }
+        if(this.world) { this.leaveZone(); }
 
-        this.zone = zone;
+        this.sim.enter(zone);
         this.world = new ZoneView(zone, this.content.prefabs, this.materials);
-        this.player.placeAt(zone.spawn.x, zone.spawn.z, zone, zone.spawn.heading);
-        this.world.scene.add(this.player.root);
-        this.npcs = this.spawnPeople(zone.people);
+
+        for(const entity of this.sim.entities)
+        {
+            const view = new EntityView(entity);
+
+            this.views.set(entity.id, view);
+            this.world.scene.add(view.root);
+        }
 
         for(const line of zone.welcome) { this.hud.system(line); }
     }
 
     leaveZone()
     {
-        for(const npc of this.npcs)
+        for(const view of this.views.values())
         {
-            this.hud.forget(npc);
-            npc.dispose();
+            this.hud.forget(view);
+            view.dispose();
         }
 
-        this.npcs = [];
-        this.pendingTalk = null;
-        this.player.root.removeFromParent();
+        this.views.clear();
         this.world.dispose();
+        this.world = null;
     }
 
-    // The residents come first and the crowd after, from one random stream,
-    // so a zone always gets the same villagers.
-    spawnPeople(people)
+    /* EVENTS *****************************************************************/
+
+    onEvent(event)
     {
-        const random = new Random(people.seed);
-        const npcs = [];
+        const view = this.views.get(event.id);
 
-        for(const placed of people.residents)
+        if(event.type === "waved")
         {
-            const npc = this.content.people.npcs[placed.npc];
+            view?.wave();
 
-            npcs.push(this.spawn(new Appearance(this.library, npc.look), { home: placed.home, roam: placed.roam, lines: npc.lines, role: npc.role }, random));
+            if(event.id === this.player.id) { this.hud.say(this.player.name, "waves."); }
         }
 
-        const crowd = people.crowd;
-
-        for(let i = 0; i < (crowd?.count ?? 0); i++)
+        if(event.type === "said")
         {
-            const angle = (i / crowd.count) * Math.PI * 2 + crowd.startAngle;
-            const home = [crowd.centre[0] + Math.cos(angle) * crowd.radius, crowd.centre[1] + Math.sin(angle) * crowd.radius];
-            const archetype = crowd.archetypes[i % crowd.archetypes.length] ?? undefined;
-            const look = Appearance.randomData(this.library, random, { archetype });
+            this.hud.say(event.name, event.line);
+            this.hud.bubble(view, event.line);
 
-            npcs.push(this.spawn(new Appearance(this.library, look), { home, roam: crowd.roam, lines: this.content.people.lines[crowd.lines] }, random));
+            if(event.role === "tailor") { this.onAppearance(); }
         }
 
-        return npcs;
-    }
-
-    spawn(appearance, resident, random)
-    {
-        const actor = new Actor(appearance);
-
-        actor.brain = new NpcBrain(actor, resident, random);
-        actor.placeAt(resident.home[0], resident.home[1], this.zone, random.range(0, Math.PI * 2));
-        this.world.scene.add(actor.root);
-
-        return actor;
+        if(event.type === "running") { this.hud.setRunning(event.isRunning); }
     }
 
     /* INPUT ******************************************************************/
@@ -139,8 +143,7 @@ export class GameScreen
 
         if(npc)
         {
-            this.pendingTalk = npc;
-            this.player.moveTo(npc.position);
+            this.sim.command({ type: "talk", id: npc.id });
 
             return;
         }
@@ -149,22 +152,21 @@ export class GameScreen
 
         if(hits.length === 0) { return; }
 
-        this.pendingTalk = null;
-        this.player.moveTo(hits[0].point);
+        this.sim.command({ type: "moveTo", x: hits[0].point.x, z: hits[0].point.z });
         this.hud.marker(x, y);
     }
 
     pickNpc()
     {
-        const hits = this.raycaster.intersectObjects(this.npcs.map((npc) => npc.root), true);
+        const roots = [...this.views.values()].filter((view) => view.entity !== this.player).map((view) => view.root);
 
-        for(const hit of hits)
+        for(const hit of this.raycaster.intersectObjects(roots, true))
         {
             let node = hit.object;
 
-            while(node && !node.userData.actor) { node = node.parent; }
+            while(node && !node.userData.view) { node = node.parent; }
 
-            if(node) { return node.userData.actor; }
+            if(node) { return node.userData.view.entity; }
         }
 
         return null;
@@ -173,40 +175,38 @@ export class GameScreen
     onKey(code)
     {
         if(code === "KeyR") { this.toggleRun(); }
-
-        if(code === "KeyE")
-        {
-            this.player.animator.wave();
-            this.hud.say(this.player.name, "waves.");
-        }
+        if(code === "KeyE") { this.sim.command({ type: "wave" }); }
     }
 
     toggleRun()
     {
-        this.player.setRunning(!this.player.isRunning);
-        this.hud.setRunning(this.player.isRunning);
+        this.sim.command({ type: "run", isRunning: !this.player.isRunning });
     }
 
+    // Sends a command only when the keys change, so a held key does not fill
+    // the queue while the simulation is paused.
     steerFromKeys(delta)
     {
         const input = this.input;
         const forward = this.rig.groundForward();
-        const right = new THREE.Vector2(-forward.y, forward.x);
-        const move = new THREE.Vector2();
-
-        if(input.isDown("KeyW")) { move.add(forward); }
-        if(input.isDown("KeyS")) { move.sub(forward); }
-        if(input.isDown("KeyD")) { move.add(right); }
-        if(input.isDown("KeyA")) { move.sub(right); }
-
-        if(move.lengthSq() > 0)
+        const move = { x: 0, z: 0 };
+        const add = (x, z) =>
         {
-            this.pendingTalk = null;
-            this.player.steer(move.x, move.y);
-        }
-        else if(this.player.direction.lengthSq() > 0)
+            move.x += x;
+            move.z += z;
+        };
+
+        if(input.isDown("KeyW")) { add(forward.x, forward.y); }
+        if(input.isDown("KeyS")) { add(-forward.x, -forward.y); }
+        if(input.isDown("KeyD")) { add(-forward.y, forward.x); }
+        if(input.isDown("KeyA")) { add(forward.y, -forward.x); }
+
+        if(move.x !== this.steering.x || move.z !== this.steering.z)
         {
-            this.player.stop();
+            const isSteering = move.x !== 0 || move.z !== 0;
+
+            this.sim.command(isSteering ? { type: "steer", ...move } : { type: "stop" });
+            this.steering = move;
         }
 
         if(input.isDown("ArrowLeft")) { this.rig.orbit(-ORBIT_SPEED * delta, 0); }
@@ -215,31 +215,46 @@ export class GameScreen
         if(input.isDown("ArrowDown")) { this.rig.orbit(0, -ORBIT_SPEED * 0.5 * delta); }
     }
 
-    /* TALKING ****************************************************************/
+    /* TICKS ******************************************************************/
 
-    updateTalk()
+    runTick()
     {
-        const npc = this.pendingTalk;
+        for(const view of this.views.values()) { view.capture(); }
 
-        if(!npc) { return; }
+        this.sim.tick();
+    }
 
-        if(this.player.distanceTo(npc) > TALK_RANGE)
+    pause()
+    {
+        this.isPaused = true;
+        this.accumulator = 0;
+    }
+
+    resume()
+    {
+        this.isPaused = false;
+    }
+
+    stepTicks(count)
+    {
+        for(let i = 0; i < count; i++) { this.runTick(); }
+
+        for(const view of this.views.values()) { view.sync(1, count * Simulation.TICK); }
+    }
+
+    // Catches up at most a few ticks each frame, so a slow frame slows the
+    // game rather than freezing it.
+    advance(delta)
+    {
+        if(this.isPaused) { return; }
+
+        this.accumulator = Math.min(this.accumulator + delta, MAX_TICKS_PER_FRAME * Simulation.TICK);
+
+        while(this.accumulator >= Simulation.TICK)
         {
-            if(!this.player.target) { this.player.moveTo(npc.position); }
-
-            return;
+            this.runTick();
+            this.accumulator -= Simulation.TICK;
         }
-
-        this.pendingTalk = null;
-        this.player.stop();
-        this.player.face(npc.position);
-
-        const line = npc.brain.greet(this.player);
-
-        this.hud.say(npc.name, line);
-        this.hud.bubble(npc, line);
-
-        if(npc.brain.role === "tailor") { this.onAppearance(); }
     }
 
     /* SCREEN *****************************************************************/
@@ -254,7 +269,8 @@ export class GameScreen
     {
         this.input.detach();
         this.hud.hide();
-        this.player.stop();
+        this.steering = { x: 0, z: 0 };
+        this.sim.command({ type: "stop" });
     }
 
     resize(width, height)
@@ -267,18 +283,29 @@ export class GameScreen
     update(delta)
     {
         this.steerFromKeys(delta);
-        this.updateTalk();
+        this.advance(delta);
 
-        for(const npc of this.npcs) { npc.brain.update(delta, this.zone); }
-        for(const actor of this.actors) { actor.update(delta, this.zone); }
+        const alpha = this.isPaused ? 1 : this.accumulator / Simulation.TICK;
+        const player = this.playerView;
 
-        this.rig.update(delta, this.player.position, this.player.measures.focus, (x, z) => this.zone.heightAt(x, z));
-        this.world.update(delta, this.camera, this.player.position);
-        this.hud.update(delta, this.camera, this.actors, this.player, this.size);
+        for(const view of this.views.values()) { view.sync(alpha, delta); }
+
+        this.rig.update(delta, player.position, this.player.measures.focus, (x, z) => this.zone.heightAt(x, z));
+        this.world.update(delta, this.camera, player.position);
+        this.hud.update(delta, this.camera, [...this.views.values()], player, this.size);
     }
 
     render(webgl)
     {
         webgl.render(this.world.scene, this.camera);
+    }
+
+    dispose()
+    {
+        for(const unsubscribe of this.unsubscribers) { unsubscribe(); }
+
+        this.input.detach();
+        this.leaveZone();
+        this.hud.dispose();
     }
 }
