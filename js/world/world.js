@@ -1,6 +1,6 @@
 import * as Props from "./props.js";
 import * as THREE from "three";
-import { BlockBuilder } from "../geometry/block-builder.js";
+import { PropBuilder } from "./prop-builder.js";
 import { Random } from "../util/random.js";
 import { Terrain } from "./terrain.js";
 import { Water } from "./water.js";
@@ -38,7 +38,7 @@ export class World
 
         this.scene.fog = new THREE.Fog(SKY_HORIZON, 14, 58);
         this.scene.background = new THREE.Color(SKY_HORIZON);
-        this.terrainMesh = this.terrain.buildMesh(materials.world);
+        this.terrainMesh = this.terrain.buildMesh(materials.world, materials.atlas);
         this.scene.add(this.terrainMesh, this.water.mesh);
 
         this.addSky();
@@ -106,7 +106,7 @@ export class World
     addProps()
     {
         const random = new Random(this.seed * 31 + 5);
-        const builder = new BlockBuilder();
+        const builder = new PropBuilder(this.materials.atlas);
 
         this.addVillage(builder, random);
         this.addChapelGrounds(builder, random);

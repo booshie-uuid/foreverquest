@@ -5,8 +5,9 @@
   "description": "Proof of concept for a browser RPG with procedural low-poly characters.",
   "type": "module",
   "scripts": {
-    "start": "node tools/serve.js",
-    "test": "node --test \"js-tests/unit/**/*.test.js\" \"lint/tests/**/*.test.js\"",
+    "bake": "node tools/bake/bake.js",
+    "start": "node tools/bake/bake.js && node tools/serve.js",
+    "test": "node tools/bake/bake.js && node --test \"js-tests/unit/**/*.test.js\" \"lint/tests/**/*.test.js\"",
     "test:browser": "node js-tests/browser/run.js",
     "lint": "eslint .",
     "vendor": "node tools/vendor.js"

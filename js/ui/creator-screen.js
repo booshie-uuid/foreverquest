@@ -4,8 +4,8 @@ import * as Props from "../world/props.js";
 import * as THREE from "three";
 import { Animator } from "../character/animator.js";
 import { Appearance } from "../character/appearance.js";
-import { BlockBuilder } from "../geometry/block-builder.js";
 import { CharacterModel } from "../character/character-model.js";
+import { PropBuilder } from "../world/prop-builder.js";
 import { Random } from "../util/random.js";
 
 const PANEL_WIDTH = 380;
@@ -114,7 +114,7 @@ export class CreatorScreen
 
     buildPedestal()
     {
-        const builder = new BlockBuilder();
+        const builder = new PropBuilder(this.materials.atlas);
 
         for(let x = -3; x < 3; x++)
         {

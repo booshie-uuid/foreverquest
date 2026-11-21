@@ -51,11 +51,13 @@ flowchart TB
 
 | Layer | Folder | Modules |
 |---|---|---|
-| Application | [js/](../js/) | `main.js` boots the app. `App` owns the renderer, the material library, the graphics settings, the player's appearance and both screens. `CharacterStore` saves the appearance to `localStorage` |
+| Application | [js/](../js/) | `main.js` opens the asset source and boots the app. `App` loads the world atlas, then owns the renderer, the material library, the graphics settings, the player's appearance and both screens. `CharacterStore` saves the appearance to `localStorage` |
 | Screens | [js/ui/](../js/ui/), [js/game/](../js/game/) | `CreatorScreen` is the character creator. `GameScreen` runs the world: input, camera, actors, talking and the HUD |
 | Domain | [js/character/](../js/character/), [js/world/](../js/world/), [js/game/](../js/game/) | The character kit turns an `Appearance` into a `CharacterModel`. `World` builds the terrain, props, lights and collision. `Actor` moves a character through the world, and `NpcBrain` wanders and talks |
-| Support | [js/art/](../js/art/), [js/geometry/](../js/geometry/), [js/engine/](../js/engine/) | The pixel painters, `BlockBuilder`, `Raster`, `Renderer`, `MaterialLibrary` and `GraphicsSettings` |
+| Support | [js/art/](../js/art/), [js/geometry/](../js/geometry/), [js/engine/](../js/engine/) | The pixel painters, `BlockBuilder`, `Raster`, `AssetSource`, the PNG decoder, `WorldAtlas`, `Renderer`, `MaterialLibrary` and `GraphicsSettings` |
 | Utilities | [js/util/](../js/util/) | Seeded random numbers and value noise |
+
+The game reads baked assets, which the bake writes from authoring code in [content/](../content/). [Assets and the Bake](assets.md) describes that boundary and the lint rules that keep it.
 
 The modules below the screens use no DOM, so the unit suite in [js-tests/unit/](../js-tests/unit/) runs them in Node. It builds real character models, texture sheets and the whole world without WebGL.
 
@@ -111,11 +113,11 @@ The player's `Appearance` lives in `App`. The creator edits a separate draft cop
 | Terrain | One-metre tiles | Tile heights rise in steps of `Terrain.STEP`, 0.25 metres |
 | World textures | 16 texels a metre | Each layer is 32 by 32 texels and tiles every 2 metres |
 
-Rasters are painted top-down and uploaded to the GPU bottom-up, so `Sheet.texture()` and `WorldTextures.paintAll()` flip the rows.
+Rasters are painted top-down and uploaded to the GPU bottom-up, so `Sheet.texture()` and `WorldAtlas` flip the rows.
 
 ## Rendering
 
-The world uses one material, `MaterialLibrary.world`. It is a Lambert material patched to read a texture array: every world vertex carries a `uv` and a `layer`, and the `glow` layer also lights itself. Each character has its own Lambert material whose map is its texture sheet and whose emissive map holds glowing texels such as a lantern. A directional moonlight casts shadow maps, and a point light sits at each lit window and lamp.
+The world uses one material, `MaterialLibrary.world`. It is a Lambert material patched to read a texture array: every world vertex carries a `uv` and a `layer`, and the layers that the atlas marks as glow also light themselves. Each character has its own Lambert material whose map is its texture sheet and whose emissive map holds glowing texels such as a lantern. A directional moonlight casts shadow maps, and a point light sits at each lit window and lamp.
 
 The Retro toggle sets the renderer's pixel ratio so that it draws 640 pixels across, and the canvas scales the picture up with `image-rendering: pixelated`.
 

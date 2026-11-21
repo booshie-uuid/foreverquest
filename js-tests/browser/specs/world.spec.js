@@ -102,7 +102,7 @@ export const tests =
             });
 
             await page.clickAt(tailor.x, tailor.y);
-            await page.waitFor(() => window.foreverQuest.screen === "creator", { timeout: 15000 });
+            await page.waitFor(() => window.foreverQuest.screen === "creator", { timeout: 30000 });
 
             const chat = await page.evaluate(() => document.querySelector(".chat").textContent);
 

@@ -4,7 +4,9 @@ The project has two test suites. The unit suite runs plain modules in Node. The 
 
 ## Unit Suite
 
-Run `npm test`. It runs the `node:test` files that match `js-tests/unit/**/*.test.js`, and the lint tests in `lint/tests/`. A unit test imports `node:test` and `node:assert/strict`. Three.js runs in Node without WebGL, so the unit suite builds real character models, sheets and the world, and checks their geometry and texels.
+Run `npm test`. It bakes the assets, then runs the `node:test` files that match `js-tests/unit/**/*.test.js`, and the lint tests in `lint/tests/`. A unit test imports `node:test` and `node:assert/strict`. Three.js runs in Node without WebGL, so the unit suite builds real character models, sheets and the world, and checks their geometry and texels. A test that needs baked assets opens them from disk with [helpers/assets.js](helpers/assets.js). A test never runs the bake itself, because the test files run in parallel and a bake rewrites `assets/`.
+
+The asset lock test fails when `assets/` differs from `assets.lock.json`; [Assets and the Bake](../docs/assets.md#the-lock-file) describes how to accept a change. The reference test compares the game with data recorded from the prototype in [reference/prototype.json](reference/prototype.json), so the restructure can prove that it reproduces the prototype. [reference/capture.js](reference/capture.js) holds the capture functions; update them when an interface they call changes, and never re-record the reference.
 
 ## Browser Suite
 
@@ -15,7 +17,7 @@ Run `npm test`. It runs the `node:test` files that match `js-tests/unit/**/*.tes
 | `--headed` | Shows the browser window instead of running headless |
 | `--keep-screens` | Keeps the screenshots of passing tests |
 
-The runner ([run.js](browser/run.js)) starts the static server ([tools/serve.js](../tools/serve.js)) on a random port and launches one browser. Each test gets a new page in its own browser context, so cookies and `localStorage` never carry over from another test. The driver ([cdp.js](browser/cdp.js)) uses `CHROME_PATH` when it is set, and otherwise looks for Chrome, then Edge, in their standard install folders. The browser renders WebGL with SwiftShader (`--use-angle=swiftshader --enable-unsafe-swiftshader`), so the suite needs no GPU. The viewport is 1280 × 800 at a device pixel ratio of 1.
+The runner ([run.js](browser/run.js)) bakes the assets, starts the static server ([tools/serve.js](../tools/serve.js)) on a random port and launches one browser. Each test gets a new page in its own browser context, so cookies and `localStorage` never carry over from another test. The driver ([cdp.js](browser/cdp.js)) uses `CHROME_PATH` when it is set, and otherwise looks for Chrome, then Edge, in their standard install folders. The browser renders WebGL with SwiftShader (`--use-angle=swiftshader --enable-unsafe-swiftshader`), so the suite needs no GPU. The viewport is 1280 × 800 at a device pixel ratio of 1.
 
 A test fails when it throws, when it runs longer than 60 seconds (or the test's own `timeout` in milliseconds), or when the page reports an error. Page errors are uncaught exceptions, `console.error` and failed `console.assert` calls, failed resource loads other than `/favicon.ico`, and a page crash.
 
@@ -77,6 +79,7 @@ Each tag names one capability of the game. A spec lists its tags in `covers`.
 
 | Tag | Covers | Specs |
 |---|---|---|
+| `assets` | The browser decodes the baked world textures to the prototype's texels, and the loading state clears | [assets.spec.js](browser/specs/assets.spec.js) |
 | `boot` | The game page loads without errors, sets `window.foreverQuest.isReady`, and shows a canvas with a non-zero size | [smoke.spec.js](browser/specs/smoke.spec.js) |
 | `creator` | The creator draws the preview, rebuilds the character when an option changes, keeps the skin within the race's palette, repaints the character sheet for a marking, equips and tints items, randomises the look, and blocks an invalid name | [creator.spec.js](browser/specs/creator.spec.js) |
 | `graphics` | The Retro toggle renders 640 pixels wide with pixelated scaling, and the moonlight casts shadows from the player in the world | [graphics.spec.js](browser/specs/graphics.spec.js) |

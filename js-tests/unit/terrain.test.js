@@ -1,10 +1,11 @@
+import * as TestAssets from "../helpers/assets.js";
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { MaterialLibrary } from "../../js/engine/materials.js";
 import { Terrain } from "../../js/world/terrain.js";
 import { World } from "../../js/world/world.js";
 
 const terrain = new Terrain(7);
+const materials = await TestAssets.materials();
 
 describe("Terrain", () =>
 {
@@ -38,7 +39,7 @@ describe("Terrain", () =>
 
     it("builds a top for every tile and a side for every drop", () =>
     {
-        const geometry = terrain.buildMesh(null).geometry;
+        const geometry = terrain.buildMesh(null, materials.atlas).geometry;
         const normal = geometry.getAttribute("normal");
         let tops = 0;
 
@@ -51,7 +52,7 @@ describe("Terrain", () =>
 
 describe("World collisions", () =>
 {
-    const world = new World(new MaterialLibrary());
+    const world = new World(materials);
 
     it("pushes a circle out of a rotated box", () =>
     {

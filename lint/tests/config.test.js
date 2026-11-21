@@ -241,6 +241,54 @@ const BROKEN = [
         rule: "no-unused-vars",
         code: code("const unused = 1;"),
     },
+    {
+        name: "game code that imports authoring content",
+        rule: "no-restricted-imports",
+        file: "js/world/world.js",
+        code: code('import * as Props from "../../content/props.js";', "", "export const PROPS = Props;"),
+    },
+    {
+        name: "game code that imports a tool",
+        rule: "no-restricted-imports",
+        file: "js/app.js",
+        code: code('import * as Bake from "../tools/bake/bake.js";', "", "export const BAKE = Bake;"),
+    },
+    {
+        name: "the simulation importing Three.js",
+        rule: "no-restricted-imports",
+        file: "js/sim/entity.js",
+        code: code('import * as THREE from "three";', "", "export const ORIGIN = new THREE.Vector3();"),
+    },
+    {
+        name: "the simulation importing a render module",
+        rule: "no-restricted-imports",
+        file: "js/sim/zone.js",
+        code: code('import { Renderer } from "../engine/renderer.js";', "", "export const RENDERER = Renderer;"),
+    },
+    {
+        name: "the simulation reading the page",
+        rule: "no-undef",
+        file: "js/sim/entity.js",
+        code: code("export const WIDTH = window.innerWidth;"),
+    },
+    {
+        name: "content that draws unseeded random numbers",
+        rule: "no-restricted-properties",
+        file: "content/props.js",
+        code: code("export const LEAN = Math.random();"),
+    },
+    {
+        name: "a bake step that reads the clock",
+        rule: "no-restricted-properties",
+        file: "tools/bake/stamp.js",
+        code: code("export const STAMP = Date.now();"),
+    },
+    {
+        name: "a bake step that creates a date",
+        rule: "no-restricted-syntax",
+        file: "tools/bake/stamp.js",
+        code: code("export const STAMP = new Date().toISOString();"),
+    },
 ];
 
 
@@ -420,6 +468,16 @@ const ALLOWED = [
         name: "Node globals in a tool",
         file: "tools/serve.js",
         code: code("export const PORT = Number(process.env.PORT ?? 8080);"),
+    },
+    {
+        name: "content that imports game modules",
+        file: "content/world-textures.js",
+        code: code('import * as Pixels from "../js/art/pixels.js";', "", "export const GRASS = (raster, area, random) => Pixels.grass(raster, area, random);"),
+    },
+    {
+        name: "the simulation importing a utility",
+        file: "js/sim/brain.js",
+        code: code('import { Random } from "../util/random.js";', "", "export const RANDOM = new Random(7);"),
     },
 ];
 

@@ -46,6 +46,17 @@ body
     image-rendering: pixelated;
 }
 
+.loading
+{
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: var(--ink);
+    font-family: var(--font-display);
+    letter-spacing: 0.08em;
+}
+
 [hidden]
 {
     display: none !important;

@@ -1,10 +1,12 @@
 import * as Capture from "../reference/capture.js";
+import * as TestAssets from "../helpers/assets.js";
 import * as assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, it } from "node:test";
 
 const REFERENCE = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "..", "reference", "prototype.json"), "utf8"));
+const materials = await TestAssets.materials();
 
 describe("Prototype reference", () =>
 {
@@ -22,13 +24,13 @@ describe("Prototype reference", () =>
         for(const [label, blocks] of Object.entries(REFERENCE.parts)) { assert.deepEqual(sweep[label], blocks, label); }
     });
 
-    it("paints the same world texture layers", () =>
+    it("bakes the same world texture layers", () =>
     {
-        assert.deepEqual(Capture.worldTexturesRecord(), REFERENCE.worldTextures);
+        assert.deepEqual(Capture.worldTexturesRecord(materials.atlas), REFERENCE.worldTextures);
     });
 
     it("builds the same zone tiles, colliders, lights and meshes", () =>
     {
-        assert.deepEqual(Capture.zoneRecord(), REFERENCE.zone);
+        assert.deepEqual(Capture.zoneRecord(materials), REFERENCE.zone);
     });
 });

@@ -1,6 +1,5 @@
 import * as Face from "../../js/art/face.js";
 import * as Pixels from "../../js/art/pixels.js";
-import * as WorldTextures from "../../js/world/world-textures.js";
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Random } from "../../js/util/random.js";
@@ -103,21 +102,5 @@ describe("Face", () =>
         Face.hair(raster, Pixels.area(0, 0, 16, 16), new Random(1), "top", "bald", "#000000");
 
         assert.deepEqual(raster.get(8, 8).slice(0, 3), [0xb4, 0x9a, 0x84]);
-    });
-});
-
-describe("WorldTextures", () =>
-{
-    it("paints one opaque 32 by 32 layer per world texture", () =>
-    {
-        const data = WorldTextures.paintAll();
-
-        assert.equal(data.length, WorldTextures.NAMES.length * WorldTextures.SIZE * WorldTextures.SIZE * 4);
-        assert.ok(data.every((value, i) => i % 4 !== 3 || value === 255));
-    });
-
-    it("rejects an unknown texture name", () =>
-    {
-        assert.throws(() => WorldTextures.index("velvet"), /Unknown world texture/);
     });
 });

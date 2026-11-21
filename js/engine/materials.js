@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import * as WorldTextures from "../world/world-textures.js";
 
 const VERTEX_PARS = `
 attribute float layer;
@@ -23,15 +22,12 @@ vec4 tileTexel = texture(worldAtlas, vec3(vTileUv, floor(vLayer + 0.5)));
 diffuseColor *= tileTexel;
 `;
 
-const EMISSIVE = `
-if(abs(vLayer - ${WorldTextures.index("glow")}.0) < 0.5) { totalEmissiveRadiance += tileTexel.rgb * 1.6; }
-`;
-
 export class MaterialLibrary
 {
-    constructor()
+    constructor(atlas)
     {
-        this.atlas = WorldTextures.createAtlas();
+        this.atlas = atlas;
+        this.atlasTexture = atlas.createTexture();
         this.world = this.worldMaterial();
         this.water = new THREE.MeshPhongMaterial({ color: "#1e2a30", specular: 0x5a6a78, shininess: 80, transparent: true, opacity: 0.82 });
     }
@@ -39,7 +35,8 @@ export class MaterialLibrary
     worldMaterial()
     {
         const material = new THREE.MeshLambertMaterial();
-        const uniforms = { worldAtlas: { value: this.atlas } };
+        const uniforms = { worldAtlas: { value: this.atlasTexture } };
+        const emissive = MaterialLibrary.emissiveShader(this.atlas.glowLayers);
 
         material.onBeforeCompile = (shader) =>
         {
@@ -52,11 +49,20 @@ export class MaterialLibrary
             shader.fragmentShader = shader.fragmentShader
                 .replace("#include <common>", "#include <common>\n" + FRAGMENT_PARS)
                 .replace("#include <color_fragment>", "#include <color_fragment>\n" + FRAGMENT)
-                .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n" + EMISSIVE);
+                .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n" + emissive);
         };
 
-        material.customProgramCacheKey = () => "world-atlas";
+        material.customProgramCacheKey = () => "world-atlas:" + this.atlas.glowLayers.join(",");
 
         return material;
+    }
+
+    static emissiveShader(glowLayers)
+    {
+        if(glowLayers.length === 0) { return ""; }
+
+        const isGlow = glowLayers.map((layer) => "abs(vLayer - " + layer + ".0) < 0.5").join(" || ");
+
+        return "if(" + isGlow + ") { totalEmissiveRadiance += tileTexel.rgb * 1.6; }\n";
     }
 }

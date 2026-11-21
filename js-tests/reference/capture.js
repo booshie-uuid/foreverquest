@@ -1,11 +1,9 @@
 import * as Catalogue from "../../js/character/catalogue.js";
 import * as Kit from "../../js/character/kit.js";
 import * as Residents from "../../js/game/residents.js";
-import * as WorldTextures from "../../js/world/world-textures.js";
 import * as crypto from "node:crypto";
 import { Appearance } from "../../js/character/appearance.js";
 import { CharacterModel } from "../../js/character/character-model.js";
-import { MaterialLibrary } from "../../js/engine/materials.js";
 import { Random } from "../../js/util/random.js";
 import { World } from "../../js/world/world.js";
 
@@ -169,14 +167,14 @@ function partBlocks(look)
 /* ZONE                                                                       */
 /******************************************************************************/
 
-export function worldTexturesRecord()
+export function worldTexturesRecord(atlas)
 {
-    return { layers: [...WorldTextures.NAMES], upload: hash(WorldTextures.paintAll()) };
+    return { layers: [...atlas.names], upload: hash(atlas.upload) };
 }
 
-export function zoneRecord()
+export function zoneRecord(materials)
 {
-    const world = new World(new MaterialLibrary(), 7);
+    const world = new World(materials, 7);
     const terrain = world.terrain;
     const meshes = {};
 

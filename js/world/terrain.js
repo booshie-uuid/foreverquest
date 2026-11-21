@@ -1,13 +1,11 @@
 import * as Noise from "../util/noise.js";
 import * as THREE from "three";
-import * as WorldTextures from "./world-textures.js";
 
 const STEP = 0.25;
 const WATER_LEVEL = -0.1;
 const SQUARE_RADIUS = 7;
 const VILLAGE_RADIUS = 18;
 const LAKE = { x: 22, z: 16, radius: 9, depth: 2.5 };
-const UV_PER_METRE = WorldTextures.TEXELS_PER_METRE / WorldTextures.SIZE;
 
 const PATHS =
 [
@@ -170,13 +168,13 @@ export class Terrain
 
     /* MESH *******************************************************************/
 
-    buildMesh(material)
+    buildMesh(material, atlas)
     {
         const out = { positions: [], normals: [], uvs: [], layers: [] };
 
         for(let row = 0; row < this.size; row++)
         {
-            for(let column = 0; column < this.size; column++) { this.addTile(out, column, row); }
+            for(let column = 0; column < this.size; column++) { this.addTile(out, atlas, column, row); }
         }
 
         const geometry = new THREE.BufferGeometry();
@@ -194,17 +192,18 @@ export class Terrain
         return this.mesh;
     }
 
-    addTile(out, column, row)
+    addTile(out, atlas, column, row)
     {
         const x0 = column - this.half;
         const z0 = row - this.half;
         const height = this.tileHeight(column, row);
-        const top = WorldTextures.index(this.types[row * this.size + column]);
+        const top = atlas.layer(this.types[row * this.size + column]);
+        const perMetre = atlas.uvPerMetre;
 
         Terrain.quad(out,
             [[x0, height, z0 + 1], [x0 + 1, height, z0 + 1], [x0 + 1, height, z0], [x0, height, z0]],
             [0, 1, 0],
-            [x0 * UV_PER_METRE, -(z0 + 1) * UV_PER_METRE, (x0 + 1) * UV_PER_METRE, -z0 * UV_PER_METRE],
+            [x0 * perMetre, -(z0 + 1) * perMetre, (x0 + 1) * perMetre, -z0 * perMetre],
             top);
 
         for(const [dx, dz] of NEIGHBOURS)
@@ -215,11 +214,11 @@ export class Terrain
 
             const side = height - below > 1.5 || height >= 4 ? "darkStone" : "earth";
 
-            this.addSide(out, x0, z0, dx, dz, below, height, WorldTextures.index(side));
+            this.addSide(out, x0, z0, dx, dz, below, height, atlas.layer(side), perMetre);
         }
     }
 
-    addSide(out, x0, z0, dx, dz, low, high, layer)
+    addSide(out, x0, z0, dx, dz, low, high, layer, perMetre)
     {
         const corners =
         {
@@ -235,7 +234,7 @@ export class Terrain
         Terrain.quad(out,
             [[ax, low, az], [bx, low, bz], [bx, high, bz], [ax, high, az]],
             [dx, 0, dz],
-            [along * sign * UV_PER_METRE, low * UV_PER_METRE, (along + sign) * sign * UV_PER_METRE, high * UV_PER_METRE],
+            [along * sign * perMetre, low * perMetre, (along + sign) * sign * perMetre, high * perMetre],
             layer);
     }
 

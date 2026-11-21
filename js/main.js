@@ -1,4 +1,5 @@
 import { App } from "./app.js";
+import { AssetSource } from "./engine/asset-source.js";
 import { Log } from "./log.js";
 
 function readStorage()
@@ -15,15 +16,22 @@ function readStorage()
     }
 }
 
-try
+async function start()
 {
-    const app = new App(document.getElementById("app"), readStorage());
+    const container = document.getElementById("app");
 
-    window.foreverQuest = app;
-    app.start();
+    try
+    {
+        const app = new App(container, readStorage(), await AssetSource.http("assets/"));
+
+        window.foreverQuest = app;
+        await app.start();
+    }
+    catch(error)
+    {
+        Log.error("ForeverQuest failed to start", error);
+        container.textContent = "ForeverQuest could not start. Its assets may be missing, or WebGL may be unavailable in this browser.";
+    }
 }
-catch(error)
-{
-    Log.error("ForeverQuest failed to start", error);
-    document.getElementById("app").textContent = "ForeverQuest could not start. WebGL may be unavailable in this browser.";
-}
+
+await start();

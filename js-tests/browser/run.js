@@ -1,4 +1,5 @@
 import * as Server from "../../tools/serve.js";
+import * as childProcess from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as url from "node:url";
@@ -8,6 +9,7 @@ import { Browser } from "./cdp.js";
 import { Log } from "../../js/log.js";
 
 const PROJECT_ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), "..", "..");
+const BAKE = path.join(PROJECT_ROOT, "tools", "bake", "bake.js");
 const SPECS_DIR = path.join(PROJECT_ROOT, "js-tests", "browser", "specs");
 const SCREENS_DIR = path.join(PROJECT_ROOT, "local", "screens");
 const SPEC_SUFFIX = ".spec.js";
@@ -249,6 +251,14 @@ async function main()
         const options = readOptions();
 
         if(!options)
+        {
+            process.exitCode = 1;
+            return;
+        }
+
+        const bake = childProcess.spawnSync(process.execPath, [BAKE], { stdio: "inherit" });
+
+        if(bake.status !== 0)
         {
             process.exitCode = 1;
             return;

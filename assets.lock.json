@@ -1,0 +1,32 @@
+{
+    "files": {
+        "textures/world.json": "952d81b42134e8c39465bec24af55f88fb6454e8642a5ce8d85d4a2b599b1d39",
+        "textures/world.png": "bb5358e5ce874d26433d9fe68a985ffbe6e5aba2cfb363879792f58014e9648e"
+    },
+    "ids": {
+        "world-texture": [
+            "banner",
+            "bark",
+            "cobble",
+            "darkStone",
+            "earth",
+            "glow",
+            "grass",
+            "grave",
+            "iron",
+            "leaves",
+            "moss",
+            "mud",
+            "needles",
+            "oldPlanks",
+            "planks",
+            "plaster",
+            "sacking",
+            "sand",
+            "slate",
+            "stone",
+            "thatch",
+            "timber"
+        ]
+    }
+}

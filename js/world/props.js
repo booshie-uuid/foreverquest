@@ -1,14 +1,11 @@
-import * as WorldTextures from "./world-textures.js";
-
-const UV_PER_METRE = WorldTextures.TEXELS_PER_METRE / WorldTextures.SIZE;
-
-// Faces take a world texture by name: a string for every face, or a map with
-// per-face names and an "all" fallback. The texture tiles at 16 texels a metre.
+// `builder` must be a PropBuilder.
 export function block(builder, size, at, faces, rotation = null)
 {
+    const atlas = builder.atlas;
+    const perMetre = atlas.uvPerMetre;
     const nameOf = (face) => (typeof faces === "string" ? faces : faces[face] ?? faces.all);
-    const offsetU = ((at[0] * 0.37 + at[2] * 0.61) * UV_PER_METRE) % 1;
-    const offsetV = (at[1] * UV_PER_METRE) % 1;
+    const offsetU = ((at[0] * 0.37 + at[2] * 0.61) * perMetre) % 1;
+    const offsetV = (at[1] * perMetre) % 1;
 
     builder.add(size, at, rotation, (face, width, height) =>
     {
@@ -16,7 +13,7 @@ export function block(builder, size, at, faces, rotation = null)
 
         if(!name) { return null; }
 
-        return { uv: [offsetU, offsetV, offsetU + width * UV_PER_METRE, offsetV + height * UV_PER_METRE], layer: WorldTextures.index(name) };
+        return { uv: [offsetU, offsetV, offsetU + width * perMetre, offsetV + height * perMetre], layer: atlas.layer(name) };
     });
 }
 

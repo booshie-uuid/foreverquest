@@ -13,7 +13,8 @@ function readonly(names)
 }
 
 const SHARED_GLOBALS = [
-    "AbortController", "AbortSignal", "Blob", "BroadcastChannel", "CustomEvent", "DOMException", "Event",
+    "AbortController", "AbortSignal", "Blob", "BroadcastChannel", "CompressionStream", "CustomEvent",
+    "DOMException", "DecompressionStream", "Event",
     "EventTarget", "File", "FormData", "Headers", "MessageChannel", "MessageEvent", "MessagePort",
     "ReadableStream", "Request", "Response", "TextDecoder", "TextEncoder", "TransformStream", "URL",
     "URLSearchParams", "WebAssembly", "WebSocket", "WritableStream", "atob", "btoa", "clearInterval",
@@ -21,8 +22,7 @@ const SHARED_GLOBALS = [
     "setTimeout", "structuredClone",
 ];
 
-const BROWSER_GLOBALS = readonly([
-    ...SHARED_GLOBALS,
+const PAGE_GLOBALS = [
     "Audio", "AudioContext", "CSS", "CanvasRenderingContext2D", "DOMParser", "DOMRect", "Document",
     "DocumentFragment", "Element", "FileReader", "FocusEvent", "FontFace", "GainNode", "Gamepad", "GamepadEvent",
     "HTMLAnchorElement", "HTMLButtonElement", "HTMLCanvasElement", "HTMLDivElement", "HTMLElement",
@@ -34,13 +34,42 @@ const BROWSER_GLOBALS = readonly([
     "customElements", "devicePixelRatio", "document", "getComputedStyle", "history", "indexedDB",
     "innerHeight", "innerWidth", "localStorage", "location", "matchMedia", "prompt", "requestAnimationFrame",
     "requestIdleCallback", "screen", "self", "sessionStorage", "window",
-]);
+];
+
+const BROWSER_GLOBALS = readonly([...SHARED_GLOBALS, ...PAGE_GLOBALS]);
+
+// Config objects merge their globals, so the page globals are switched off.
+const SIMULATION_GLOBALS = { ...Object.fromEntries(PAGE_GLOBALS.map((name) => [name, "off"])), ...readonly(SHARED_GLOBALS) };
 
 const NODE_GLOBALS = readonly([
     ...SHARED_GLOBALS,
-    "Buffer", "CompressionStream", "DecompressionStream", "Navigator", "Performance", "clearImmediate", "global",
+    "Buffer", "Navigator", "Performance", "clearImmediate", "global",
     "process", "setImmediate",
 ]);
+
+
+/******************************************************************************/
+/* BOUNDARIES                                                                 */
+/******************************************************************************/
+
+const GAME_IMPORTS =
+{
+    regex: "(^|/)(content|tools)/",
+    message: "Game code cannot import authoring code. Read the baked asset instead.",
+};
+
+const SIMULATION_IMPORTS =
+{
+    regex: "^three$|/(engine|render|ui)/",
+    message: "The simulation runs without a renderer or a page.",
+};
+
+const UNSEEDED =
+[
+    { object: "Math", property: "random", message: "Use a seeded Random so every bake gives the same files." },
+    { object: "Date", property: "now", message: "A bake cannot depend on the time." },
+    { object: "performance", property: "now", message: "A bake cannot depend on the time." },
+];
 
 
 /******************************************************************************/
@@ -55,7 +84,7 @@ const RECOMMENDED = Object.fromEntries(
 );
 
 export default [
-    { ignores: ["node_modules/", "libs/", "local/"] },
+    { ignores: ["node_modules/", "libs/", "local/", "assets/"] },
     {
         files: ["**/*.js"],
         plugins: { "@stylistic": stylistic, local },
@@ -92,6 +121,24 @@ export default [
     {
         files: ["js/**/*.js"],
         languageOptions: { globals: BROWSER_GLOBALS },
+        rules: { "no-restricted-imports": ["error", { patterns: [GAME_IMPORTS] }] },
+    },
+    {
+        files: ["js/sim/**/*.js"],
+        languageOptions: { globals: SIMULATION_GLOBALS },
+        rules: { "no-restricted-imports": ["error", { patterns: [GAME_IMPORTS, SIMULATION_IMPORTS] }] },
+    },
+    {
+        files: ["content/**/*.js"],
+        languageOptions: { globals: readonly(SHARED_GLOBALS) },
+    },
+    {
+        files: ["content/**/*.js", "tools/bake/**/*.js"],
+        rules:
+        {
+            "no-restricted-properties": ["error", ...UNSEEDED],
+            "no-restricted-syntax": ["error", { selector: "NewExpression[callee.name='Date']", message: "A bake cannot depend on the time." }],
+        },
     },
     {
         files: ["tools/**/*.js", "lint/**/*.js", "js-tests/**/*.js", "eslint.config.js"],
