@@ -14,6 +14,21 @@ export const STAMPS =
     "planks": { size: TILE, seed: 16, paint: (r, a, random, colour) => Pixels.planks(r, a, random, colour) },
     "iron": { size: TILE, seed: 17, paint: (r, a, random, colour) => Pixels.iron(r, a, random, colour) },
     "lamplight": { size: [8, 8], seed: 18, glow: true, paint: (r, a, random) => Pixels.glow(r, a, random) },
+    "grit.flat": { size: TILE, seed: 21, paint: (r, a, random, colour) => Pixels.grit(r, a, colour, random, 0.1) },
+    "solid": { size: [2, 2], seed: 22, paint: (r, a, random, colour) => Pixels.fill(r, a, colour) },
+    "solid.4": { size: [4, 4], seed: 23, paint: (r, a, random, colour) => Pixels.fill(r, a, colour) },
+    "solid.3rows": { size: [1, 3], seed: 24, paint: (r, a, random, colour) => Pixels.fill(r, a, colour) },
+    "braid":
+    {
+        size: TILE,
+        seed: 25,
+        paint: (r, a, random, colour) =>
+        {
+            Pixels.cloth(r, a, random, colour);
+
+            for(let y = 0; y < a.h; y += 3) { Pixels.rect(r, a, 0, y, a.w, 1, Pixels.shade(colour, 0.6)); }
+        },
+    },
     "hem": { size: [48, 1], seed: 19, paint: (r, a, random, colour) => Pixels.fill(r, a, Pixels.shade(colour, 0.6)) },
     "ragged":
     {

@@ -15,6 +15,8 @@ const FACES = ["front", "back", "left", "right", "top", "bottom"];
 
 export async function bake(problems, context)
 {
+    context.seen = new Set();
+
     const parts = [];
     const json = (value) => Buffer.from(JSON.stringify(value, null, 4) + "\n");
 
@@ -28,6 +30,14 @@ export async function bake(problems, context)
     for(const rig of context.rigs.values())
     {
         for(const layer of rig.base) { Layers.check(layer, rig, context.stamps, "Rig " + rig.id + " base layer", problems, true); }
+    }
+
+    for(const body of context.bodies)
+    {
+        for(const feature of body.features)
+        {
+            if(!parts.some((part) => part.slot === "feature" && part.id === feature)) { problems.push("Body " + body.id + " has an unknown feature: " + feature); }
+        }
     }
 
     const ids = parts.map((part) => part.slot + "/" + part.id);
@@ -48,7 +58,10 @@ async function load()
         {
             const loaded = await import(url.pathToFileURL(path.join(FOLDER, slot, file)).href);
 
-            if(loaded.PART) { found.push({ ...loaded.PART, file: "parts/" + slot + "/" + file, folder: slot }); }
+            for(const part of loaded.PARTS ?? (loaded.PART ? [loaded.PART] : []))
+            {
+                found.push({ ...part, file: "parts/" + slot + "/" + file, folder: slot });
+            }
         }
     }
 
@@ -67,6 +80,9 @@ export function compilePart(source, context, problems)
     const rigs = [...context.rigs.values()].filter((rig) => rig.slots.includes(source.slot));
 
     if(!ID_PATTERN.test(source.id ?? "")) { problems.push(where + " has an invalid id: " + source.id); }
+    if(context.seen.has(source.slot + "/" + source.id)) { problems.push(where + " repeats the part " + source.slot + "/" + source.id); }
+
+    context.seen.add(source.slot + "/" + source.id);
     if(source.folder && source.folder !== source.slot) { problems.push(where + " is for the " + source.slot + " slot but sits in the " + source.folder + " folder"); }
     if(rigs.length === 0) { problems.push(where + " is for a slot that no rig offers: " + source.slot); return null; }
 

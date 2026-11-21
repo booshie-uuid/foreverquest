@@ -1,7 +1,7 @@
 const COLOUR_PATTERN = /^#[0-9a-f]{6}$/;
 const CHANNELS = ["skin", "hair", "eyes", "primary", "trim"];
 const FACES = ["front", "back", "left", "right", "top", "bottom"];
-const PLACES = { x: ["tile", "centre"], y: ["tile", "top", "bottom", "centre"] };
+const PLACES = { x: ["tile", "left", "right", "centre"], y: ["tile", "top", "bottom", "centre"] };
 
 export function check(layer, rig, stamps, where, problems, isRegion)
 {
@@ -15,7 +15,7 @@ export function check(layer, rig, stamps, where, problems, isRegion)
     if(stamp.isTinted && !tint) { problems.push(where + " uses the tinted stamp " + layer.stamp + " without a tint"); }
     if(layer.tint !== undefined && !tint) { problems.push(where + " has an unknown tint: " + JSON.stringify(layer.tint)); }
     if(layer.faces && !layer.faces.every((face) => FACES.includes(face))) { problems.push(where + " names an unknown face"); }
-    if(layer.rows && !layer.rows.every(Number.isInteger)) { problems.push(where + " needs whole-number rows"); }
+    if(layer.rows && !layer.rows.every((row) => Number.isInteger(row) || Math.abs(row) < 1)) { problems.push(where + " needs whole-number rows, or fractions of the height between -1 and 1"); }
 }
 
 function tintOf(value)
@@ -26,7 +26,7 @@ function tintOf(value)
 
     const isChannel = CHANNELS.includes(value?.of);
     const isColour = COLOUR_PATTERN.test(value?.colour ?? "");
-    const isMix = value?.mix === undefined || (COLOUR_PATTERN.test(value.mix) && Number.isFinite(value.amount));
+    const isMix = value?.mix === undefined || ((COLOUR_PATTERN.test(value.mix) || CHANNELS.includes(value.mix)) && Number.isFinite(value.amount));
     const isShade = value?.shade === undefined || Number.isFinite(value.shade);
 
     return (isChannel || isColour) && isMix && isShade ? value : null;

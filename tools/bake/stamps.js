@@ -12,6 +12,7 @@ const ID_PATTERN = /^[a-z][A-Za-z0-9]*(\.[A-Za-z0-9]+)*$/;
 const UNTOUCHED = 7;
 const GREY = Compositor.GREY;
 const PROBE = [200, 60, 130, 255];
+const PREVIEW_TINT = 150;
 
 export async function bake(problems, context)
 {
@@ -40,10 +41,29 @@ export async function bake(problems, context)
         files:
         [
             { path: "models/stamps.png", bytes: PngWriter.encode(SHEET_WIDTH, height, sheet.data) },
+            { path: "models/stamps.preview.png", bytes: PngWriter.encode(SHEET_WIDTH, height, preview(sheet.data)) },
             { path: "models/stamps.json", bytes: Buffer.from(JSON.stringify(index, null, 4) + "\n") },
         ],
         ids: { stamp: stamps.map((stamp) => stamp.id) },
     };
+}
+
+// Shows tinted texels in grey and cut-outs in magenta, for looking at only.
+function preview(data)
+{
+    const out = new Uint8Array(data.length);
+
+    for(let i = 0; i < data.length; i += 4)
+    {
+        const kind = data[i + 3];
+        const shade = Math.min(255, Math.round(PREVIEW_TINT * data[i] / GREY));
+
+        if(kind === Compositor.TINTED) { out.set([shade, shade, shade, 255], i); }
+        else if(kind === Compositor.CLEAR) { out.set([255, 0, 255, 255], i); }
+        else if(kind !== Compositor.SKIP) { out.set([data[i], data[i + 1], data[i + 2], 255], i); }
+    }
+
+    return out;
 }
 
 async function load(problems)

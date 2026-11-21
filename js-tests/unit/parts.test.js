@@ -3,7 +3,6 @@ import * as Catalogue from "../../js/character/catalogue.js";
 import * as Compositor from "../../js/kit/compositor.js";
 import * as Dresser from "../../js/kit/dresser.js";
 import * as Fitter from "../../js/kit/fitter.js";
-import * as Kit from "../../js/character/kit.js";
 import * as TestAssets from "../helpers/assets.js";
 import * as assert from "node:assert/strict";
 import * as fs from "node:fs";
@@ -16,7 +15,7 @@ import { Raster } from "../../js/engine/raster.js";
 
 const library = await TestAssets.library();
 const REFERENCE = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "..", "reference", "prototype.json"), "utf8"));
-const LOOK_SLOTS = ["hair", "face", "beard", "markings"];
+const LOOK_SLOTS = ["nose", "hair", "face", "beard", "markings"];
 const BARE = Object.fromEntries(Catalogue.SLOTS.map((slot) => [slot.id, { item: "none" }]));
 
 // A 4 by 2 stamp: a tinted row at shade 1.5 over a fixed, a glowing, a clear
@@ -118,7 +117,7 @@ describe("Dresser", () =>
 
                     const appearance = new Appearance(library, look);
                     const fitted = Fitter.fit(library.rig(body.rig), appearance.body, { variant: variant.id });
-                    const blocks = [...Kit.featureBlocks(appearance), ...Dresser.dress(fitted, appearance, library).blocks];
+                    const blocks = Dresser.dress(fitted, appearance, library).blocks;
 
                     assert.deepEqual(sorted(blocks), [...REFERENCE.parts[key]].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))), key);
                     checked++;
@@ -126,7 +125,7 @@ describe("Dresser", () =>
             }
         }
 
-        assert.ok(checked >= 80, checked + " cases");
+        assert.equal(checked, Object.keys(REFERENCE.parts).length, "Every reference case has a part");
     });
 
     it("leaves out hair blocks under a helm that hides the hair", () =>

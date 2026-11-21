@@ -42,6 +42,7 @@ export async function bake(problems, context)
 
     bodies.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
     context.rigs = rigs;
+    context.bodies = bodies;
 
     const json = (value) => Buffer.from(JSON.stringify(value, null, 4) + "\n");
     const files = [{ path: "models/index.json", bytes: json({ rigs: [...rigs.keys()].sort(), bodies: bodies.map((body) => body.id) }) }];
@@ -333,6 +334,7 @@ export function checkBody(source, rigs, problems)
         measures: source.measures,
         skins: source.skins,
         shades: source.shades ?? {},
+        features: source.features ?? [],
         ears: source.ears ?? null,
         hasTusks: source.hasTusks === true,
     };

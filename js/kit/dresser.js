@@ -3,7 +3,7 @@ import * as Fitter from "./fitter.js";
 import * as THREE from "three";
 
 const FACES = ["front", "back", "left", "right", "top", "bottom"];
-const LOOK_SLOTS = ["hair", "face", "beard", "markings"];
+const LOOK_SLOTS = ["nose", "hair", "face", "beard", "markings"];
 
 
 /******************************************************************************/
@@ -16,7 +16,7 @@ export function dress(fitted, look, library)
     const rig = fitted.rig;
     const variant = look.get("variant");
     const base = { skin: look.get("skin"), hair: look.get("hairColour"), eyes: look.get("eyes") };
-    const worn = rig.slots.map((slot) => wornPart(look, library, slot, base)).filter((entry) => entry.part);
+    const worn = rig.slots.flatMap((slot) => wornParts(look, library, slot, base)).filter((entry) => entry.part);
     const hidesHair = worn.some((entry) => entry.part.hidesHair);
     const layers = {};
     const blocks = [];
@@ -43,13 +43,14 @@ export function dress(fitted, look, library)
     return { blocks, layers };
 }
 
-function wornPart(look, library, slot, base)
+function wornParts(look, library, slot, base)
 {
-    if(LOOK_SLOTS.includes(slot)) { return { part: library.part(slot, look.get(slot)), colours: base }; }
+    if(slot === "feature") { return look.body.features.map((id) => ({ part: library.part(slot, id), colours: base })); }
+    if(LOOK_SLOTS.includes(slot)) { return [{ part: library.part(slot, look.get(slot)), colours: base }]; }
 
     const gear = look.equipped(slot);
 
-    return { part: library.part(slot, gear.item), colours: { ...base, primary: gear.colour, trim: gear.trim } };
+    return [{ part: library.part(slot, gear.item), colours: { ...base, primary: gear.colour, trim: gear.trim } }];
 }
 
 function isWorn(layer, variant)

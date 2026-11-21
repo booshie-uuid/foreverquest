@@ -13,5 +13,6 @@ export const BODY =
     sliders: Shared.SLIDERS,
     measures: Shared.MEASURES,
     skins: ["#d0bca8", "#bfae9c", "#9a9aa4", "#6a6478", "#4a4458"],
+    features: ["earsLong"],
     ears: "long",
 };

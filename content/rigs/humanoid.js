@@ -38,6 +38,6 @@ export const RIG =
         hands: [{ bone: "armL", rows: [-HAND_ROWS] }, { bone: "armR", rows: [-HAND_ROWS] }],
         legs: [{ bone: "legL" }, { bone: "legR" }],
     },
-    slots: ["hair", "face", "beard", "markings", "legs", "feet", "chest", "hands", "head", "back", "mainHand", "offHand"],
+    slots: ["feature", "nose", "hair", "face", "beard", "markings", "legs", "feet", "chest", "hands", "head", "back", "mainHand", "offHand"],
     base: [{ region: "body", stamp: "grit", tint: "skin" }],
 };

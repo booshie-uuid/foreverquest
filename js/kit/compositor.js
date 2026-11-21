@@ -24,7 +24,7 @@ export function resolve(tint, colours)
     let colour = tint.colour ?? colours[tint.of];
 
     if(!colour) { return null; }
-    if(tint.mix) { colour = Pixels.mix(colour, tint.mix, tint.amount); }
+    if(tint.mix) { colour = Pixels.mix(colour, colours[tint.mix] ?? tint.mix, tint.amount); }
     if(tint.shade) { colour = Pixels.shade(colour, tint.shade); }
 
     return Pixels.rgb(colour);
@@ -35,13 +35,15 @@ export function resolve(tint, colours)
 /* AREAS                                                                      */
 /******************************************************************************/
 
-// Rows count from the top, or from the bottom when negative; a missing end is
-// the bottom edge.
+// Rows count from the top, or from the bottom when negative; a value between
+// -1 and 1 that is not whole is a fraction of the height. A missing end is the
+// bottom edge.
 export function rows(area, range)
 {
     if(!range) { return area; }
 
-    const edge = (value) => Math.max(0, Math.min(area.h, value < 0 ? area.h + value : value));
+    const whole = (value) => (Number.isInteger(value) ? value : Math.round(value * area.h));
+    const edge = (value) => Math.max(0, Math.min(area.h, whole(value) < 0 ? area.h + whole(value) : whole(value)));
     const top = edge(range[0]);
     const bottom = range.length > 1 ? edge(range[1]) : area.h;
 
@@ -52,7 +54,7 @@ function offset(rule, size, extent, random)
 {
     if(rule === "tile") { return Math.floor(random.next() * size); }
     if(rule === "centre") { return -Math.floor((extent - size) / 2); }
-    if(rule === "bottom") { return size - extent; }
+    if(rule === "bottom" || rule === "right") { return size - extent; }
 
     return 0;
 }
