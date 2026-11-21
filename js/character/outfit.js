@@ -75,7 +75,7 @@ function paintHead(add, look)
         beard: look.get("beard"),
         markings: look.get("markings"),
         hair: look.get("hair"),
-        isFemale: look.get("body") === "female",
+        isFemale: look.get("variant") === "female",
     };
 
     add(["head"], ["front"], (raster, area, random) => Face.front(raster, area, random, face));
@@ -211,7 +211,7 @@ function paintChest(add, look, dims)
             add(torso, SIDES, belt("#2a1e16"));
             break;
         default:
-            if(look.get("body") === "female") { add(torso, SIDES, band(5, 9, material("cloth", LINEN))); }
+            if(look.get("variant") === "female") { add(torso, SIDES, band(5, 9, material("cloth", LINEN))); }
     }
 }
 

@@ -2,12 +2,13 @@ import * as Catalogue from "./catalogue.js";
 import * as Names from "./names.js";
 
 const NAME_PATTERN = /^[A-Za-z][A-Za-z' -]{0,19}$/;
+const VERSION = 2;
 
 const DEFAULT_LOOK =
 {
     name: "Adventurer",
-    race: "human",
-    body: "male",
+    body: "human",
+    variant: "male",
     height: 0,
     build: 0,
     skin: "#b49a84",
@@ -34,8 +35,6 @@ const DEFAULT_GEAR =
 
 const OPTION_LISTS =
 {
-    race: Catalogue.RACES,
-    body: Catalogue.BODY_TYPES,
     face: Catalogue.FACES,
     nose: Catalogue.NOSES,
     hair: Catalogue.HAIR_STYLES,
@@ -50,10 +49,13 @@ const OPTION_LISTS =
 
 export class Appearance
 {
-    constructor(data = {})
+    static VERSION = VERSION;
+
+    constructor(library, data = {})
     {
+        this.library = library;
         this.listeners = [];
-        this.data = Appearance.normalise(data);
+        this.data = Appearance.normalise(library, data);
     }
 
     get(key)
@@ -66,27 +68,31 @@ export class Appearance
         return { ...this.data.equipment[slot] };
     }
 
-    get race()
+    get body()
     {
-        return Catalogue.find(Catalogue.RACES, this.data.race);
+        return this.library.body(this.data.body);
     }
 
-    get bodyType()
+    get variant()
     {
-        return Catalogue.find(Catalogue.BODY_TYPES, this.data.body);
+        return this.body.variants.find((variant) => variant.id === this.data.variant);
     }
 
     /* CHOICES ****************************************************************/
 
     choices(key)
     {
-        return Appearance.choicesFor(key, this.data.race);
+        return Appearance.choicesFor(this.library, key, this.data.body);
     }
 
-    static choicesFor(key, raceId)
+    static choicesFor(library, key, bodyId)
     {
+        const body = library.body(bodyId);
+
         if(OPTION_LISTS[key]) { return OPTION_LISTS[key].map((option) => option.id); }
-        if(key === "skin") { return [...Catalogue.find(Catalogue.RACES, raceId).skins]; }
+        if(key === "body") { return library.playableBodies.map((option) => option.id); }
+        if(key === "variant") { return body.variants.map((variant) => variant.id); }
+        if(key === "skin") { return [...body.skins]; }
         if(key === "eyes") { return [...Catalogue.EYE_COLOURS]; }
         if(key === "hairColour") { return [...Catalogue.HAIR_COLOURS]; }
 
@@ -106,12 +112,12 @@ export class Appearance
     set(key, value)
     {
         if(!(key in DEFAULT_LOOK)) { throw new Error("Unknown appearance field: " + key); }
-        if(!Appearance.isValid(key, value, this.data.race)) { throw new Error("Invalid " + key + ": " + value); }
+        if(!Appearance.isValid(this.library, key, value, this.data.body)) { throw new Error("Invalid " + key + ": " + value); }
         if(this.data[key] === value) { return; }
 
         this.data[key] = value;
 
-        if(key === "race") { this.fitSkinToRace(); }
+        if(key === "body") { Appearance.fitToBody(this.library, this.data); }
 
         this.emitChange(key);
     }
@@ -148,20 +154,21 @@ export class Appearance
 
     replace(data)
     {
-        this.data = Appearance.normalise(data);
+        this.data = Appearance.normalise(this.library, data);
         this.emitChange("all");
     }
 
     randomise(random, options = {})
     {
-        this.replace(Appearance.randomData(random, options));
+        this.replace(Appearance.randomData(this.library, random, options));
     }
 
-    fitSkinToRace()
+    static fitToBody(library, data)
     {
-        const skins = this.race.skins;
+        const body = library.body(data.body);
 
-        if(!skins.includes(this.data.skin)) { this.data.skin = skins[Math.min(1, skins.length - 1)]; }
+        if(!body.variants.some((variant) => variant.id === data.variant)) { data.variant = body.variants[0].id; }
+        if(!body.skins.includes(data.skin)) { data.skin = body.skins[Math.min(1, body.skins.length - 1)]; }
     }
 
     /* EVENTS *****************************************************************/
@@ -192,46 +199,65 @@ export class Appearance
             equipment[slot] = { ...this.data.equipment[slot] };
         }
 
-        return { ...this.data, equipment };
+        return { version: VERSION, ...this.data, equipment };
     }
 
     clone()
     {
-        return new Appearance(this.toJSON());
+        return new Appearance(this.library, this.toJSON());
+    }
+
+    // Version 1 named the body "race" and the variant "body". Every saved
+    // version 1 record has a race field; a record with neither is current.
+    static migrate(library, data)
+    {
+        const source = data && typeof data === "object" ? { ...data } : {};
+
+        if(source.version === undefined && "race" in source)
+        {
+            source.variant = source.body;
+            source.body = source.race;
+            delete source.race;
+        }
+
+        delete source.version;
+
+        if(typeof source.body === "string") { source.body = library.migrateId("body", source.body); }
+
+        if(typeof source.body === "string" && typeof source.variant === "string")
+        {
+            source.variant = library.migrateId("body-variant", source.body + "/" + source.variant).split("/")[1];
+        }
+
+        return source;
     }
 
     /* VALIDATION *************************************************************/
 
-    static isValid(key, value, raceId)
+    static isValid(library, key, value, bodyId)
     {
         if(key === "name") { return typeof value === "string" && NAME_PATTERN.test(value); }
         if(key === "height" || key === "build") { return Number.isFinite(value) && value >= -1 && value <= 1; }
+        if(key === "body") { return library.body(value) !== null; }
 
-        const choices = Appearance.choicesFor(key, raceId);
+        const choices = Appearance.choicesFor(library, key, bodyId);
 
         return choices !== null && choices.includes(value);
     }
 
-    static normalise(data)
+    static normalise(library, data)
     {
-        const source = data && typeof data === "object" ? data : {};
+        const source = Appearance.migrate(library, data);
+        const bodyId = Appearance.isValid(library, "body", source.body, null) ? source.body : DEFAULT_LOOK.body;
         const result = {};
-        const raceId = Appearance.isValid("race", source.race, null) ? source.race : DEFAULT_LOOK.race;
 
         for(const key of Object.keys(DEFAULT_LOOK))
         {
-            const isUsable = Appearance.isValid(key, source[key], raceId);
-
-            result[key] = isUsable ? source[key] : DEFAULT_LOOK[key];
+            result[key] = Appearance.isValid(library, key, source[key], bodyId) ? source[key] : DEFAULT_LOOK[key];
         }
 
-        result.race = raceId;
-
-        if(!Appearance.isValid("skin", result.skin, raceId))
-        {
-            result.skin = Catalogue.find(Catalogue.RACES, raceId).skins[1];
-        }
-
+        result.body = bodyId;
+        Appearance.fitToBody(library, result);
         result.equipment = Appearance.normaliseEquipment(source.equipment);
 
         return result;
@@ -267,28 +293,29 @@ export class Appearance
 
     /* RANDOM *****************************************************************/
 
-    static randomData(random, options = {})
+    static randomData(library, random, options = {})
     {
-        const race = options.race ?? random.pick(Catalogue.RACES).id;
-        const body = options.body ?? random.pick(Catalogue.BODY_TYPES).id;
+        const bodyId = options.body ?? random.pick(library.playableBodies).id;
+        const body = library.body(bodyId);
+        const variant = options.variant ?? random.pick(body.variants).id;
         const archetype = Catalogue.find(Catalogue.ARCHETYPES, options.archetype) ?? random.pick(Catalogue.ARCHETYPES);
-        const raceInfo = Catalogue.find(Catalogue.RACES, race);
-        const isFemale = body === "female";
+        const isFemale = variant === "female";
 
         const longStyles = ["long", "tail", "braids", "topknot", "swept"];
         const shortStyles = ["crop", "swept", "bald", "shaved", "crest", "tail", "long"];
         const hair = random.pick(isFemale ? longStyles : shortStyles);
-        const beardOdds = race === "dwarf" ? 0.95 : 0.55;
-        const beards = race === "dwarf" ? ["full", "long", "forked"] : ["stubble", "stubble", "moustache", "short", "full", "long"];
+        const beardOdds = bodyId === "dwarf" ? 0.95 : 0.55;
+        const beards = bodyId === "dwarf" ? ["full", "long", "forked"] : ["stubble", "stubble", "moustache", "short", "full", "long"];
         const beard = !isFemale && random.chance(beardOdds) ? random.pick(beards) : "none";
 
         return {
-            name: Names.generate(random, race),
-            race,
-            body,
+            version: VERSION,
+            name: Names.generate(random, bodyId),
+            body: bodyId,
+            variant,
             height: Math.round(random.range(-0.6, 0.6) * 100) / 100,
             build: Math.round(random.range(-0.6, 0.6) * 100) / 100,
-            skin: random.pick(raceInfo.skins),
+            skin: random.pick(body.skins),
             face: random.pick(Catalogue.FACES).id,
             nose: random.pick(Catalogue.NOSES).id,
             eyes: random.pick(Catalogue.EYE_COLOURS),

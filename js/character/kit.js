@@ -1,73 +1,9 @@
 import * as Catalogue from "./catalogue.js";
 import * as Pixels from "../art/pixels.js";
 
-export const TEXEL = 1.8 / 88;
-
 const HEAD = 16;
 const BONE = "#cfc6ae";
 const HOLD_ANGLE = Math.PI / 2 + 0.55;
-
-
-/******************************************************************************/
-/* BODY                                                                       */
-/******************************************************************************/
-
-export function dimensions(look)
-{
-    const race = Catalogue.find(Catalogue.RACES, look.get("race"));
-    const body = Catalogue.find(Catalogue.BODY_TYPES, look.get("body"));
-    const build = Math.round(look.get("build") * 2);
-
-    const torso =
-    [
-        race.torso[0] + body.torso[0] + build * 2,
-        race.torso[1] + body.torso[1],
-        race.torso[2] + body.torso[2] + build,
-    ];
-    const armWidth = race.arm[0] + body.arm + build;
-
-    return {
-        head: [HEAD, HEAD, HEAD],
-        torso,
-        arm: [armWidth, race.arm[1], armWidth],
-        leg: [torso[0] / 2, race.leg, torso[2]],
-        scale: 1 + look.get("height") * 0.06,
-    };
-}
-
-export function height(dims)
-{
-    return (dims.leg[1] + dims.torso[1] + dims.head[1]) * TEXEL * dims.scale;
-}
-
-// Joint positions in texels, each relative to its parent joint.
-export function joints(dims)
-{
-    const [torsoWidth, torsoHeight, torsoDepth] = dims.torso;
-    const shoulder = torsoHeight - 2;
-
-    return {
-        legL: { parent: "root", at: [dims.leg[0] / 2, dims.leg[1], 0] },
-        legR: { parent: "root", at: [-dims.leg[0] / 2, dims.leg[1], 0] },
-        torso: { parent: "root", at: [0, dims.leg[1], 0] },
-        head: { parent: "torso", at: [0, torsoHeight, 0] },
-        armL: { parent: "torso", at: [(torsoWidth + dims.arm[0]) / 2, shoulder, 0] },
-        armR: { parent: "torso", at: [-(torsoWidth + dims.arm[0]) / 2, shoulder, 0] },
-        cape: { parent: "torso", at: [0, torsoHeight - 1, -torsoDepth / 2 - 0.7] },
-    };
-}
-
-export function bodyBlocks(dims)
-{
-    return [
-        { joint: "head", part: "head", size: dims.head, at: [0, HEAD / 2, 0] },
-        { joint: "torso", part: "torso", size: dims.torso, at: [0, dims.torso[1] / 2, 0] },
-        { joint: "armL", part: "armL", size: dims.arm, at: [0, -dims.arm[1] / 2 + 2, 0] },
-        { joint: "armR", part: "armR", size: dims.arm, at: [0, -dims.arm[1] / 2 + 2, 0] },
-        { joint: "legL", part: "legL", size: dims.leg, at: [0, -dims.leg[1] / 2, 0] },
-        { joint: "legR", part: "legR", size: dims.leg, at: [0, -dims.leg[1] / 2, 0] },
-    ];
-}
 
 
 /******************************************************************************/
@@ -110,7 +46,7 @@ export function partBlocks(look, dims)
 
 function addFeatures(blocks, look)
 {
-    const race = Catalogue.find(Catalogue.RACES, look.get("race"));
+    const body = look.body;
     const nose = Catalogue.find(Catalogue.NOSES, look.get("nose"));
     const skin = look.get("skin");
     const ear = flat(Pixels.shade(skin, 0.92));
@@ -122,7 +58,7 @@ function addFeatures(blocks, look)
     {
         const x = side * (HEAD / 2 + 0.5);
 
-        switch(race.ears)
+        switch(body.ears)
         {
             case "long":
                 blocks.push(part("head", [1, 3, 2], [x, 8.5, -1], { all: ear }));
@@ -138,12 +74,11 @@ function addFeatures(blocks, look)
                 blocks.push(part("head", [1, 3, 2], [x, 8.5, -1], { all: ear }));
         }
 
-        if(race.hasTusks)
+        if(body.hasTusks)
         {
             blocks.push(part("head", [1, 3, 1], [side * 3, 3.5, HEAD / 2 + 0.5], { all: flat(BONE) }));
         }
     }
-
 }
 
 function addHair(blocks, style, colour)

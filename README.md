@@ -1,6 +1,6 @@
 # ForeverQuest
 
-ForeverQuest is a proof of concept for a browser role-playing game in the style of early online RPGs. It has a character creator and a small village to walk around. Every model and every texture in it is made by code, not drawn by hand, so new art is a code change. Authoring code in [content/](content/) is baked into asset files that the game loads. The world textures are baked today; the characters and the village are still generated when the page loads.
+ForeverQuest is a proof of concept for a browser role-playing game in the style of early online RPGs. It has a character creator and a small village to walk around. Every model and every texture in it is made by code, not drawn by hand, so new art is a code change. Authoring code in [content/](content/) is baked into asset files that the game loads. The world textures, the character rigs and the body sizes are baked today; the character parts and the village are still generated when the page loads. A workbench page shows baked models outside the game.
 
 The game runs on HTML5 and WebGL. Its only runtime library is [Three.js](https://threejs.org/) 0.187, which renders the scenes. A copy of Three.js sits in [libs/three/](libs/three/), so the game runs without an install step.
 
@@ -96,7 +96,7 @@ flowchart LR
 ```
 
 1. [Appearance](js/character/appearance.js) holds the player's choices. It checks every change against the catalogue and tells its listeners when the record changes.
-2. [Kit](js/character/kit.js) lists the blocks: the six body blocks, sized in texels by race, body type and the sliders, and the clip-on blocks for the nose, ears, hair, beard and equipment. [Outfit](js/character/outfit.js) lists the paint layers for each body block face: skin first, then clothing, then armour.
+2. The [fitter](js/kit/fitter.js) sizes the body blocks from the body's sizes, its variant and the sliders, and places them on the bones of the body's rig. [Kit](js/character/kit.js) lists the clip-on blocks for the nose, ears, hair, beard and equipment. [Outfit](js/character/outfit.js) lists the paint layers for each body block face: skin first, then clothing, then armour.
 3. [Sheet](js/character/sheet.js) packs every face of every block into one texture and runs each face's painters. The painters come from [pixels.js](js/art/pixels.js), for materials such as cloth, leather, chain mail and plate, and from [face.js](js/art/face.js), for eyes, brows, mouths, beards, hair and markings.
 4. [CharacterModel](js/character/character-model.js) merges the blocks of each joint into one mesh with [BlockBuilder](js/geometry/block-builder.js), and gives the character one material. The model rebuilds itself whenever the appearance changes.
 
@@ -117,7 +117,7 @@ To add a hair style:
 
 To add an equipment item, add it to the slot's list in `EQUIPMENT` with the palette of its main colour and trim. When the item paints the body, add a case to [outfit.js](js/character/outfit.js). When it adds blocks, add a case to [kit.js](js/character/kit.js).
 
-To add a race, add an entry to `RACES` with its torso, arm and leg sizes in texels, its ears and its skin tones. Add name syllables to [names.js](js/character/names.js), or the race's random names use the human syllables.
+To add a race, add a body file to [content/bodies/](content/bodies/) with its box sizes in texels, its ears and its skin tones, then bake. Add name syllables to [names.js](js/character/names.js), or the race's random names use the human syllables. A creature with a new shape is a rig in [content/rigs/](content/rigs/) and a body on it; the wolf is an example. [docs/character-kit.md](docs/character-kit.md) describes rigs and bodies.
 
 To add a world texture, add a name, a seed and a painter to `TEXTURES` in [content/world-textures.js](content/world-textures.js), then bake. A world texture is 32 by 32 texels and covers 2 metres. [docs/assets.md](docs/assets.md) describes the bake.
 
@@ -135,6 +135,7 @@ Characters can step up at most half a metre from one tile to the next, and canno
 |---|---|
 | [js/art/](js/art/) | The pixel painters for materials, faces and hair |
 | [js/geometry/](js/geometry/) | BlockBuilder, which turns blocks into meshes |
+| [js/kit/](js/kit/) | The library of baked rigs and bodies, and the fitter |
 | [js/character/](js/character/) | The catalogue, appearance record, kit, outfit, sheet, model and animator |
 | [js/world/](js/world/) | Terrain, props, world textures, water and the world's collision |
 | [js/game/](js/game/) | Actors, villager behaviour, camera, input and the in-game HUD |
@@ -144,11 +145,11 @@ Characters can step up at most half a metre from one tile to the next, and canno
 | `assets/` | The baked asset files, which the bake rebuilds and Git ignores |
 | [js-tests/](js-tests/) | The unit and browser test suites |
 | [lint/](lint/) | The project's ESLint rules |
-| [tools/](tools/) | The bake, the static file server and the Three.js copy script |
+| [tools/](tools/) | The bake, the workbench, the static file server and the Three.js copy script |
 
 ## Documentation
 
-The [docs/](docs/) folder describes the architecture, the assets and the bake, the character kit and the world in more depth.
+The [docs/](docs/) folder describes the architecture, the assets and the bake, the character kit, the workbench and the world in more depth.
 
 ## Tests and Lint
 

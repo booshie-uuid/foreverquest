@@ -83,6 +83,7 @@ Each tag names one capability of the game. A spec lists its tags in `covers`.
 | `boot` | The game page loads without errors, sets `window.foreverQuest.isReady`, and shows a canvas with a non-zero size | [smoke.spec.js](browser/specs/smoke.spec.js) |
 | `creator` | The creator draws the preview, rebuilds the character when an option changes, keeps the skin within the race's palette, repaints the character sheet for a marking, equips and tints items, randomises the look, and blocks an invalid name | [creator.spec.js](browser/specs/creator.spec.js) |
 | `graphics` | The Retro toggle renders 640 pixels wide with pixelated scaling, and the moonlight casts shadows from the player in the world | [graphics.spec.js](browser/specs/graphics.spec.js) |
+| `workbench` | The model viewer opens a creature on its own rig from the address, and stepping the body switches rigs and updates the address | [workbench.spec.js](browser/specs/workbench.spec.js) |
 | `world` | Entering the world shows the villagers and their nameplates; keys and ground clicks move the player; talking to the tailor opens the creator, and saving restyles and stores the player | [world.spec.js](browser/specs/world.spec.js) |
 
 ## Conventions

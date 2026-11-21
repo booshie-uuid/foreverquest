@@ -23,6 +23,7 @@ export class GameScreen
 {
     constructor(container, canvas, appearance, materials, graphics, onAppearance)
     {
+        this.library = appearance.library;
         this.onAppearance = onAppearance;
         this.size = { width: 1, height: 1 };
         this.world = new World(materials, 7);
@@ -63,16 +64,16 @@ export class GameScreen
 
         for(const resident of Residents.RESIDENTS)
         {
-            npcs.push(this.spawn(new Appearance(resident.look), resident, random));
+            npcs.push(this.spawn(new Appearance(this.library, resident.look), resident, random));
         }
 
         for(let i = 0; i < VILLAGER_COUNT; i++)
         {
             const angle = (i / VILLAGER_COUNT) * Math.PI * 2 + 0.3;
             const resident = { home: [Math.cos(angle) * 11, Math.sin(angle) * 11], roam: 9, lines: Residents.VILLAGER_LINES };
-            const look = Appearance.randomData(random, { archetype: i % 3 === 0 ? undefined : "villager" });
+            const look = Appearance.randomData(this.library, random, { archetype: i % 3 === 0 ? undefined : "villager" });
 
-            npcs.push(this.spawn(new Appearance(look), resident, random));
+            npcs.push(this.spawn(new Appearance(this.library, look), resident, random));
         }
 
         return npcs;
@@ -234,7 +235,7 @@ export class GameScreen
         for(const npc of this.npcs) { npc.brain.update(delta, this.world); }
         for(const actor of this.actors) { actor.update(delta, this.world); }
 
-        this.rig.update(delta, this.player.position, (x, z) => this.world.heightAt(x, z));
+        this.rig.update(delta, this.player.position, this.player.measures.focus, (x, z) => this.world.heightAt(x, z));
         this.world.update(delta, this.camera, this.player.position);
         this.hud.update(delta, this.camera, this.actors, this.player, this.size);
     }

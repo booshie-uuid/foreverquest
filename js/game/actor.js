@@ -19,7 +19,6 @@ export class Actor
         this.isRunning = false;
         this.target = null;
         this.direction = new THREE.Vector2();
-        this.radius = 0.35;
         this.brain = null;
 
         this.model.root.userData.actor = this;
@@ -35,9 +34,19 @@ export class Actor
         return this.model.root;
     }
 
+    get measures()
+    {
+        return this.appearance.body.measures;
+    }
+
+    get radius()
+    {
+        return this.measures.radius;
+    }
+
     get moveSpeed()
     {
-        return this.isRunning ? Animator.RUN_SPEED : Animator.WALK_SPEED;
+        return this.isRunning ? this.measures.run : this.measures.walk;
     }
 
     get isMoving()

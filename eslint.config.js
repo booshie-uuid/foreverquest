@@ -145,7 +145,12 @@ export default [
         languageOptions: { globals: NODE_GLOBALS },
     },
     {
-        files: ["js-tests/browser/**/*.js"],
+        files: ["tools/workbench/page/**/*.js"],
+        languageOptions: { globals: BROWSER_GLOBALS },
+        rules: { "no-restricted-imports": ["error", { patterns: [GAME_IMPORTS] }] },
+    },
+    {
+        files: ["js-tests/browser/**/*.js", "tools/workbench/capture.js"],
         languageOptions: { globals: { ...NODE_GLOBALS, ...BROWSER_GLOBALS } },
     },
     {

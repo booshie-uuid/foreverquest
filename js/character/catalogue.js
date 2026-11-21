@@ -35,69 +35,6 @@ export const PALETTES =
 
 
 /******************************************************************************/
-/* RACES AND BODIES                                                           */
-/******************************************************************************/
-
-// Block sizes are in texels. Every head is 16 texels on a side, and the legs
-// split the torso's width between them.
-export const RACES =
-[
-    {
-        id: "human",
-        name: "Human",
-        torso: [24, 32, 12],
-        arm: [8, 32],
-        leg: 40,
-        ears: "round",
-        skins: ["#c8ab94", "#b49a84", "#a5785e", "#9a7c5c", "#7a5a42", "#5c4234"],
-    },
-    {
-        id: "elf",
-        name: "Elf",
-        torso: [22, 33, 11],
-        arm: [7, 34],
-        leg: 45,
-        ears: "long",
-        skins: ["#d0bca8", "#bfae9c", "#9a9aa4", "#6a6478", "#4a4458"],
-    },
-    {
-        id: "dwarf",
-        name: "Dwarf",
-        torso: [28, 28, 16],
-        arm: [10, 26],
-        leg: 24,
-        ears: "round",
-        skins: ["#b08a70", "#a07a62", "#8a6450", "#6a4a3a"],
-    },
-    {
-        id: "halfling",
-        name: "Halfling",
-        torso: [20, 24, 11],
-        arm: [7, 22],
-        leg: 24,
-        ears: "pointed",
-        skins: ["#c8ab94", "#b49a84", "#a5785e", "#7a5a42"],
-    },
-    {
-        id: "orc",
-        name: "Orc",
-        torso: [28, 34, 15],
-        arm: [10, 34],
-        leg: 40,
-        ears: "swept",
-        hasTusks: true,
-        skins: ["#6a7a54", "#56664a", "#7a7a5a", "#5a5e50", "#4a5240"],
-    },
-];
-
-export const BODY_TYPES =
-[
-    { id: "male", name: "Male", torso: [0, 0, 0], arm: 0 },
-    { id: "female", name: "Female", torso: [-2, -2, -1], arm: -1 },
-];
-
-
-/******************************************************************************/
 /* FACES AND HAIR                                                             */
 /******************************************************************************/
 

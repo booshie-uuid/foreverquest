@@ -50,7 +50,7 @@ export const tests =
 
             const before = await page.evaluate(playerPosition);
 
-            await page.press("w", 1500);
+            await page.press("w", 3000);
 
             const after = await page.evaluate(playerPosition);
 

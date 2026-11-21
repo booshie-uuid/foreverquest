@@ -1,35 +1,59 @@
 import * as Catalogue from "../../js/character/catalogue.js";
+import * as TestAssets from "../helpers/assets.js";
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Appearance } from "../../js/character/appearance.js";
 import { Random } from "../../js/util/random.js";
 
+const library = await TestAssets.library();
+
 describe("Appearance.normalise", () =>
 {
     it("fills every field and slot from an empty record", () =>
     {
-        const look = new Appearance();
+        const look = new Appearance(library);
 
-        assert.equal(look.get("race"), "human");
+        assert.equal(look.get("body"), "human");
         assert.deepEqual(Object.keys(look.toJSON().equipment).sort(), Catalogue.SLOTS.map((slot) => slot.id).sort());
     });
 
     it("replaces invalid values with defaults and keeps valid ones", () =>
     {
-        const look = new Appearance({ race: "dragon", hair: "topknot", height: 5, equipment: { head: { item: "crown" }, chest: { item: "robe" } } });
+        const look = new Appearance(library, { body: "dragon", hair: "topknot", height: 5, equipment: { head: { item: "crown" }, chest: { item: "robe" } } });
 
-        assert.equal(look.get("race"), "human");
+        assert.equal(look.get("body"), "human");
         assert.equal(look.get("hair"), "topknot");
         assert.equal(look.get("height"), 0);
         assert.equal(look.equipped("head").item, "none");
         assert.equal(look.equipped("chest").item, "robe");
     });
 
-    it("moves a skin tone from another race to the new race's palette", () =>
+    it("moves a skin tone from another body to the new body's palette", () =>
     {
-        const look = new Appearance({ race: "orc", skin: "#f3d2b6" });
+        const look = new Appearance(library, { body: "orc", skin: "#f3d2b6" });
 
-        assert.ok(Catalogue.find(Catalogue.RACES, "orc").skins.includes(look.get("skin")));
+        assert.ok(library.body("orc").skins.includes(look.get("skin")));
+    });
+
+    it("migrates a version 1 record, which named the body race and the variant body", () =>
+    {
+        const look = new Appearance(library, { name: "Brom", race: "dwarf", body: "female", skin: "#8a6450", hair: "braids" });
+
+        assert.equal(look.get("body"), "dwarf");
+        assert.equal(look.get("variant"), "female");
+        assert.equal(look.get("skin"), "#8a6450");
+        assert.equal(look.get("hair"), "braids");
+        assert.equal(look.toJSON().version, 2);
+        assert.equal("race" in look.toJSON(), false);
+    });
+
+    it("keeps a creature body that is not playable, and picks a variant it has", () =>
+    {
+        const look = new Appearance(library, { body: "wolf", variant: "female" });
+
+        assert.equal(look.get("body"), "wolf");
+        assert.equal(look.get("variant"), "male");
+        assert.ok(!look.choices("body").includes("wolf"));
     });
 });
 
@@ -37,7 +61,7 @@ describe("Appearance changes", () =>
 {
     it("rejects unknown fields and values outside the options", () =>
     {
-        const look = new Appearance();
+        const look = new Appearance(library);
 
         assert.throws(() => look.set("tail", "long"), /Unknown appearance field/);
         assert.throws(() => look.set("hair", "afro"), /Invalid hair/);
@@ -46,18 +70,23 @@ describe("Appearance changes", () =>
         assert.throws(() => look.tint("chest", "primary", "#123456"), /Invalid primary colour/);
     });
 
-    it("keeps the skin tone valid when the race changes", () =>
+    it("keeps the skin tone and variant valid when the body changes", () =>
     {
-        const look = new Appearance({ race: "human", skin: "#f3d2b6" });
+        const look = new Appearance(library, { body: "human", variant: "female", skin: "#f3d2b6" });
 
-        look.set("race", "orc");
+        look.set("body", "orc");
 
-        assert.ok(look.race.skins.includes(look.get("skin")));
+        assert.ok(look.body.skins.includes(look.get("skin")));
+        assert.equal(look.get("variant"), "female");
+
+        look.set("body", "ogre");
+
+        assert.equal(look.get("variant"), "male");
     });
 
     it("emits one change per real change and none for a repeat", () =>
     {
-        const look = new Appearance();
+        const look = new Appearance(library);
         const keys = [];
 
         look.onChange((source, key) => keys.push(key));
@@ -71,7 +100,7 @@ describe("Appearance changes", () =>
 
     it("stops calling a listener after it unsubscribes", () =>
     {
-        const look = new Appearance();
+        const look = new Appearance(library);
         let calls = 0;
         const unsubscribe = look.onChange(() => calls++);
 
@@ -83,7 +112,7 @@ describe("Appearance changes", () =>
 
     it("keeps a tint across items that share a palette and resets it across palettes", () =>
     {
-        const look = new Appearance();
+        const look = new Appearance(library);
         const red = Catalogue.CLOTH_COLOURS[0];
 
         look.equip("chest", "tunic");
@@ -102,15 +131,15 @@ describe("Appearance serialisation", () =>
 {
     it("survives a JSON round trip", () =>
     {
-        const look = new Appearance(Appearance.randomData(new Random(3)));
-        const copy = new Appearance(JSON.parse(JSON.stringify(look.toJSON())));
+        const look = new Appearance(library, Appearance.randomData(library, new Random(3)));
+        const copy = new Appearance(library, JSON.parse(JSON.stringify(look.toJSON())));
 
         assert.deepEqual(copy.toJSON(), look.toJSON());
     });
 
     it("returns copies, so callers cannot change the record directly", () =>
     {
-        const look = new Appearance();
+        const look = new Appearance(library);
 
         look.toJSON().equipment.head.item = "helm";
         look.equipped("chest").item = "robe";
@@ -123,9 +152,9 @@ describe("Appearance serialisation", () =>
     {
         for(let seed = 1; seed <= 200; seed++)
         {
-            const data = Appearance.randomData(new Random(seed));
+            const data = Appearance.randomData(library, new Random(seed));
 
-            assert.deepEqual(Appearance.normalise(data), data, "Seed " + seed + " produced an invalid record.");
+            assert.deepEqual(new Appearance(library, data).toJSON(), data, "Seed " + seed + " produced an invalid record.");
         }
     });
 });
@@ -134,12 +163,12 @@ describe("Appearance markings", () =>
 {
     it("accepts the catalogue markings and rejects others", () =>
     {
-        const look = new Appearance();
+        const look = new Appearance(library);
 
         look.set("markings", "warpaint");
 
         assert.equal(look.get("markings"), "warpaint");
         assert.throws(() => look.set("markings", "glitter"), /Invalid markings/);
-        assert.equal(new Appearance({ markings: "glitter" }).get("markings"), "none");
+        assert.equal(new Appearance(library, { markings: "glitter" }).get("markings"), "none");
     });
 });

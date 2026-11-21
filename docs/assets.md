@@ -2,7 +2,7 @@
 
 ForeverQuest separates the code that makes art from the code that plays the game. Authoring code in [content/](../content/) paints and builds the art. The bake runs that code and writes asset files into `assets/`. The game reads only those files, so it holds no painter or generator for anything that has been baked.
 
-The world textures are the first baked asset. Characters, props and the zone still run their generators in the game, and move to the bake in later stages of the restructure.
+The world textures, the rigs and the bodies are baked. Character parts, props and the zone still run their generators in the game, and move to the bake in later stages of the restructure.
 
 ## The Boundary
 
@@ -25,7 +25,7 @@ flowchart LR
 
 | Folder | Holds | Read by the game |
 |---|---|---|
-| [content/](../content/) | Authoring code, such as the world texture painters, and the id migrations | No |
+| [content/](../content/) | Authoring code and data, such as the world texture painters, the rigs and the bodies, and the id migrations | No |
 | [tools/bake/](../tools/bake/) | The bake and the PNG writer | No |
 | `assets/` | The baked files and their manifest. Git ignores the folder, because the bake rebuilds it | Yes |
 | [assets.lock.json](../assets.lock.json) | A hash of every baked file and every content id, under version control | No |
@@ -58,7 +58,7 @@ The lock file records what the owner has accepted. After each bake, the asset lo
 
 ## Ids and Migrations
 
-The lock file also records every content id by kind, such as each world texture name. A bake fails when an id that the lock file records is gone, unless [migrations.js](../content/migrations.js) maps it to a replacement that still exists. Saved records will load through the same maps.
+The lock file also records every content id by kind: each world texture, rig and body, and each body's variants as `body/variant`. A bake fails when an id that the lock file records is gone, unless [migrations.js](../content/migrations.js) maps it to a replacement that still exists. The bake writes the maps to `migrations.json`, and saved characters load through them.
 
 ```javascript
 export const IDS =
@@ -74,6 +74,10 @@ export const IDS =
 | `manifest.json` | Each file's SHA-256 hash and size, and the ids by kind |
 | `textures/world.png` | Every world texture, 32 by 32 texels, stacked top to bottom in atlas order |
 | `textures/world.json` | The texture size, the texels per metre, and each layer's name and glow flag |
+| `models/index.json` | The rig ids, and the body ids in display order |
+| `models/rigs/<id>.json` | A rig, with each pivot and centre compiled into a linear form of box sizes |
+| `models/bodies/<id>.json` | A body, checked against its rig |
+| `migrations.json` | The id maps from [migrations.js](../content/migrations.js) |
 
 Texels are stored as 8-bit RGBA PNG, so any image viewer opens them. The bake writes PNG with Node's built-in `zlib` and no row filters, so the same texels always give the same bytes.
 
@@ -83,7 +87,11 @@ Texels are stored as 8-bit RGBA PNG, so any image viewer opens them. The bake wr
 
 The game decodes PNG itself in [png.js](../js/engine/png.js), with the `DecompressionStream` that both browsers and Node provide. A browser's image decoder may convert colour spaces or premultiply alpha, which would change the texels.
 
-[WorldAtlas](../js/engine/world-atlas.js) loads the world texture image and index. It maps texture names to layers, lists the glow layers for the world material, and flips each layer's rows for upload, because images store rows top-down and textures upload them bottom-up.
+[Library](../js/kit/library.js) loads the rigs, the bodies and the id maps. [WorldAtlas](../js/engine/world-atlas.js) loads the world texture image and index. It maps texture names to layers, lists the glow layers for the world material, and flips each layer's rows for upload, because images store rows top-down and textures upload them bottom-up.
+
+## Adding Content
+
+[Character Kit](character-kit.md#adding-content) describes how to add a race or a creature. The [workbench](workbench.md) shows baked bodies before they reach the game.
 
 ## Adding a World Texture
 

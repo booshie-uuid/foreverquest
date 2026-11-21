@@ -7,17 +7,18 @@ import { describe, it } from "node:test";
 
 const REFERENCE = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "..", "reference", "prototype.json"), "utf8"));
 const materials = await TestAssets.materials();
+const library = await TestAssets.library();
 
 describe("Prototype reference", () =>
 {
     it("builds every reference character with the same joints, blocks, meshes and texels", () =>
     {
-        for(const { label, look, record } of REFERENCE.characters) { assert.deepEqual(Capture.characterRecord(look), record, label); }
+        for(const { label, look, record } of REFERENCE.characters) { assert.deepEqual(Capture.characterRecord(library, look), record, label); }
     });
 
     it("gives every option on every body the same part blocks", () =>
     {
-        const sweep = Capture.partSweep();
+        const sweep = Capture.partSweep(library);
 
         assert.deepEqual(Object.keys(sweep).sort(), Object.keys(REFERENCE.parts).sort());
 

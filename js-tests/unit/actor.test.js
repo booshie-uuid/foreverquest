@@ -1,8 +1,11 @@
+import * as TestAssets from "../helpers/assets.js";
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Actor } from "../../js/game/actor.js";
 import { Appearance } from "../../js/character/appearance.js";
 import { CharacterStore } from "../../js/character-store.js";
+
+const library = await TestAssets.library();
 
 const OPEN_FIELD =
 {
@@ -27,7 +30,7 @@ describe("Actor", () =>
 {
     it("walks to a target, stands on the ground and faces the way it went", () =>
     {
-        const actor = new Actor(new Appearance());
+        const actor = new Actor(new Appearance(library));
 
         actor.placeAt(0, 0, OPEN_FIELD);
         actor.moveTo({ x: 4, z: 0 });
@@ -41,8 +44,8 @@ describe("Actor", () =>
 
     it("runs faster than it walks", () =>
     {
-        const walker = new Actor(new Appearance());
-        const runner = new Actor(new Appearance());
+        const walker = new Actor(new Appearance(library));
+        const runner = new Actor(new Appearance(library));
 
         runner.setRunning(true);
 
@@ -58,7 +61,7 @@ describe("Actor", () =>
 
     it("gives up a target it cannot move towards", () =>
     {
-        const actor = new Actor(new Appearance());
+        const actor = new Actor(new Appearance(library));
 
         actor.placeAt(0, 0, WALL);
         actor.moveTo({ x: 5, z: 5 });
@@ -76,7 +79,7 @@ describe("CharacterStore", () =>
         const items = new Map();
         const storage = { getItem: (key) => items.get(key) ?? null, setItem: (key, value) => items.set(key, value) };
         const store = new CharacterStore(storage);
-        const look = new Appearance({ name: "Tamsin", hair: "topknot" });
+        const look = new Appearance(library, { name: "Tamsin", hair: "topknot" });
 
         assert.equal(store.save(look), true);
         assert.deepEqual(store.load(), look.toJSON());
@@ -94,6 +97,6 @@ describe("CharacterStore", () =>
         const store = new CharacterStore(null);
 
         assert.equal(store.load(), null);
-        assert.equal(store.save(new Appearance()), false);
+        assert.equal(store.save(new Appearance(library)), false);
     });
 });

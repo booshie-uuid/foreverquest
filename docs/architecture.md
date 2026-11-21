@@ -51,9 +51,9 @@ flowchart TB
 
 | Layer | Folder | Modules |
 |---|---|---|
-| Application | [js/](../js/) | `main.js` opens the asset source and boots the app. `App` loads the world atlas, then owns the renderer, the material library, the graphics settings, the player's appearance and both screens. `CharacterStore` saves the appearance to `localStorage` |
+| Application | [js/](../js/) | `main.js` opens the asset source and boots the app. `App` loads the library of rigs and bodies and the world atlas, then owns the renderer, the material library, the graphics settings, the player's appearance and both screens. `CharacterStore` saves the appearance to `localStorage` |
 | Screens | [js/ui/](../js/ui/), [js/game/](../js/game/) | `CreatorScreen` is the character creator. `GameScreen` runs the world: input, camera, actors, talking and the HUD |
-| Domain | [js/character/](../js/character/), [js/world/](../js/world/), [js/game/](../js/game/) | The character kit turns an `Appearance` into a `CharacterModel`. `World` builds the terrain, props, lights and collision. `Actor` moves a character through the world, and `NpcBrain` wanders and talks |
+| Domain | [js/kit/](../js/kit/), [js/character/](../js/character/), [js/world/](../js/world/), [js/game/](../js/game/) | `Library` holds the baked rigs and bodies, and the fitter sizes and places a body's bones. The character kit turns an `Appearance` into a `CharacterModel`. `World` builds the terrain, props, lights and collision. `Actor` moves a character through the world, and `NpcBrain` wanders and talks |
 | Support | [js/art/](../js/art/), [js/geometry/](../js/geometry/), [js/engine/](../js/engine/) | The pixel painters, `BlockBuilder`, `Raster`, `AssetSource`, the PNG decoder, `WorldAtlas`, `Renderer`, `MaterialLibrary` and `GraphicsSettings` |
 | Utilities | [js/util/](../js/util/) | Seeded random numbers and value noise |
 
@@ -107,7 +107,7 @@ The player's `Appearance` lives in `App`. The creator edits a separate draft cop
 | Space | Unit | Axes |
 |---|---|---|
 | World | Metres | +y is up. A character facing a heading of 0 faces +z, and its left is +x |
-| Character kit | Texels, where `Kit.TEXEL` is 1.8 / 88 metres (about 2 cm) | Each block's size and centre are in texels, relative to its joint |
+| Character kit | Texels, where `Fitter.TEXEL` is 1.8 / 88 metres (about 2 cm) | Each block's size and centre are in texels, relative to its joint |
 | Block faces | Texels on the face | u runs left to right and v bottom to top as seen from outside the block (see [block-builder.js](../js/geometry/block-builder.js)) |
 | Painter areas | Texels in a raster | `{ x, y, w, h }` with y counting down from the top row. Drawing wraps inside the area |
 | Terrain | One-metre tiles | Tile heights rise in steps of `Terrain.STEP`, 0.25 metres |

@@ -1,4 +1,5 @@
 import * as Catalogue from "../../js/character/catalogue.js";
+import * as Fitter from "../../js/kit/fitter.js";
 import * as Kit from "../../js/character/kit.js";
 import * as Residents from "../../js/game/residents.js";
 import * as crypto from "node:crypto";
@@ -52,47 +53,43 @@ function blockRecord(block)
 
 // The appearance records the reference was taken from. Inputs are stored with
 // the reference, so a change to the random generator cannot move them.
-export function appearanceInputs()
+export function appearanceInputs(library)
 {
-    const inputs = [{ label: "default", look: new Appearance().toJSON() }];
+    const inputs = [{ label: "default", look: new Appearance(library).toJSON() }];
 
-    for(const resident of Residents.RESIDENTS) { inputs.push({ label: "resident " + resident.look.name, look: new Appearance(resident.look).toJSON() }); }
+    for(const resident of Residents.RESIDENTS) { inputs.push({ label: "resident " + resident.look.name, look: new Appearance(library, resident.look).toJSON() }); }
 
-    for(const race of Catalogue.RACES)
+    for(const body of library.playableBodies)
     {
-        for(const body of Catalogue.BODY_TYPES)
+        for(const variant of body.variants)
         {
             for(const [height, build] of [[0, 0], [1, -1], [-1, 1], [0.37, 0.62]])
             {
-                inputs.push({ label: race.id + " " + body.id + " " + height + " " + build, look: new Appearance({ race: race.id, body: body.id, height, build }).toJSON() });
+                inputs.push({ label: body.id + " " + variant.id + " " + height + " " + build, look: new Appearance(library, { body: body.id, variant: variant.id, height, build }).toJSON() });
             }
         }
     }
 
     for(const seed of RANDOM_SEEDS)
     {
-        inputs.push({ label: "random " + seed, look: new Appearance(Appearance.randomData(new Random(seed))).toJSON() });
+        inputs.push({ label: "random " + seed, look: new Appearance(library, Appearance.randomData(library, new Random(seed))).toJSON() });
     }
 
     return inputs;
 }
 
-export function characterRecord(look)
+export function characterRecord(library, look)
 {
-    const appearance = new Appearance(look);
+    const appearance = new Appearance(library, look);
     const model = new CharacterModel(appearance);
-    const dims = Kit.dimensions(appearance);
+    const fitted = model.plan.fit;
+    const dims = { ...fitted.boxes, scale: fitted.scale };
 
     model.root.updateMatrixWorld(true);
 
     const joints = {};
 
-    for(const [name, joint] of Object.entries(Kit.joints(dims)))
-    {
-        const node = model.joints[name];
-
-        joints[name] = { parent: joint.parent, at: round(node.position.toArray()) };
-    }
+    for(const bone of fitted.bones) { joints[bone.name] = { parent: bone.parent, at: round(model.joints[bone.name].position.toArray()) }; }
 
     const meshes = {};
 
@@ -108,7 +105,7 @@ export function characterRecord(look)
         scale: round(model.body.scale.x),
         height: round(model.plan.height),
         joints,
-        bodyBlocks: Kit.bodyBlocks(dims).map(blockRecord),
+        bodyBlocks: Fitter.bodyBlocks(fitted).map(blockRecord),
         partBlocks: Kit.partBlocks(appearance, dims).map(blockRecord),
         meshes,
         triangles: model.triangleCount,
@@ -122,22 +119,23 @@ export function characterRecord(look)
 
 // The blocks of every option on every race and body, for the part port to
 // match. Texels are left out, because the port changes how parts paint.
-export function partSweep()
+export function partSweep(library)
 {
     const sweep = {};
     const fields = { nose: Catalogue.NOSES, hair: Catalogue.HAIR_STYLES, beard: Catalogue.BEARD_STYLES };
 
-    for(const race of Catalogue.RACES)
+    for(const body of library.playableBodies)
     {
-        for(const body of Catalogue.BODY_TYPES)
+        for(const variant of body.variants)
         {
-            const base = { race: race.id, body: body.id, hair: "bald", beard: "none", equipment: {} };
+            const label = body.id + " " + variant.id + " ";
+            const base = { body: body.id, variant: variant.id, hair: "bald", beard: "none", equipment: {} };
 
             for(const slot of Catalogue.SLOTS) { base.equipment[slot.id] = { item: "none" }; }
 
             for(const [field, options] of Object.entries(fields))
             {
-                for(const option of options) { sweep[race.id + " " + body.id + " " + field + "=" + option.id] = partBlocks({ ...base, [field]: option.id }); }
+                for(const option of options) { sweep[label + field + "=" + option.id] = partBlocks(library, { ...base, [field]: option.id }); }
             }
 
             for(const slot of Catalogue.SLOTS)
@@ -146,7 +144,7 @@ export function partSweep()
                 {
                     const equipment = { ...base.equipment, [slot.id]: { item: item.id } };
 
-                    sweep[race.id + " " + body.id + " " + slot.id + "=" + item.id] = partBlocks({ ...base, equipment });
+                    sweep[label + slot.id + "=" + item.id] = partBlocks(library, { ...base, equipment });
                 }
             }
         }
@@ -155,11 +153,12 @@ export function partSweep()
     return sweep;
 }
 
-function partBlocks(look)
+function partBlocks(library, look)
 {
-    const appearance = new Appearance(look);
+    const appearance = new Appearance(library, look);
+    const fitted = Fitter.fit(library.rig(appearance.body.rig), appearance.body, { variant: appearance.get("variant"), height: appearance.get("height"), build: appearance.get("build") });
 
-    return Kit.partBlocks(appearance, Kit.dimensions(appearance)).map(blockRecord);
+    return Kit.partBlocks(appearance, { ...fitted.boxes, scale: fitted.scale }).map(blockRecord);
 }
 
 

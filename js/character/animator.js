@@ -1,4 +1,4 @@
-import * as Kit from "./kit.js";
+import * as Fitter from "../kit/fitter.js";
 
 const WAVE_SECONDS = 2.2;
 
@@ -28,7 +28,11 @@ export class Animator
 
     update(delta, speed)
     {
-        const legLength = this.model.plan.dims.leg[1] * Kit.TEXEL * this.model.plan.dims.scale;
+        const plan = this.model.plan;
+
+        if(plan.rig.motion !== "biped") { return; }
+
+        const legLength = plan.boxes.leg[1] * Fitter.TEXEL * plan.scale;
 
         this.time += delta;
         this.speed += (speed - this.speed) * Math.min(1, delta * 10);
@@ -59,7 +63,7 @@ export class Animator
         joints.legL.rotation.set(-legSwing, 0, 0);
         joints.legR.rotation.set(legSwing, 0, 0);
         joints.torso.rotation.set(0.04 * walk + 0.14 * run + 0.01 * breath * (1 - walk), 0.06 * swing * walk, 0);
-        joints.torso.position.y = this.model.plan.dims.leg[1] * Kit.TEXEL + bounce;
+        joints.torso.position.y = this.model.plan.rest.torso.y + bounce;
         joints.head.rotation.set(-0.08 * run, 0.35 * Math.sin(this.time * 0.31) * (1 - walk), 0);
         joints.cape.rotation.set(0.06 + 0.25 * walk + 0.45 * run + 0.02 * breath, 0, 0);
     }

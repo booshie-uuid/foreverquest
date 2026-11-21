@@ -1,4 +1,3 @@
-import * as Catalogue from "../character/catalogue.js";
 import * as Controls from "../ui/controls.js";
 import * as THREE from "three";
 
@@ -50,10 +49,8 @@ export class Hud
 
     setPlayer(appearance)
     {
-        const race = Catalogue.find(Catalogue.RACES, appearance.get("race")).name;
-        const body = Catalogue.find(Catalogue.BODY_TYPES, appearance.get("body")).name;
         const name = Controls.element("strong", "", appearance.get("name"));
-        const detail = Controls.element("span", "", body + " " + race);
+        const detail = Controls.element("span", "", appearance.variant.name + " " + appearance.body.name);
 
         this.nameCard.replaceChildren(name, detail);
     }
@@ -116,9 +113,9 @@ export class Hud
         for(const actor of actors)
         {
             const plate = this.plateFor(actor, actor === player);
-            const height = actor.model.plan.height;
+            const height = actor.model.plan.height + actor.measures.nameplate;
 
-            point.set(actor.position.x, actor.position.y + height + 0.32, actor.position.z);
+            point.set(actor.position.x, actor.position.y + height, actor.position.z);
 
             const isNear = camera.position.distanceTo(point) < LABEL_RANGE;
             const isVisible = this.project(point, camera, size) && isNear;

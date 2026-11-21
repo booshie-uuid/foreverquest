@@ -1,9 +1,12 @@
 import * as Catalogue from "../../js/character/catalogue.js";
+import * as TestAssets from "../helpers/assets.js";
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Animator } from "../../js/character/animator.js";
 import { Appearance } from "../../js/character/appearance.js";
 import { CharacterModel } from "../../js/character/character-model.js";
+
+const library = await TestAssets.library();
 
 const TRIANGLE_BUDGET = 1200;
 const SHEET_LIMIT = 512;
@@ -31,15 +34,15 @@ function headTriangles(model)
 
 describe("CharacterModel", () =>
 {
-    it("builds every race and body with every face, nose, hair, beard and marking", () =>
+    it("builds every playable body and variant with every face, nose, hair, beard and marking", () =>
     {
         const fields = { face: Catalogue.FACES, nose: Catalogue.NOSES, hair: Catalogue.HAIR_STYLES, beard: Catalogue.BEARD_STYLES, markings: Catalogue.MARKINGS };
 
-        for(const race of Catalogue.RACES)
+        for(const body of library.playableBodies)
         {
-            for(const body of Catalogue.BODY_TYPES)
+            for(const variant of body.variants)
             {
-                const look = new Appearance({ race: race.id, body: body.id });
+                const look = new Appearance(library, { body: body.id, variant: variant.id });
                 const model = new CharacterModel(look);
 
                 for(const [field, options] of Object.entries(fields))
@@ -47,7 +50,7 @@ describe("CharacterModel", () =>
                     for(const option of options)
                     {
                         look.set(field, option.id);
-                        assertSound(model, race.id + " " + body.id + " " + field + "=" + option.id);
+                        assertSound(model, body.id + " " + variant.id + " " + field + "=" + option.id);
                     }
                 }
 
@@ -56,11 +59,11 @@ describe("CharacterModel", () =>
         }
     });
 
-    it("builds every equipment item for every race", () =>
+    it("builds every equipment item for every playable body", () =>
     {
-        for(const race of Catalogue.RACES)
+        for(const body of library.playableBodies)
         {
-            const look = new Appearance({ race: race.id });
+            const look = new Appearance(library, { body: body.id });
             const model = new CharacterModel(look);
 
             for(const slot of Catalogue.SLOTS)
@@ -68,7 +71,7 @@ describe("CharacterModel", () =>
                 for(const item of Catalogue.EQUIPMENT[slot.id])
                 {
                     look.equip(slot.id, item.id);
-                    assertSound(model, race.id + " " + slot.id + "=" + item.id);
+                    assertSound(model, body.id + " " + slot.id + "=" + item.id);
                 }
 
                 look.equip(slot.id, "none");
@@ -80,7 +83,7 @@ describe("CharacterModel", () =>
 
     it("rebuilds on a change and disposes the old geometry, material and sheet", () =>
     {
-        const look = new Appearance({ hair: "crop" });
+        const look = new Appearance(library, { hair: "crop" });
         const model = new CharacterModel(look);
         const old = [...model.meshes.map((mesh) => mesh.geometry), model.material, model.textures.map];
         const disposed = new Set();
@@ -95,7 +98,7 @@ describe("CharacterModel", () =>
 
     it("leaves out hair blocks under a closed helm", () =>
     {
-        const look = new Appearance({ hair: "bald", equipment: { head: { item: "helm" } } });
+        const look = new Appearance(library, { hair: "bald", equipment: { head: { item: "helm" } } });
         const model = new CharacterModel(look);
         const bald = headTriangles(model);
 
@@ -108,11 +111,11 @@ describe("CharacterModel", () =>
         assert.ok(headTriangles(model) > bald - 12);
     });
 
-    it("stands on the ground at rest", () =>
+    it("stands every body, creatures included, on the ground at rest", () =>
     {
-        for(const race of Catalogue.RACES)
+        for(const body of library.allBodies)
         {
-            const model = new CharacterModel(new Appearance({ race: race.id, equipment: { mainHand: { item: "none" }, offHand: { item: "none" }, back: { item: "none" } } }));
+            const model = new CharacterModel(new Appearance(library, { body: body.id, equipment: { mainHand: { item: "none" }, offHand: { item: "none" }, back: { item: "none" } } }));
             let lowest = Infinity;
 
             new Animator(model).update(0.016, 0);
@@ -124,13 +127,13 @@ describe("CharacterModel", () =>
                 lowest = Math.min(lowest, mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld).min.y);
             }
 
-            assert.ok(Math.abs(lowest) < 0.01, race.id + ": the lowest point is at " + lowest.toFixed(3));
+            assert.ok(Math.abs(lowest) < 0.01, body.id + ": the lowest point is at " + lowest.toFixed(3));
         }
     });
 
     it("moves the limbs only by turning them at their joints", () =>
     {
-        const model = new CharacterModel(new Appearance());
+        const model = new CharacterModel(new Appearance(library));
         const animator = new Animator(model);
         const rest = Object.fromEntries(["legL", "armL", "head"].map((name) => [name, model.joints[name].position.clone()]));
 

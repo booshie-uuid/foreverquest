@@ -64,13 +64,13 @@ export const tests =
                 const creator = window.foreverQuest.creator;
 
                 return {
-                    race: creator.draft.get("race"),
+                    body: creator.draft.get("body"),
                     height: creator.model.plan.height,
-                    label: document.querySelector("[data-key=race] .stepper-value").textContent,
+                    label: document.querySelector("[data-key=body] .stepper-value").textContent,
                 };
             });
 
-            assert.equal(after.race, "dwarf");
+            assert.equal(after.body, "dwarf");
             assert.equal(after.label, "Dwarf");
             assert.ok(after.height < before * 0.8, "The dwarf is " + after.height + " tall, the human " + before);
         },
@@ -87,7 +87,7 @@ export const tests =
             const look = await page.evaluate(draft);
             const swatch = await page.evaluate(() => document.querySelector("[data-key=skin] .swatch:nth-child(1)").dataset.colour);
 
-            assert.equal(look.race, "orc");
+            assert.equal(look.body, "orc");
             assert.equal(look.skin, swatch);
         },
     },

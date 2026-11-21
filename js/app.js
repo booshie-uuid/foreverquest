@@ -4,6 +4,7 @@ import { CharacterStore } from "./character-store.js";
 import { CreatorScreen } from "./ui/creator-screen.js";
 import { GameScreen } from "./game/game-screen.js";
 import { GraphicsSettings } from "./engine/graphics-settings.js";
+import { Library } from "./kit/library.js";
 import { MaterialLibrary } from "./engine/materials.js";
 import { Renderer } from "./engine/renderer.js";
 import { WorldAtlas } from "./engine/world-atlas.js";
@@ -17,10 +18,8 @@ export class App
         this.store = new CharacterStore(storage);
         this.renderer = new Renderer(container);
         this.graphics = new GraphicsSettings(this.renderer);
-
-        const saved = this.store.load();
-
-        this.appearance = new Appearance(saved ?? {});
+        this.library = null;
+        this.appearance = null;
         this.materials = null;
         this.creator = null;
         this.game = null;
@@ -35,6 +34,7 @@ export class App
 
         try
         {
+            this.library = await Library.load(this.assets);
             this.materials = new MaterialLibrary(await WorldAtlas.load(this.assets));
         }
         finally
@@ -42,8 +42,10 @@ export class App
             loading.remove();
         }
 
+        this.appearance = new Appearance(this.library, this.store.load() ?? {});
         this.creator = new CreatorScreen(
             this.container,
+            this.library,
             this.materials,
             this.graphics,
             (draft) => this.confirmCreator(draft),

@@ -33,9 +33,9 @@ export class CameraRig
         return new THREE.Vector2(-Math.sin(this.yaw), -Math.cos(this.yaw));
     }
 
-    update(delta, target, heightAt)
+    update(delta, target, focusHeight, heightAt)
     {
-        const goal = target.clone().add(new THREE.Vector3(0, 1.4, 0));
+        const goal = target.clone().add(new THREE.Vector3(0, focusHeight, 0));
 
         if(this.hasFocus)
         {

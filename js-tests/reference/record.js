@@ -18,11 +18,12 @@ async function main()
     }
 
     const materials = await TestAssets.materials();
-    const characters = Capture.appearanceInputs().map(({ label, look }) => ({ label, look, record: Capture.characterRecord(look) }));
+    const library = await TestAssets.library();
+    const characters = Capture.appearanceInputs(library).map(({ label, look }) => ({ label, look, record: Capture.characterRecord(library, look) }));
     const reference =
     {
         characters,
-        parts: Capture.partSweep(),
+        parts: Capture.partSweep(library),
         worldTextures: Capture.worldTexturesRecord(materials.atlas),
         zone: Capture.zoneRecord(materials),
     };

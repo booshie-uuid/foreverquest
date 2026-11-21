@@ -27,8 +27,6 @@ const POSES =
 
 const OPTION_LISTS =
 {
-    race: Catalogue.RACES,
-    body: Catalogue.BODY_TYPES,
     face: Catalogue.FACES,
     nose: Catalogue.NOSES,
     hair: Catalogue.HAIR_STYLES,
@@ -43,13 +41,14 @@ const OPTION_LISTS =
 
 export class CreatorScreen
 {
-    constructor(container, materials, graphics, onConfirm, onCancel)
+    constructor(container, library, materials, graphics, onConfirm, onCancel)
     {
+        this.library = library;
         this.materials = materials;
         this.graphics = graphics;
         this.onConfirm = onConfirm;
         this.onCancel = onCancel;
-        this.draft = new Appearance();
+        this.draft = new Appearance(library);
         this.mode = "create";
         this.tab = "body";
         this.pose = "idle";
@@ -225,8 +224,8 @@ export class CreatorScreen
 
         return [
             Controls.textInput("Name", look.get("name"), (value, input) => this.rename(value, input), "name"),
-            this.optionStepper("Race", "race"),
-            this.optionStepper("Body", "body"),
+            this.optionStepper("Race", "body"),
+            this.optionStepper("Body", "variant"),
             Controls.slider("Height", look.get("height"), (value) => look.set("height", value), "height"),
             Controls.slider("Build", look.get("build"), (value) => look.set("build", value), "build"),
             Controls.swatches("Skin", look.choices("skin"), look.get("skin"), (colour) => look.set("skin", colour), "skin"),
@@ -282,10 +281,18 @@ export class CreatorScreen
 
     optionStepper(label, key)
     {
-        const option = Catalogue.find(OPTION_LISTS[key], this.draft.get(key));
+        const option = Catalogue.find(this.optionsFor(key), this.draft.get(key));
         const text = key === "face" ? option.id + " · " + option.name : option.name;
 
         return Controls.stepper(label, text, (direction) => this.cycle(key, direction), key);
+    }
+
+    optionsFor(key)
+    {
+        if(key === "body") { return this.library.playableBodies; }
+        if(key === "variant") { return this.draft.body.variants; }
+
+        return OPTION_LISTS[key];
     }
 
     /* CHANGES ****************************************************************/
@@ -308,7 +315,7 @@ export class CreatorScreen
 
     rename(value, input)
     {
-        const isValid = Appearance.isValid("name", value, this.draft.get("race"));
+        const isValid = Appearance.isValid(this.library, "name", value, this.draft.get("body"));
 
         input.classList.toggle("is-invalid", !isValid);
         this.confirmButton.disabled = !isValid;
@@ -320,7 +327,7 @@ export class CreatorScreen
     {
         const random = new Random(Date.now());
 
-        this.draft.replace({ ...Appearance.randomData(random), name: this.draft.get("name") });
+        this.draft.replace({ ...Appearance.randomData(this.library, random), name: this.draft.get("name") });
     }
 
     onDraftChange(key)

@@ -1,9 +1,47 @@
 {
     "files": {
+        "migrations.json": "e31108f43b0dec107a9c08be534067d3fdde3122e11ded26575437100b1ca89d",
+        "models/bodies/dwarf.json": "81dae305799e37fd12607b3b29a9080bc8ccae548bab35bd8dce799075b6a5c9",
+        "models/bodies/elf.json": "d2a54f79345f2d9dd97f6234620da8d27197c086fa3da8ab91cc243d121e8998",
+        "models/bodies/halfling.json": "c876a0d4d010f66d5832a9ef9b586ff0ddd8fca9f87d004cd5340bd44a22ca58",
+        "models/bodies/human.json": "c5e6394a69f226f1067d1426b72c24cd5793eb1c7d93918fda864e027ba392a9",
+        "models/bodies/ogre.json": "c5e337a8f3ac3a78fc310e0f971a25673c6b7b72f689b983b1422166b6cc204f",
+        "models/bodies/orc.json": "39f23725be9ac82137c1a8a6bd117aeddd05f99a416ace606c4cb308ccffd9fa",
+        "models/bodies/wolf.json": "6042540e839d51f1d2ffc374da466b67f654e01f68161d810c8b2a374c9beaa0",
+        "models/index.json": "93323c162c702f4f36533c719beebeffcdeeef47230d2c838c14fe6952e5346e",
+        "models/rigs/humanoid.json": "771d8c974a9081d113cfa1435ebcf3289f5829f7dbaf7420a95d529bc1a654df",
+        "models/rigs/quadruped.json": "48a89857b7def9a9c31511b3adb4ce346db025eac499112cbf4858cb64b419af",
         "textures/world.json": "952d81b42134e8c39465bec24af55f88fb6454e8642a5ce8d85d4a2b599b1d39",
         "textures/world.png": "bb5358e5ce874d26433d9fe68a985ffbe6e5aba2cfb363879792f58014e9648e"
     },
     "ids": {
+        "body": [
+            "dwarf",
+            "elf",
+            "halfling",
+            "human",
+            "ogre",
+            "orc",
+            "wolf"
+        ],
+        "body-variant": [
+            "dwarf/female",
+            "dwarf/male",
+            "elf/female",
+            "elf/male",
+            "halfling/female",
+            "halfling/male",
+            "human/female",
+            "human/male",
+            "ogre/male",
+            "orc/female",
+            "orc/male",
+            "wolf/male"
+        ],
+        "rig": [
+            "humanoid",
+            "quadruped"
+        ],
         "world-texture": [
             "banner",
             "bark",
