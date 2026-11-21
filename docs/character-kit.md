@@ -84,7 +84,6 @@ A rig file in [content/rigs/](../content/rigs/) exports a `RIG`:
 | `id` | The rig's id |
 | `boxes` | The names of the boxes a body must size, such as `head`, `torso`, `arm` and `leg` |
 | `faceBone` | The bone that a face view frames |
-| `motion` | `"biped"` for the animator's built-in walk, run and wave; left out for a rig that stands at rest |
 | `bones` | The bones, in the order their faces pack the sheet |
 
 Each bone has a `name`, a `parent` (another bone, or `root` at the feet), an optional `box`, a `pivot` and, with a box, a `centre`. The pivot places the joint in the parent's frame, and the centre places the bone's box in its own frame. Each coordinate is a number or a sum of box sizes in texels, such as `"torso.w/2 + arm.w/2"` or `"torso.h - 2"`, where `w`, `h` and `d` are a box's width, height and depth. An optional `rest` gives the bone's angles in radians about x, y and z. A bone `{ name, mirror }` copies another bone across x, so `armR` mirrors `armL`. The bake compiles each sum into a linear form, so the game parses no expressions.
@@ -162,7 +161,8 @@ The humanoid rig names the places where parts attach and paint:
 | `regions` | Areas of bone faces, such as `face`, `scalp`, `torso`, `sleeves` and `hands`, each a list of bones with optional faces and rows |
 | `slots` | The slots the rig offers, in the order their parts paint. `feature` holds the parts the body lists |
 | `gear` | The equipment slots, with the names the creator shows |
-| `stances` | For each stance, the rest angle of the arm that holds the part |
+| `held` | The slots whose parts a hand holds, such as `mainHand` and `offHand` |
+| `stances` | For each stance, the `rest` angle of the arm that holds the part and the `swing` factor that damps its swing |
 | `base` | The layers every outfit body paints first, which is the skin |
 
 ### Parts
@@ -209,7 +209,26 @@ The bake paints each stamp twice with the same seed, once in grey and once in an
 
 ## Animation
 
-[Animator](../js/character/animator.js) poses a rig whose `motion` is `biped`, and leaves any other rig at its rest angles. It turns joints each frame and never moves them, except to bob the torso above its rest position. It blends from idle to walking at 2.4 metres a second and to running at 5.2: the legs and arms swing in opposite phase, the torso bobs and leans, the head looks around when standing, and the cape swings back with speed. A held part's `stance` sets its arm's rest angle from the rig's `stances` and damps that arm's swing, and `wave()` raises the right arm for 2.2 seconds.
+Animation is content. A clip file in [content/clips/](../content/clips/) exports the `CLIPS` of one rig, which the bake checks and writes to `assets/models/clips/`:
+
+| Field | Holds |
+|---|---|
+| `rig` | The rig the clips move |
+| `locomotion` | The `walk` and `run` speeds at which the walk and run clips take over, the `strideBox` whose height measures a stride, and the stride at walking and at running speed in that box's heights |
+| `idle` | Channels that loop in time while the character stands |
+| `walk`, `run` | Channels that loop once per stride |
+| `actions` | Named overlays, such as `wave`, each with its `seconds`, the `fade` in and out, and its channels |
+
+A channel moves one bone: `axis` is `x`, `y` or `z` for an angle in radians, or `lift` for a height in metres. Its `keys` sample one cycle evenly, and an idle or action channel's `period` gives the cycle in seconds. A channel with one key holds that value.
+
+[ClipPlayer](../js/kit/clip-player.js) blends the clips by speed: idle alone when standing, walk at the walk speed, run at the run speed. It advances the stride by the distance travelled, so a shorter body takes quicker steps, and interpolates between keys with a Catmull-Rom spline. It adds each bone's rest angles from the rig. A held part's `stance` adds its arm's rest angle and damps that arm's walk and run channels. An action fades in, holds and fades out over the pose below it. A rig with no clips stands at its rest angles.
+
+The humanoid clips reproduce the prototype's procedural animator within 0.025 radians. The prototype also swayed the cape with the breath while walking, which the clips leave out. The quadruped clips move the legs in diagonal pairs and wag the tail.
+
+### A Clip or an Action
+
+1. Add channels to the rig's clip file in [content/clips/](../content/clips/), or an entry to its `actions`.
+2. Run `npm run bake`, play the motion in the [workbench](workbench.md), then run `npm run bake -- --accept`.
 
 ## Adding Content
 

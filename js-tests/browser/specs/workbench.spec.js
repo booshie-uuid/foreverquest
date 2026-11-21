@@ -21,6 +21,7 @@ function viewed()
         overlay: viewer.overlay.length,
         query: location.search,
         hasMotions: document.querySelector("[data-key=motion]") !== null,
+        hasWave: [...document.querySelectorAll(".workbench-panel button")].some((button) => button.textContent === "Wave"),
     };
 }
 
@@ -38,7 +39,8 @@ export const tests =
             assert.equal(wolf.rig, "quadruped");
             assert.ok(wolf.bones.includes("tail") && wolf.bones.includes("legBR"), wolf.bones.join());
             assert.ok(wolf.overlay >= wolf.bones.length * 2 - 1, wolf.overlay + " overlay objects");
-            assert.equal(wolf.hasMotions, false);
+            assert.equal(wolf.hasMotions, true);
+            assert.equal(wolf.hasWave, false);
             await screenshot("wolf");
         },
     },
@@ -55,6 +57,7 @@ export const tests =
             assert.equal(ogre.rig, "humanoid");
             assert.ok(ogre.height > 2.1, "The ogre is " + ogre.height + " metres tall");
             assert.equal(ogre.hasMotions, true);
+            assert.equal(ogre.hasWave, true);
 
             await page.click("[aria-label='Next Body']");
 

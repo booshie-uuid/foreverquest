@@ -8,4 +8,6 @@ export const IDS =
     "body-variant": {},
     "part": {},
     "stamp": {},
+    "clip": {},
+    "action": {},
 };

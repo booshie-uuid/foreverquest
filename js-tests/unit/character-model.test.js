@@ -1,9 +1,9 @@
 import * as TestAssets from "../helpers/assets.js";
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { Animator } from "../../js/character/animator.js";
 import { Appearance } from "../../js/character/appearance.js";
 import { CharacterModel } from "../../js/character/character-model.js";
+import { ClipPlayer } from "../../js/kit/clip-player.js";
 
 const library = await TestAssets.library();
 
@@ -117,7 +117,7 @@ describe("CharacterModel", () =>
             const model = new CharacterModel(new Appearance(library, { body: body.id, equipment: { mainHand: { item: "none" }, offHand: { item: "none" }, back: { item: "none" } } }));
             let lowest = Infinity;
 
-            new Animator(model).update(0.016, 0);
+            new ClipPlayer(model).update(0.016, 0);
             model.root.updateMatrixWorld(true);
 
             for(const mesh of model.meshes)
@@ -133,10 +133,10 @@ describe("CharacterModel", () =>
     it("moves the limbs only by turning them at their joints", () =>
     {
         const model = new CharacterModel(new Appearance(library));
-        const animator = new Animator(model);
+        const animator = new ClipPlayer(model);
         const rest = Object.fromEntries(["legL", "armL", "head"].map((name) => [name, model.joints[name].position.clone()]));
 
-        for(let i = 0; i < 40; i++) { animator.update(0.05, Animator.RUN_SPEED); }
+        for(let i = 0; i < 40; i++) { animator.update(0.05, animator.speeds.run); }
 
         assert.ok(Math.abs(model.joints.legL.rotation.x) > 0.1, "The legs did not swing");
 

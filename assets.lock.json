@@ -1,6 +1,6 @@
 {
     "files": {
-        "migrations.json": "129bb22228427bd9b44e1fbb38680da36274f40b1f382a855174e16eb4ba890d",
+        "migrations.json": "05423f8390de60769f4fa43ba6b1f0132691bcfb437928c5eee035c619067b2c",
         "models/appearance.json": "8cf415eb281d3f71d9b89fc40f092eff9f6c23a35b7b23de38916110d483dfd4",
         "models/archetypes.json": "2be2c9e982bea9d46e186a6ea92b6fe9947342c48002d34b68eea53d51ec8604",
         "models/bodies/dwarf.json": "38e57469ebe3013204b9a8d100de33f136baf8697a582d20830ed1765dd207ec",
@@ -10,6 +10,9 @@
         "models/bodies/ogre.json": "0331b42fe72e9ebcb3bc657544ebc29ea9f73f2311349772e82f20a874a508c4",
         "models/bodies/orc.json": "5e730456ecb5990834f091a85375e15f31b64e31b85afa72abfd9dc8fbc19b35",
         "models/bodies/wolf.json": "016fcf13948d0e1929598220655196835ba2cad3af94ade510fb5195783d71cd",
+        "models/clips/humanoid.json": "440d525e812caf04e6083629e501e83ffcf8c48599ed98554edd6f94ef6cb5d5",
+        "models/clips/index.json": "afb84d3d2b3fe845be86023289fd14673fac2368bd0cc91b671a0090e66d913e",
+        "models/clips/quadruped.json": "4b53395f8c0439fe7e24452b93dba69c494dc52456858b7c444f304ed8cf7c30",
         "models/index.json": "93323c162c702f4f36533c719beebeffcdeeef47230d2c838c14fe6952e5346e",
         "models/palettes.json": "815e0087cc3a17805eeb5b96d41badcbb29b682233e79e3e6c3f3d1053540081",
         "models/parts/back/cape.json": "ec92a74c88f0f7b5d1e070393c2a15475f8a3b7ff042eff2b66d7eee26d27e81",
@@ -93,8 +96,8 @@
         "models/parts/offHand/heater.json": "5799f3ad7b7cf7beb722257143cb15b28af4d0c2732fe9b3b58aad8386b3f714",
         "models/parts/offHand/lantern.json": "5dc803ab262d9c5297d5fb96a5c3ba68738dd1ce3010138cb1241c1af39bd38a",
         "models/parts/offHand/none.json": "c5b95017ee187b9ca7b0d229f731aa191b8398f2f134f35c7dab598fa00a2265",
-        "models/rigs/humanoid.json": "e4d59af2712431b6547d72faa0b59e3fc184aa40a79ba45970ddc29c9f460516",
-        "models/rigs/quadruped.json": "c98521f0947618c654e7d3ac9265c3eb3210291fdd8dfe8465b22b0cea01c908",
+        "models/rigs/humanoid.json": "e4f2e01f9a1e02b919a629f929d892585ea96d0735a41b4b14660bf1de4f696d",
+        "models/rigs/quadruped.json": "b463fc75e4c876326a8b639fb6d8af5ff9f68b052e6ae7d9a60b203a04df2f32",
         "models/stamps.json": "b6da78337ef6cc0431b3b0112287bd53c0fcc2c2bee05b6feb9da068d4fe8e1e",
         "models/stamps.png": "bfb9e3399c779021d4fd7702c8ca899e76d2777879be2fc9de12417134558cb0",
         "models/stamps.preview.png": "9f2389b18e2ba3e94058e93a6cc716a7a13e57e42b956b2d71c6f522bab52f9b",
@@ -102,6 +105,9 @@
         "textures/world.png": "bb5358e5ce874d26433d9fe68a985ffbe6e5aba2cfb363879792f58014e9648e"
     },
     "ids": {
+        "action": [
+            "humanoid/wave"
+        ],
         "body": [
             "dwarf",
             "elf",
@@ -124,6 +130,10 @@
             "orc/female",
             "orc/male",
             "wolf/male"
+        ],
+        "clip": [
+            "humanoid",
+            "quadruped"
         ],
         "part": [
             "back/cape",

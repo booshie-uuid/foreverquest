@@ -111,12 +111,12 @@ export function compileRig(source, problems)
         id: source.id,
         boxes,
         faceBone: source.faceBone,
-        motion: source.motion ?? null,
         bones,
         sockets: compileSockets(source.sockets ?? [], bones, boxes, where, problems),
         regions: checkRegions(source.regions ?? {}, bones, where, problems),
         slots: source.slots ?? [],
         gear: source.gear ?? [],
+        held: source.held ?? [],
         stances: source.stances ?? {},
         base: (source.base ?? []).map(Layers.normalise),
     };

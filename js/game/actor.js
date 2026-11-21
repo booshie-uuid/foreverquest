@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { Animator } from "../character/animator.js";
 import { CharacterModel } from "../character/character-model.js";
+import { ClipPlayer } from "../kit/clip-player.js";
 
 const ARRIVE_DISTANCE = 0.15;
 const TURN_RATE = 10;
@@ -11,7 +11,7 @@ export class Actor
     {
         this.appearance = appearance;
         this.model = new CharacterModel(appearance);
-        this.animator = new Animator(this.model);
+        this.animator = new ClipPlayer(this.model);
         this.position = new THREE.Vector3();
         this.heading = 0;
         this.desiredHeading = 0;

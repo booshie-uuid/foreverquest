@@ -1,4 +1,3 @@
-import { Animator } from "../../js/character/animator.js";
 import { Appearance } from "../../js/character/appearance.js";
 import { CharacterModel } from "../../js/character/character-model.js";
 
@@ -47,9 +46,4 @@ export function sample(library, entry, animate)
     model.dispose();
 
     return samples;
-}
-
-export function prototype(model)
-{
-    return new Animator(model);
 }

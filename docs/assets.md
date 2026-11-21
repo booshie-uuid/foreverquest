@@ -2,7 +2,7 @@
 
 ForeverQuest separates the code that makes art from the code that plays the game. Authoring code in [content/](../content/) paints and builds the art. The bake runs that code and writes asset files into `assets/`. The game reads only those files, so it holds no painter or generator for anything that has been baked.
 
-The world textures and everything that makes up a character are baked: rigs, bodies, parts, stamps, palettes, archetypes and appearance defaults. Props and the zone still run their generators in the game, and move to the bake in later stages of the restructure.
+The world textures and everything that makes up a character are baked: rigs, bodies, parts, stamps, clips, palettes, archetypes and appearance defaults. Props and the zone still run their generators in the game, and move to the bake in later stages of the restructure.
 
 ## The Boundary
 
@@ -80,6 +80,7 @@ export const IDS =
 | `models/stamps.png`, `models/stamps.json` | Every stamp packed into one sheet, and each stamp's rectangle and whether it takes a tint |
 | `models/parts/index.json`, `models/parts/<slot>/<id>.json` | The part ids in each slot's order, and each part checked against the rigs that offer its slot |
 | `models/stamps.preview.png` | A viewable copy of the stamp sheet, which the game does not read |
+| `models/clips/index.json`, `models/clips/<rig>.json` | The rigs that have clips, and each rig's clips and actions |
 | `models/palettes.json`, `models/archetypes.json`, `models/appearance.json` | The colour palettes, the villager archetypes, and the appearance defaults and random rules |
 | `migrations.json` | The id maps from [migrations.js](../content/migrations.js) |
 

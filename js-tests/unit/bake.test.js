@@ -1,4 +1,5 @@
 import * as Bake from "../../tools/bake/bake.js";
+import * as ClipBaker from "../../tools/bake/clips.js";
 import * as ModelBaker from "../../tools/bake/models.js";
 import * as PartBaker from "../../tools/bake/parts.js";
 import * as StampBaker from "../../tools/bake/stamps.js";
@@ -51,7 +52,7 @@ describe("Bake", () =>
         {
             const context = {};
 
-            return [WorldTextureBaker.bake(problems, context), await StampBaker.bake(problems, context), await ModelBaker.bake(problems, context), await PartBaker.bake(problems, context)];
+            return [WorldTextureBaker.bake(problems, context), await StampBaker.bake(problems, context), await ModelBaker.bake(problems, context), await PartBaker.bake(problems, context), await ClipBaker.bake(problems, context)];
         };
 
         assert.deepEqual(await all(), await all());

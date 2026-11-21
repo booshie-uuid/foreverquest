@@ -18,7 +18,7 @@ The model viewer shows one body at a time, from any rig, including creature bodi
 | Body, Variant | Steps through every body in the library and the body's variants |
 | Height, Build, Skin | Sets the sliders and the skin colour |
 | Gear | For a body that wears parts: the default gear, a random set, or none |
-| Idle, Walk, Run, Wave | Plays a motion on a rig whose motion is `biped` |
+| Idle, Walk, Run, Wave | Plays the rig's clips at standing, walking and running speed, and its wave action when it has one |
 | Bones and boxes | Draws each joint as a small cube and each bone's box as an outline |
 | Drag, mouse wheel | Turns the model and zooms |
 

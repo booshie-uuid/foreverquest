@@ -100,7 +100,7 @@ flowchart LR
 3. [Sheet](js/character/sheet.js) packs every face of every block into one texture, and the [compositor](js/kit/compositor.js) paints each face from baked stamps: rectangles of texels that the bake paints once, in the colours the character chooses.
 4. [CharacterModel](js/character/character-model.js) merges the blocks of each joint into one mesh with [BlockBuilder](js/geometry/block-builder.js), and gives the character one material. The model rebuilds itself whenever the appearance changes.
 
-A character has about 130 to 300 triangles and a sheet 256 texels wide. The [Animator](js/character/animator.js) poses the model by turning its joints each frame: legs and arms swing from the hips and shoulders, the head turns, and a cape swings back as the character moves. It has idle, walk, run and wave poses.
+A character has about 130 to 300 triangles and a sheet 256 texels wide. The [clip player](js/kit/clip-player.js) poses the model by turning its joints each frame from baked clips in [content/clips/](content/clips/): legs and arms swing from the hips and shoulders, the head turns, and a cape swings back as the character moves. The humanoid clips have idle, walk, run and a wave; the wolf's have idle, walk and run.
 
 Equipment works in two ways. Most items repaint body faces, so a shirt paints the torso and upper arms and boots paint the lower legs. Items that change the silhouette add blocks: helmets, hoods, hats, pauldrons, coat tails that hang from each leg, cloaks, packs, weapons, shields and a lantern that glows.
 
@@ -128,8 +128,8 @@ Characters can step up at most half a metre from one tile to the next, and canno
 |---|---|
 | [js/art/](js/art/) | The colour maths the compositor uses |
 | [js/geometry/](js/geometry/) | BlockBuilder, which turns blocks into meshes |
-| [js/kit/](js/kit/) | The library of baked content, the fitter, the dresser, the compositor and the stamp sheet |
-| [js/character/](js/character/) | The catalogue, appearance record, kit, outfit, sheet, model and animator |
+| [js/kit/](js/kit/) | The library of baked content, the fitter, the dresser, the compositor, the stamp sheet and the clip player |
+| [js/character/](js/character/) | The appearance record, the names, the texture sheet, the character model and the placeholder painter |
 | [js/world/](js/world/) | Terrain, props, world textures, water and the world's collision |
 | [js/game/](js/game/) | Actors, villager behaviour, camera, input and the in-game HUD |
 | [js/ui/](js/ui/) | The character creator and its controls |

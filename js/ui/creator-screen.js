@@ -1,9 +1,9 @@
 import * as Controls from "./controls.js";
 import * as Props from "../world/props.js";
 import * as THREE from "three";
-import { Animator } from "../character/animator.js";
 import { Appearance } from "../character/appearance.js";
 import { CharacterModel } from "../character/character-model.js";
+import { ClipPlayer } from "../kit/clip-player.js";
 import { PropBuilder } from "../world/prop-builder.js";
 import { Random } from "../util/random.js";
 
@@ -19,9 +19,9 @@ const TABS =
 
 const POSES =
 [
-    { id: "idle", name: "Idle", speed: 0 },
-    { id: "walk", name: "Walk", speed: Animator.WALK_SPEED },
-    { id: "run", name: "Run", speed: Animator.RUN_SPEED },
+    { id: "idle", name: "Idle" },
+    { id: "walk", name: "Walk" },
+    { id: "run", name: "Run" },
 ];
 
 
@@ -51,7 +51,7 @@ export class CreatorScreen
         this.camera = new THREE.PerspectiveCamera(28, 1, 0.05, 50);
         this.cameraTarget = new THREE.Vector3();
         this.model = new CharacterModel(this.draft);
-        this.animator = new Animator(this.model);
+        this.animator = new ClipPlayer(this.model);
 
         this.buildScene();
         this.element = this.buildDom();
@@ -411,7 +411,7 @@ export class CreatorScreen
 
     update(delta)
     {
-        const speed = POSES.find((pose) => pose.id === this.pose).speed;
+        const speed = this.animator.speeds?.[this.pose] ?? 0;
         const plan = this.model.plan;
         const isFace = this.view === "face";
         const headY = plan.height - plan.headHeight * 0.5;

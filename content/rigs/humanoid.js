@@ -9,7 +9,6 @@ export const RIG =
     id: "humanoid",
     boxes: ["head", "torso", "arm", "leg"],
     faceBone: "head",
-    motion: "biped",
     bones:
     [
         { name: "head", parent: "torso", box: "head", pivot: [0, "torso.h", 0], centre: [0, "head.h/2", 0] },
@@ -50,13 +49,14 @@ export const RIG =
         { id: "mainHand", name: "Main Hand" },
         { id: "offHand", name: "Off Hand" },
     ],
+    held: ["mainHand", "offHand"],
     stances:
     {
-        pole: { armR: -0.2 },
-        blade: { armR: -0.3 },
-        shield: { armL: -0.3 },
-        lantern: { armL: -0.7 },
-        dagger: { armL: 0 },
+        pole: { armR: { rest: -0.2, swing: 0.4 } },
+        blade: { armR: { rest: -0.3, swing: 0.4 } },
+        shield: { armL: { rest: -0.3, swing: 0.4 } },
+        lantern: { armL: { rest: -0.7, swing: 0.4 } },
+        dagger: { armL: { rest: 0, swing: 0.4 } },
     },
     base: [{ region: "body", stamp: "grit", tint: "skin" }],
 };

@@ -1,9 +1,9 @@
 import * as Controls from "../../../js/ui/controls.js";
 import * as Fitter from "../../../js/kit/fitter.js";
 import * as THREE from "three";
-import { Animator } from "../../../js/character/animator.js";
 import { Appearance } from "../../../js/character/appearance.js";
 import { CharacterModel } from "../../../js/character/character-model.js";
+import { ClipPlayer } from "../../../js/kit/clip-player.js";
 import { Random } from "../../../js/util/random.js";
 
 const PANEL_WIDTH = 352;
@@ -12,9 +12,9 @@ const JOINT_SIZE = 0.035;
 
 const MOTIONS =
 [
-    { id: "idle", name: "Idle", speed: 0 },
-    { id: "walk", name: "Walk", speed: Animator.WALK_SPEED },
-    { id: "run", name: "Run", speed: Animator.RUN_SPEED },
+    { id: "idle", name: "Idle" },
+    { id: "walk", name: "Walk" },
+    { id: "run", name: "Run" },
 ];
 
 const GEAR =
@@ -45,7 +45,7 @@ export class ModelViewer
         this.camera = new THREE.PerspectiveCamera(30, 1, 0.05, 80);
         this.appearance = new Appearance(library);
         this.model = new CharacterModel(this.appearance);
-        this.animator = new Animator(this.model);
+        this.animator = new ClipPlayer(this.model);
 
         this.buildScene();
         this.panel = Controls.element("aside", "panel workbench-panel");
@@ -103,7 +103,7 @@ export class ModelViewer
     {
         const state = this.state;
         const body = this.appearance.body;
-        const isBiped = this.model.plan.rig.motion === "biped";
+        const clips = this.library.clips(this.model.plan.rig.id);
         const bodies = this.library.allBodies;
         const step = (list, current, direction) => list[(list.findIndex((entry) => entry.id === current) + direction + list.length) % list.length].id;
 
@@ -126,11 +126,11 @@ export class ModelViewer
 
         rows.push(Controls.element("h2", "", "View"));
 
-        if(isBiped) { rows.push(this.toggles(MOTIONS, state.motion, (id) => this.setState({ motion: id }), "motion")); }
+        if(clips) { rows.push(this.toggles(MOTIONS, state.motion, (id) => this.setState({ motion: id }), "motion")); }
 
         rows.push(this.toggles([{ id: "bones", name: "Bones and boxes" }], state.overlay ? "bones" : null, () => this.setState({ overlay: !state.overlay }), "overlay"));
 
-        if(isBiped) { rows.push(Controls.button("Wave", () => this.animator.wave(), "button")); }
+        if(clips?.actions.wave) { rows.push(Controls.button("Wave", () => this.animator.wave(), "button")); }
 
         this.panel.replaceChildren(...rows);
     }
@@ -256,7 +256,7 @@ export class ModelViewer
     update(delta)
     {
         const plan = this.model.plan;
-        const speed = MOTIONS.find((motion) => motion.id === this.state.motion)?.speed ?? 0;
+        const speed = this.animator.speeds?.[this.state.motion] ?? 0;
         const extent = Math.max(plan.height, plan.fit.bones.reduce((widest, bone) => Math.max(widest, ...(bone.size ?? [0])), 0) * Fitter.TEXEL);
         const distance = (extent * 2.6 + 0.8) * this.state.zoom;
 
