@@ -3,6 +3,8 @@ const FACES = ["front", "back", "left", "right", "top", "bottom"];
 // Records a block in metres. `faces` is a world texture name for every face,
 // or a map from face names to texture names with "all" as the fallback; a face
 // mapped to null is left out. `builder.blocks` collects the records.
+const CUBE = 1 / 3;
+
 export function block(builder, size, at, faces, rotation = null)
 {
     const nameOf = (face) => (typeof faces === "string" ? faces : faces[face] ?? faces.all ?? null);
@@ -54,11 +56,11 @@ export function house(builder, x, y, z, angle, style)
     for(const [wx, level, isLit] of [[-width * 0.25, 0, true], [-width * 0.25, 1, style.isLit], [width * 0.25, 1, false]])
     {
         const wy = 0.5 + (level === 0 ? 1.3 : ground + 1.2);
-        const wz = (level === 0 ? depth : upperDepth) / 2 + 0.03;
+        const wz = (level === 0 ? depth : upperDepth) / 2 - 0.12;
 
         put([0.7, 0.7, 0.06], [wx, wy, wz], isLit ? "glow" : "iron");
-        put([0.36, 0.76, 0.08], [wx - 0.58, wy, wz + 0.06], "planks", [0, 0.5, 0]);
-        put([0.36, 0.76, 0.08], [wx + 0.58, wy, wz + 0.06], "planks", [0, -0.5, 0]);
+        put([0.36, 0.76, 0.08], [wx - 0.58, wy, wz + 0.21], "planks", [0, 0.5, 0]);
+        put([0.36, 0.76, 0.08], [wx + 0.58, wy, wz + 0.21], "planks", [0, -0.5, 0]);
 
         if(isLit && level === 0) { lights.push(local(x, y, z, angle, [wx, wy, wz + 0.8])); }
     }
@@ -118,6 +120,12 @@ function stepRoof(put, width, depth, base, roof, gable, inset)
     }
 }
 
+// Fills the cubes between two corners, counted in cubes from the prop's origin.
+function cubes(put, from, to, faces)
+{
+    put(to.map((value, i) => (value - from[i]) * CUBE), from.map((value, i) => ((value + to[i]) / 2) * CUBE), faces);
+}
+
 function local(x, y, z, angle, point)
 {
     const cos = Math.cos(angle);
@@ -133,7 +141,7 @@ export function cottage(builder, x, y, z, angle)
     put([4.4, 0.6, 3.6], [0, 0.0, 0], "darkStone");
     put([4.2, 2.2, 3.4], [0, 1.4, 0], "stone");
     put([0.9, 1.6, 0.1], [0.8, 1.1, 1.72], { front: "oldPlanks", all: "timber" });
-    put([0.6, 0.6, 0.06], [-1.1, 1.5, 1.72], "glow");
+    put([0.6, 0.6, 0.06], [-1.1, 1.5, 1.6], "glow");
     stepRoof(put, 5.0, 4.6, 2.5, "thatch", "stone", 0.38);
 
     return {
@@ -155,7 +163,7 @@ export function chapel(builder, x, y, z, angle)
     {
         for(const wz of [-2.5, 0, 2.5])
         {
-            put([0.08, 1.8, 0.6], [side * 3.03, 2.8, wz], "glow");
+            put([0.08, 1.8, 0.6], [side * 2.9, 2.8, wz], "glow");
             put([0.3, 5, 0.6], [side * 3.1, 2.6, wz + 1.25], "stone");
         }
     }
@@ -254,33 +262,37 @@ export function sacks(builder, x, y, z, angle)
     return { x, z, radius: 0.6 };
 }
 
+// Built in whole cubes from its origin, which the bake places on a cube corner.
 export function cart(builder, x, y, z, angle)
 {
     const put = placed(builder, x, y, z, angle);
+    const fill = (from, to, faces) => cubes(put, from, to, faces);
 
-    put([1.8, 0.12, 1.0], [0, 0.7, 0], "planks");
-    put([1.8, 0.3, 0.08], [0, 0.9, 0.48], "planks");
-    put([1.8, 0.3, 0.08], [0, 0.9, -0.48], "planks");
-    put([1.6, 0.08, 0.08], [1.6, 0.66, 0.3], "timber");
-    put([1.6, 0.08, 0.08], [1.6, 0.66, -0.3], "timber");
+    fill([-3, 2, -2], [3, 3, 2], "planks");
+    fill([-3, 3, -2], [3, 4, -1], "planks");
+    fill([-3, 3, 1], [3, 4, 2], "planks");
+    fill([-3, 3, -1], [-2, 4, 1], "planks");
 
-    for(const side of [0.6, -0.6])
+    for(const [near, far] of [[-3, -2], [2, 3]])
     {
-        for(let i = 0; i < 8; i++)
+        for(const middle of [-2, 1])
         {
-            const spoke = (i / 8) * Math.PI * 2;
-
-            put([0.26, 0.09, 0.08], [Math.cos(spoke) * 0.38 - 0.2, 0.42 + Math.sin(spoke) * 0.38, side], "timber", [0, 0, spoke + Math.PI / 2]);
+            fill([middle, 0, near], [middle + 1, 3, far], "timber");
+            fill([middle - 1, 1, near], [middle + 2, 2, far], "timber");
+            fill([middle, 1, near], [middle + 1, 2, far], "iron");
         }
-
-        put([0.7, 0.06, 0.06], [-0.2, 0.42, side], "timber", [0, 0, 0.6]);
-        put([0.7, 0.06, 0.06], [-0.2, 0.42, side], "timber", [0, 0, -0.9]);
     }
 
-    put([0.4, 0.3, 0.3], [-0.3, 0.92, 0.1], "sacking", [0, 0, 0.3]);
-    put([0.4, 0.3, 0.3], [0.2, 0.92, -0.15], "sacking", [0, 0.5, 0.2]);
+    for(const [near, far] of [[-2, -1], [1, 2]])
+    {
+        fill([3, 2, near], [6, 3, far], "timber");
+        fill([6, 1, near], [8, 2, far], "timber");
+    }
 
-    return { collider: { x, z, halfWidth: 1.4, halfDepth: 0.7, angle } };
+    fill([-2, 3, -1], [-1, 4, 0], "sacking");
+    fill([0, 3, 0], [2, 4, 1], "sacking");
+
+    return { collider: { x, z, halfWidth: 1.4, halfDepth: 1.0, angle } };
 }
 
 export function fence(builder, points, heightAt)

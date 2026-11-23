@@ -17,6 +17,7 @@ export function quarterTurn(angle)
     return Math.round(angle / QUARTER) * QUARTER;
 }
 
+// Placements stand on a cube corner and turn in quarter turns.
 // The cells of every placed prefab and run, as a map from cell index,
 // (y * columns + z) * columns + x, to block number, where 0 carves air out
 // of the terrain, and each object's prop number and box of cells.
@@ -28,13 +29,13 @@ export function zoneCells(zone, props, runs, prefabs, numbers, where, problems, 
 
     for(const prop of props)
     {
-        const placement = { x: prop.x, y: prop.y, z: prop.z, angle: quarterTurn(prop.angle ?? 0), scale: prop.scale ?? 1 };
+        const placement = { x: Math.round(prop.x * CUBES) / CUBES, y: prop.y, z: Math.round(prop.z * CUBES) / CUBES, angle: quarterTurn(prop.angle ?? 0), scale: prop.scale ?? 1 };
         const prefab = prefabs[prop.prefab];
         const box = new Box();
 
         for(const block of prefab.blocks) { box.add(rasterise(cells, zone, worldBlock(block, placement), blockOf(block, numbers, where + " prefab " + prop.prefab, problems))); }
 
-        objects.push({ prop: prop.index, name: prop.prefab, x: prop.x, z: prop.z, turns: Math.round(placement.angle / QUARTER), box: box.cells });
+        objects.push({ prop: prop.index, name: prop.prefab, x: placement.x, z: placement.z, turns: Math.round(placement.angle / QUARTER), box: box.cells });
 
         const carved = new Map();
 
