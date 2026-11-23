@@ -86,7 +86,7 @@ Each tag names one capability of the game. A spec lists its tags in `covers`.
 | `workbench` | The model viewer opens a creature on its own rig from the address, stepping the body switches rigs and updates the address, and the prop viewer shows a prefab with its colliders and lights | [workbench.spec.js](browser/specs/workbench.spec.js) |
 | `zones` | The game starts in the zone the address names, and travelling loads the next zone, frees the last and keeps the player | [zones.spec.js](browser/specs/zones.spec.js) |
 | `streaming` | A kilometre zone loads only the regions around the player, follows the player across it, and stays within 1,000,000 triangles and 400 draw calls; `?stats` shows the frame rate | [streaming.spec.js](browser/specs/streaming.spec.js) |
-| `world` | Entering the world shows the villagers and their nameplates; keys and ground clicks move the player; talking to the tailor opens the creator, and saving restyles and stores the player | [world.spec.js](browser/specs/world.spec.js) |
+| `world` | Entering the world shows the villagers and their nameplates; keys and ground clicks move the player; talking to the tailor opens the creator, and saving restyles and stores the player; walking through the inn's door leads into its room and fades the roof | [world.spec.js](browser/specs/world.spec.js) |
 
 ## Conventions
 

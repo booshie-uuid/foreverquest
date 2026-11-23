@@ -116,7 +116,8 @@ export async function bakeZone(zone, folder, people, context, where, problems)
     if(problems.length > before) { return null; }
 
     const numbers = Object.fromEntries(context.blocks.map((block, i) => [block.id, i + 1]));
-    const placed = Voxelise.zoneCells(zone, props, runs, context.prefabs, numbers, where, problems);
+    const terrainTop = (column, row) => terrain.surfaces[row * zone.columns + column];
+    const placed = Voxelise.zoneCells(zone, props, runs, context.prefabs, numbers, where, problems, terrainTop);
 
     if(problems.length > before) { return null; }
 

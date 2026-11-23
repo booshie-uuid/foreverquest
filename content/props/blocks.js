@@ -1,3 +1,6 @@
+// The block of the steps the bake adds below a door.
+export const STEP = "stone";
+
 export const BLOCK_FOR_TEXTURE =
 {
     grass: "grass",

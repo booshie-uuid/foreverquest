@@ -1,3 +1,4 @@
+import * as Pathfinder from "../../js/sim/pathfinder.js";
 import * as RegionCodec from "../../js/sim/region-codec.js";
 import * as Terrain from "../../tools/bake/terrain.js";
 import * as TestAssets from "../helpers/assets.js";
@@ -127,6 +128,17 @@ describe("Zone movement", () =>
         assert.fail("The zone has no rise of two cubes to test");
     });
 
+    it("lets a route lead through the inn's door into its room, which has a roof", () =>
+    {
+        const from = hearthmere.openGround(9.35, -4.3, 0.35);
+        const path = Pathfinder.find(hearthmere, from, { x: 8.45, z: -8.5 }, 0.35);
+        const end = path.at(-1);
+
+        assert.deepEqual(end, { x: 8.45, z: -8.5 });
+        assert.ok(hearthmere.isUnderRoof(end.x, end.z, hearthmere.groundAt(end.x, end.z) + 2 / 3));
+        assert.equal(hearthmere.isUnderRoof(from.x, from.z, from.y), false);
+    });
+
     it("places entities on open ground beside the props", () =>
     {
         const spot = hearthmere.openGround(0, 0, 0.35);
@@ -168,6 +180,26 @@ describe("Zone props", () =>
         assert.equal(Voxelise.quarterTurn(0.3), 0);
     });
 
+    it("carves a room and its door, and lays steps from the sill down to the ground", () =>
+    {
+        const cells = new Map();
+        const ground = () => 16;
+
+        Voxelise.rasterise(cells, zone, { size: [3, 3, 3], at: [0, 1.5, 0] }, 1);
+        Voxelise.carve(cells, zone, { size: [2, 2, 2], at: [0, 1.7, 0] });
+        Voxelise.carve(cells, zone, { size: [1, 2, 0.8], at: [0, 1.7, 1.5] });
+        Voxelise.addSteps(cells, zone, { size: [1, 2, 0.8], at: [0, 1.7, 1.5] }, 0, ground, 2);
+
+        const at = (x, y, z) => cells.get((y * 96 + z) * 96 + x);
+        const sill = Math.round(0.7 * 3 + 16);
+
+        assert.equal(at(48, sill, 48), 0, "The room was not carved");
+        assert.equal(at(48, sill, 52), 0, "The door was not carved");
+        assert.equal(at(48, sill - 1, 52), 1, "The sill went with the door");
+        assert.deepEqual([at(48, sill - 2, 54), at(48, sill - 1, 54)], [2, 0]);
+        assert.deepEqual([at(48, 16, 55), at(48, 17, 55)], [undefined, undefined], "A step went below the ground");
+    });
+
     it("builds the test field's props as cubes and keeps the lamp's light", () =>
     {
         const lamp = testfield.lightSpots[0];
@@ -202,6 +234,23 @@ describe("Zone view", () =>
 
         assert.equal(view.terrainMeshes.length, 5 * 5);
         assert.ok(area >= 96 * 96 - 1e-6, "The tops cover only " + area + " square metres");
+        view.dispose();
+    });
+
+    it("cuts the terrain above the player's head under a roof, and opens it again outside", () =>
+    {
+        const view = new ZoneView(hearthmere, materials);
+        const inside = { x: 8.45, y: hearthmere.groundAt(8.45, -8.5) + 2 / 3, z: -8.5 };
+        const outside = { x: 9.35, y: hearthmere.groundAt(9.35, -3.5), z: -3.5 };
+        const camera = { position: view.sky.position.clone() };
+
+        for(let i = 0; i < 60; i++) { view.update(0.05, camera, inside); }
+
+        assert.ok(Math.abs(materials.terrainCut.value.w - (inside.y + 2.2)) < 0.01, "The cut is at " + materials.terrainCut.value.w);
+
+        for(let i = 0; i < 60; i++) { view.update(0.05, camera, outside); }
+
+        assert.ok(materials.terrainCut.value.w > outside.y + 30, "The cut stayed at " + materials.terrainCut.value.w);
         view.dispose();
     });
 

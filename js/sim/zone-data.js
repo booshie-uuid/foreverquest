@@ -6,6 +6,7 @@ const STEP_CELLS = 1;
 const CLEARANCE_CELLS = 6;
 const EPSILON = 1e-6;
 const OPEN_GROUND_REACH = 4;
+const ROOF_REACH_CELLS = 24;
 const CUBES_PER_METRE = 3;
 const { CHUNK, REGION } = RegionCodec;
 
@@ -322,6 +323,17 @@ export class ZoneData
         while(this.isSolid(column, y, row)) { y++; }
 
         return this.metresY(y);
+    }
+
+    // Whether a solid cell hangs over the headroom of a cylinder at the point.
+    isUnderRoof(x, z, feet)
+    {
+        const [column, row] = this.columnOf(x, z);
+        const start = Math.floor(this.cellY(feet) + EPSILON) + CLEARANCE_CELLS;
+
+        for(let y = start; y < start + ROOF_REACH_CELLS; y++) { if(this.isSolid(column, y, row)) { return true; } }
+
+        return false;
     }
 
     // Whether a circle overlaps a column's square.

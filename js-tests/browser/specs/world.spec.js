@@ -106,6 +106,41 @@ export const tests =
         },
     },
     {
+        name: "walking through the inn's door leads inside, where the roof fades away",
+        run: async ({ page, baseUrl, screenshot }) =>
+        {
+            await enterWorld(page, baseUrl);
+
+            const result = await page.evaluate(() =>
+            {
+                const game = window.foreverQuest.game;
+                let count = 0;
+
+                game.player.placeAt(9.35, -4.6, game.zone);
+                game.pause();
+                game.sim.command({ type: "moveTo", x: 8.45, z: -8.3 });
+
+                do
+                {
+                    game.stepTicks(1);
+                    count++;
+                }
+                while((game.player.target !== null || game.player.speed >= 0.05) && count < 300);
+
+                const { x, y, z } = game.player.position;
+
+                return { count, isInside: game.zone.isUnderRoof(x, z, y), y, ground: game.zone.groundAt(x, z) };
+            });
+
+            await page.evaluate(() => { window.foreverQuest.game.isPaused = false; });
+            await page.waitFor(() => window.foreverQuest.materials.terrainCut.value.w < window.foreverQuest.game.player.position.y + 2.5, { timeout: 20000 });
+            await screenshot("inside-the-inn");
+
+            assert.ok(result.isInside, "The player stopped outside the inn: " + JSON.stringify(result));
+            assert.ok(result.y > result.ground, "The player is not on the inn's raised floor");
+        },
+    },
+    {
         name: "talking to the tailor opens the creator, and saving restyles the player",
         run: async ({ page, baseUrl, screenshot }) =>
         {

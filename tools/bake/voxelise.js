@@ -5,6 +5,7 @@ const CUBES = ZoneData.CUBES_PER_METRE;
 const CELL = 1 / CUBES;
 const QUARTER = Math.PI / 2;
 const EPSILON = 1e-9;
+const CLEARANCE = 6;
 
 
 /******************************************************************************/
@@ -17,8 +18,9 @@ export function quarterTurn(angle)
 }
 
 // The cells of every placed prefab and run, as a map from cell index,
-// (y * columns + z) * columns + x, to block number.
-export function zoneCells(zone, props, runs, prefabs, numbers, where, problems)
+// (y * columns + z) * columns + x, to block number, where 0 carves air out
+// of the terrain. `groundOf(column, row)` gives the terrain's surface.
+export function zoneCells(zone, props, runs, prefabs, numbers, where, problems, groundOf)
 {
     const cells = new Map();
     const lights = [];
@@ -29,6 +31,13 @@ export function zoneCells(zone, props, runs, prefabs, numbers, where, problems)
         const prefab = prefabs[prop.prefab];
 
         for(const block of prefab.blocks) { rasterise(cells, zone, worldBlock(block, placement), blockOf(block, numbers, where + " prefab " + prop.prefab, problems)); }
+        for(const room of prefab.rooms ?? []) { carve(cells, zone, worldBlock(room, placement)); }
+
+        for(const door of prefab.doors ?? [])
+        {
+            carve(cells, zone, worldBlock(door, placement));
+            addSteps(cells, zone, worldBlock(door, placement), placement.angle, groundOf, numbers[PropBlocks.STEP]);
+        }
 
         lights.push(...prefab.lights.map((light) => ZoneData.toWorld(light, placement)));
     }
@@ -72,13 +81,13 @@ function blockOf(block, numbers, where, problems)
 /* RASTER                                                                     */
 /******************************************************************************/
 
-// Each side of a block counts as at least one cell thick.
-export function rasterise(cells, zone, block, number)
+// Each side of a block counts as at least one cell thick, unless it carves.
+export function rasterise(cells, zone, block, number, isCarving = false)
 {
-    if(number === 0) { return; }
+    if(number === 0 && !isCarving) { return; }
 
     const matrix = rotationOf(block.rotation ?? [0, 0, 0]);
-    const halves = block.size.map((value) => Math.max(value / 2, CELL / 2));
+    const halves = block.size.map((value) => (isCarving ? value / 2 : Math.max(value / 2, CELL / 2)));
     const reach = [0, 1, 2].map((row) => matrix[row].reduce((total, value, column) => total + Math.abs(value) * halves[column], 0));
     const half = zone.columns / CUBES / 2;
     const toCell = [(metres) => (metres + half) * CUBES, (metres) => metres * CUBES + zone.base, (metres) => (metres + half) * CUBES];
@@ -96,6 +105,38 @@ export function rasterise(cells, zone, block, number)
 
                 if(isInside) { cells.set((y * zone.columns + z) * zone.columns + x, number); }
             }
+        }
+    }
+}
+
+export function carve(cells, zone, box)
+{
+    rasterise(cells, zone, box, 0, true);
+}
+
+export function addSteps(cells, zone, door, angle, groundOf, step)
+{
+    const half = zone.columns / CUBES / 2;
+    const facing = [Math.round(Math.sin(angle)), Math.round(Math.cos(angle))];
+    const across = [facing[1], -facing[0]];
+    const sill = Math.round((door.at[1] - door.size[1] / 2) * CUBES + zone.base);
+    const front = [door.at[0] + facing[0] * door.size[2] / 2, door.at[2] + facing[1] * door.size[2] / 2];
+    const width = door.size[0];
+
+    for(let offset = -width / 2 + CELL / 2; offset < width / 2; offset += CELL)
+    {
+        for(let k = 1; sill - k > 0; k++)
+        {
+            const x = front[0] + facing[0] * (k - 0.5) * CELL + across[0] * offset;
+            const z = front[1] + facing[1] * (k - 0.5) * CELL + across[1] * offset;
+            const column = Math.floor((x + half) * CUBES);
+            const row = Math.floor((z + half) * CUBES);
+            const top = sill - k;
+
+            if(column < 0 || row < 0 || column >= zone.columns || row >= zone.columns || top <= groundOf(column, row)) { break; }
+
+            for(let y = groundOf(column, row); y < top; y++) { cells.set((y * zone.columns + row) * zone.columns + column, step); }
+            for(let y = top; y < top + CLEARANCE; y++) { cells.set((y * zone.columns + row) * zone.columns + column, 0); }
         }
     }
 }

@@ -72,7 +72,12 @@ export function house(builder, x, y, z, angle, style)
         put([0.7, 0.5, 0.06], [width / 2 - 0.1, 0.5 + 1.65, depth / 2 + 0.9], { front: "banner", all: "planks" });
     }
 
-    return { collider: { x, z, halfWidth: upperWidth / 2 + 0.2, halfDepth: upperDepth / 2 + 0.2, angle }, lights };
+    return {
+        collider: { x, z, halfWidth: upperWidth / 2 + 0.2, halfDepth: upperDepth / 2 + 0.2, angle },
+        lights,
+        rooms: [{ size: [width - 0.4, 2.0, depth - 0.4], at: [0, 1.6, 0] }],
+        doors: [{ size: [1.0, 2.0, 0.8], at: [width * 0.18, 1.6, depth / 2] }],
+    };
 }
 
 function frame(put, width, depth, base, height, hasBraces)
@@ -131,7 +136,12 @@ export function cottage(builder, x, y, z, angle)
     put([0.6, 0.6, 0.06], [-1.1, 1.5, 1.72], "glow");
     stepRoof(put, 5.0, 4.6, 2.5, "thatch", "stone", 0.38);
 
-    return { collider: { x, z, halfWidth: 2.5, halfDepth: 2.1, angle }, lights: [local(x, y, z, angle, [-1.1, 1.5, 2.4])] };
+    return {
+        collider: { x, z, halfWidth: 2.5, halfDepth: 2.1, angle },
+        lights: [local(x, y, z, angle, [-1.1, 1.5, 2.4])],
+        rooms: [{ size: [3.8, 2.0, 3.0], at: [0, 1.4, 0] }],
+        doors: [{ size: [1.0, 2.0, 0.8], at: [0.8, 1.4, 1.7] }],
+    };
 }
 
 export function chapel(builder, x, y, z, angle)
@@ -165,7 +175,12 @@ export function chapel(builder, x, y, z, angle)
         put([0.08, 1.4, 0.7], [side * 1.4, 2.4, 5.95], { left: "banner", right: "banner", all: "banner" });
     }
 
-    return { collider: { x, z, halfWidth: 3.3, halfDepth: 4.8, angle }, lights: [local(x, y, z, angle, [0, 2.2, 5.4])] };
+    return {
+        collider: { x, z, halfWidth: 3.3, halfDepth: 4.8, angle },
+        lights: [local(x, y, z, angle, [0, 2.2, 5.4])],
+        rooms: [{ size: [5.4, 4.0, 8.4], at: [0, 2.6, 0] }],
+        doors: [{ size: [1.4, 2.6, 0.8], at: [0, 1.9, 4.5] }],
+    };
 }
 
 

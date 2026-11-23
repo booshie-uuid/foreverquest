@@ -1,7 +1,6 @@
 const ARRIVE_DISTANCE = 0.15;
 const PASS_DISTANCE = 0.3;
 const TURN_RATE = 10;
-const CLIMB_RATE = 14;
 const GRAVITY = 20;
 const MOVING_SPEED = 0.05;
 
@@ -169,7 +168,7 @@ export class Entity
         {
             this.fallSpeed = 0;
 
-            return floor - y < 0.01 ? floor : y + (floor - y) * Math.min(1, delta * CLIMB_RATE);
+            return floor;
         }
 
         this.fallSpeed += GRAVITY * delta;
