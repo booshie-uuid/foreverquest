@@ -12,7 +12,6 @@ const BLOCKS = new Map(
     ["object", { id: "object", kind: "object", faces: {} }],
 ]);
 
-// The mesh the game builds from the baked grid.
 function bake(object)
 {
     const problems = [];

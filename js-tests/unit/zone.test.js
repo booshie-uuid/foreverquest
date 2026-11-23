@@ -294,7 +294,7 @@ describe("Zone view", () =>
     {
         const view = new ZoneView(hearthmere, materials);
         const street = view.lightAt({ x: 9.35, y: hearthmere.groundAt(9.35, -3.5), z: -3.5 });
-        const room = view.lightAt({ x: 8.45, y: hearthmere.groundAt(8.45, -8.5) + 2 / 3, z: -8.5 });
+        const room = view.lightAt({ x: 8.45, y: hearthmere.groundAt(8.45, -8.5), z: -8.5 });
 
         assert.equal(street.sky, 15);
         assert.ok(room.sky < street.sky - 2, "The room is as bright as the street: " + JSON.stringify(room));

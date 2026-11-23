@@ -223,7 +223,7 @@ export const tests =
             });
 
             assert.ok(result.ceiling < 1, "The player stopped outside the inn: " + JSON.stringify(result));
-            assert.ok(result.y > result.ground, "The player is not on the inn's raised floor");
+            assert.ok(Math.abs(result.y - result.ground) < 0.01, "The inn's floor is not level with the street: " + JSON.stringify(result));
             assert.ok(view.shown < 4, "The camera stayed " + view.shown + " metres out, behind the walls");
             assert.equal(view.isCameraInWall, false);
         },

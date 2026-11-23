@@ -17,6 +17,21 @@ export function quarterTurn(angle)
     return Math.round(angle / QUARTER) * QUARTER;
 }
 
+// A prefab's doors face along local +z.
+export function standingHeight(prop, prefab, heightAt)
+{
+    const door = prefab.doors?.[0];
+
+    if(!door) { return heightAt(prop.x, prop.z); }
+
+    const scale = prop.scale ?? 1;
+    const placement = { x: Math.round(prop.x * CUBES) / CUBES, y: 0, z: Math.round(prop.z * CUBES) / CUBES, angle: quarterTurn(prop.angle ?? 0), scale };
+    const [x, , z] = ZoneData.toWorld([door.at[0], 0, door.at[2] + door.size[2] / 2 + CELL / 2], placement);
+    const sill = Math.round((door.at[1] - door.size[1] / 2) * scale * CUBES) / CUBES;
+
+    return heightAt(x, z) - sill;
+}
+
 // Placements stand on a cube corner and turn in quarter turns.
 // The cells of every placed prefab and run, as a map from cell index,
 // (y * columns + z) * columns + x, to block number, where 0 carves air out
