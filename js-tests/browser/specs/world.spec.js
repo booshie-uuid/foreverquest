@@ -83,6 +83,39 @@ export const tests =
         },
     },
     {
+        name: "holding both mouse buttons walks the player forward, and releasing them is not a click",
+        run: async ({ page, baseUrl }) =>
+        {
+            await enterWorld(page, baseUrl);
+
+            const result = await page.evaluate(() =>
+            {
+                const game = window.foreverQuest.game;
+                const canvas = window.foreverQuest.renderer.canvas;
+                const at = { clientX: 640, clientY: 400, bubbles: true };
+                const before = { ...game.player.position };
+
+                game.pause();
+                canvas.dispatchEvent(new PointerEvent("pointerdown", { ...at, button: 0, buttons: 1 }));
+                window.dispatchEvent(new PointerEvent("pointermove", { ...at, button: 2, buttons: 3 }));
+                game.update(0.016);
+                game.stepTicks(20);
+
+                const held = Math.hypot(game.player.position.x - before.x, game.player.position.z - before.z);
+
+                window.dispatchEvent(new PointerEvent("pointermove", { ...at, button: 2, buttons: 1 }));
+                window.dispatchEvent(new PointerEvent("pointerup", { ...at, button: 0, buttons: 0 }));
+                game.update(0.016);
+                game.stepTicks(1);
+
+                return { held, target: game.player.target };
+            });
+
+            assert.ok(result.held > 1.5, "In 1 s of ticks the player moved only " + result.held);
+            assert.equal(result.target, null, "Letting go of the buttons clicked the ground");
+        },
+    },
+    {
         name: "clicking the ground walks the player to that spot",
         run: async ({ page, baseUrl }) =>
         {

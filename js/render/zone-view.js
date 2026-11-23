@@ -11,6 +11,17 @@ const LIGHT_BUDGET = 6;
 const SHADOW_RANGE = 26;
 const WATER_CELLS = 48;
 const SKY_RADIUS = 300;
+const MOON_AT = [-120, 150, -180];
+const SUN_AT = [90, 220, -120];
+
+// Daylight for every zone until a zone gives its own.
+const DAY =
+{
+    sky: { top: "#5f86b8", horizon: "#b9c8d4" },
+    hemisphere: { sky: "#c4d4e8", ground: "#5c4c34", intensity: 1.6 },
+    sun: { colour: "#fff1d6", intensity: 2.8 },
+    steps: { sky: { dark: "#3a3f48", bright: "#f2ead8", curve: 1.0 }, lamp: { dark: "#000000", bright: "#ffb466", curve: 1.0 } },
+};
 
 
 /******************************************************************************/
@@ -39,6 +50,7 @@ export class ZoneView
         this.waiting = new Set();
         this.versions = new Map();
         this.inFlight = 0;
+        this.isDay = false;
         this.lamps = [];
         this.isDisposed = false;
 
@@ -308,29 +320,57 @@ export class ZoneView
     {
         const geometry = new THREE.SphereGeometry(SKY_RADIUS, 16, 12);
         const position = geometry.getAttribute("position");
-        const top = new THREE.Color(sky.top);
-        const horizon = new THREE.Color(sky.horizon);
-        const colours = [];
 
-        for(let i = 0; i < position.count; i++)
-        {
-            const colour = horizon.clone().lerp(top, Math.pow(Math.max(0, position.getY(i) / SKY_RADIUS), 0.5));
-
-            colours.push(colour.r, colour.g, colour.b);
-        }
-
-        geometry.setAttribute("color", new THREE.Float32BufferAttribute(colours, 3));
+        geometry.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(position.count * 3), 3));
 
         this.sky = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
         this.sky.renderOrder = -2;
+        this.paintSky(sky);
 
-        const moon = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), new THREE.MeshBasicMaterial({ color: "#c8cdd6", fog: false, depthWrite: false }));
-
-        moon.position.set(-120, 150, -180);
-        moon.lookAt(0, 0, 0);
-        moon.renderOrder = -1;
-        this.sky.add(moon);
+        this.moonDisc = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), new THREE.MeshBasicMaterial({ color: "#c8cdd6", fog: false, depthWrite: false }));
+        this.moonDisc.position.set(...MOON_AT);
+        this.moonDisc.lookAt(0, 0, 0);
+        this.moonDisc.renderOrder = -1;
+        this.sky.add(this.moonDisc);
         this.scene.add(this.sky);
+    }
+
+    paintSky({ top, horizon })
+    {
+        const position = this.sky.geometry.getAttribute("position");
+        const colours = this.sky.geometry.getAttribute("color");
+        const high = new THREE.Color(top);
+        const low = new THREE.Color(horizon);
+
+        for(let i = 0; i < position.count; i++)
+        {
+            const colour = low.clone().lerp(high, Math.pow(Math.max(0, position.getY(i) / SKY_RADIUS), 0.5));
+
+            colours.setXYZ(i, colour.r, colour.g, colour.b);
+        }
+
+        colours.needsUpdate = true;
+        this.scene.fog.color.set(horizon);
+        this.scene.background.set(horizon);
+    }
+
+    // The zone's own lighting is its night.
+    setDaylight(isDay)
+    {
+        const night = this.zone.lighting;
+        const day = night.day ?? DAY;
+
+        this.isDay = isDay;
+        this.paintSky(isDay ? day.sky : night.sky);
+        this.hemisphere.color.set(isDay ? day.hemisphere.sky : night.hemisphere.sky);
+        this.hemisphere.groundColor.set(isDay ? day.hemisphere.ground : night.hemisphere.ground);
+        this.hemisphere.intensity = isDay ? day.hemisphere.intensity : night.hemisphere.intensity;
+        this.moon.color.set(isDay ? day.sun.colour : night.moon.colour);
+        this.moon.intensity = isDay ? day.sun.intensity : night.moon.intensity;
+        this.moonDisc.material.color.set(isDay ? "#fff6dc" : "#c8cdd6");
+        this.moonDisc.position.set(...(isDay ? SUN_AT : MOON_AT));
+        this.moonDisc.lookAt(0, 0, 0);
+        this.materials.setSteps(isDay ? day.steps : night.steps);
     }
 
     /* LIGHTS *****************************************************************/
@@ -341,7 +381,8 @@ export class ZoneView
     {
         const { hemisphere, moon, lamp } = lighting;
 
-        this.scene.add(new THREE.HemisphereLight(hemisphere.sky, hemisphere.ground, hemisphere.intensity));
+        this.hemisphere = new THREE.HemisphereLight(hemisphere.sky, hemisphere.ground, hemisphere.intensity);
+        this.scene.add(this.hemisphere);
 
         this.moon = new THREE.DirectionalLight(moon.colour, moon.intensity);
         this.moon.castShadow = true;
@@ -375,7 +416,7 @@ export class ZoneView
 
         this.lamps.forEach((light, i) =>
         {
-            light.intensity = nearest[i] ? this.lampIntensity : 0;
+            light.intensity = nearest[i] && !this.isDay ? this.lampIntensity : 0;
 
             if(nearest[i]) { light.position.set(...nearest[i]); }
         });
@@ -391,7 +432,7 @@ export class ZoneView
         this.buildTiles();
         this.water.update(delta);
         this.sky.position.copy(camera.position);
-        this.moon.position.set(focus.x - 20, focus.y + 40, focus.z + 14);
+        this.moon.position.set(focus.x + (this.isDay ? 18 : -20), focus.y + 40, focus.z + (this.isDay ? -10 : 14));
         this.moon.target.position.copy(focus);
         this.placeLamps(focus);
     }

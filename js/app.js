@@ -25,7 +25,7 @@ export class App
         this.streamer = null;
         this.store = new CharacterStore(storage);
         this.renderer = new Renderer(container);
-        this.graphics = new GraphicsSettings(this.renderer);
+        this.graphics = new GraphicsSettings();
         this.library = null;
         this.appearance = null;
         this.materials = null;

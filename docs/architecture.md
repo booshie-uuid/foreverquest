@@ -109,7 +109,7 @@ Each class owns its state and changes it only through its own methods. A class t
 |---|---|---|
 | `Appearance` | A field, an item or a tint changes, or the record is replaced | `CharacterModel` rebuilds; `CreatorScreen` redraws its tab; `GameScreen` updates the HUD name card |
 | `CharacterModel` | It finishes a rebuild | `CreatorScreen` updates the triangle count |
-| `GraphicsSettings` | Retro mode changes | The Retro toggle buttons |
+| `GraphicsSettings` | Stepped light or day is switched | The toggle buttons; `GameScreen` sets the terrain material and the zone view's daylight |
 | `Simulation` | An entity enters, says a line, waves, or starts or stops running | `GameScreen` updates the chat, bubbles, views and HUD |
 
 Every `onChange` and `onEvent` returns a function that unsubscribes the listener. The game screen and the creator keep these functions and call them in `dispose()`, which also frees their models, views and DOM.
@@ -132,8 +132,6 @@ Rasters are painted top-down and uploaded to the GPU bottom-up, so `Sheet.textur
 ## Rendering
 
 The world uses one material, `MaterialLibrary.world`. It is a Lambert material patched to read a texture array: every world vertex carries a `uv` and a `layer`, and the layers that the atlas marks as glow also light themselves. Each character has its own Lambert material whose map is its texture sheet and whose emissive map holds glowing texels such as a lantern. A directional moonlight casts shadow maps, and six point lights follow the lit windows and lamps nearest the player.
-
-The Retro toggle sets the renderer's pixel ratio so that it draws 640 pixels across, and the canvas scales the picture up with `image-rendering: pixelated`.
 
 ## Testing and Debugging
 

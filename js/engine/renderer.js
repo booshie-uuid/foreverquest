@@ -1,7 +1,6 @@
 import * as THREE from "three";
 
 const MAX_STEP = 0.05;
-const RETRO_WIDTH = 640;
 
 export class Renderer
 {
@@ -12,7 +11,6 @@ export class Renderer
         this.screen = null;
         this.lastTime = 0;
         this.frameCount = 0;
-        this.isRetro = false;
 
         this.webgl.shadowMap.enabled = true;
         this.webgl.shadowMap.type = THREE.PCFShadowMap;
@@ -36,20 +34,11 @@ export class Renderer
         this.resize();
     }
 
-    setRetro(isRetro)
-    {
-        this.isRetro = isRetro;
-        this.canvas.classList.toggle("is-retro", isRetro);
-        this.resize();
-    }
-
     resize()
     {
         const width = this.container.clientWidth;
         const height = this.container.clientHeight;
-        const ratio = this.isRetro ? Math.min(1, RETRO_WIDTH / width) : Math.min(window.devicePixelRatio, 2);
-
-        this.webgl.setPixelRatio(ratio);
+        this.webgl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.webgl.setSize(width, height);
         this.screen?.resize(width, height);
     }

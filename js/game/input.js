@@ -1,4 +1,5 @@
 const CLICK_SLOP = 6;
+const LEFT_AND_RIGHT = 3;
 
 export class Input
 {
@@ -7,6 +8,7 @@ export class Input
         this.canvas = canvas;
         this.keys = new Set();
         this.drag = null;
+        this.buttons = 0;
         this.listeners = { click: [], orbit: [], zoom: [], key: [] };
         this.handlers = [];
     }
@@ -30,6 +32,7 @@ export class Input
         this.handlers = [];
         this.keys.clear();
         this.drag = null;
+        this.buttons = 0;
     }
 
     listen(target, type, handler, options)
@@ -58,6 +61,11 @@ export class Input
         return codes.some((code) => this.keys.has(code));
     }
 
+    get isHoldingBothButtons()
+    {
+        return (this.buttons & LEFT_AND_RIGHT) === LEFT_AND_RIGHT;
+    }
+
     /* EVENTS *****************************************************************/
 
     onKeyDown(event)
@@ -71,8 +79,11 @@ export class Input
         if(event.code.startsWith("Arrow") || event.code === "Space") { event.preventDefault(); }
     }
 
+    // A second button pressed or released while one is held reports itself in
+    // a pointer move, not a pointer down or up.
     onPointerDown(event)
     {
+        this.buttons = event.buttons;
         this.drag = { button: event.button, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, hasMoved: false };
     }
 
@@ -80,7 +91,11 @@ export class Input
     {
         const drag = this.drag;
 
+        this.buttons = event.buttons;
+
         if(!drag) { return; }
+
+        drag.wasBoth ||= this.isHoldingBothButtons;
 
         const dx = event.clientX - drag.x;
         const dy = event.clientY - drag.y;
@@ -97,8 +112,9 @@ export class Input
         const drag = this.drag;
 
         this.drag = null;
+        this.buttons = event.buttons;
 
-        if(!drag || drag.hasMoved || drag.button !== 0) { return; }
+        if(!drag || drag.hasMoved || drag.wasBoth || drag.button !== 0) { return; }
 
         const bounds = this.canvas.getBoundingClientRect();
 

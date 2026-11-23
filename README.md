@@ -24,13 +24,14 @@ After a change to the Three.js version in `package.json`, run `npm install` and 
 | World | Click the ground | Walks to that spot |
 | World | Click a villager | Walks to the villager and talks |
 | World | W A S D | Walks relative to the camera |
+| World | Both mouse buttons held | Walks forward, as W does |
 | World | Right-drag, or the arrow keys | Turns and tilts the view |
 | World | Mouse wheel | Zooms out from first person to third person, and back in |
 | World | R | Switches between walking and running |
 | World | E | Waves |
 | World | Appearance button | Opens the creator |
-| Both | Retro | Renders 640 pixels wide and scales the picture up with hard pixel edges |
-| Both | Stepped | Lights the world in visible steps, in the zone's own colours |
+| World | Stepped | Switches between stepped light, the default, and smooth light |
+| World | Day | Switches between night, the default, and day |
 
 Two address options help testing: `?zone=testfield` or `?zone=expanse` starts in another zone, and `?stats` shows the frame rate, the triangles and draw calls of the last frame, and the regions loaded.
 
@@ -64,8 +65,6 @@ Characters and props are built from rigid, textured blocks, in the spirit of Min
 - Pixel textures. Every face of every block carries a pixel-art texture at one density: 16 texels across a head, about 2 centimetres a texel. The textures are painted in code at load, with nearest filtering.
 - Heroic proportions. The head is about 1/5.5 of a character's height, large enough for a readable face at play distance.
 - A dark mood. Muted earth colours, fog, cold moonlight with shadows, and warm lamplight from windows, lanterns and lamp posts.
-
-The Retro toggle renders at 640 pixels wide and scales the picture up with hard pixel edges.
 
 ## How a Character Is Built
 

@@ -99,20 +99,20 @@ export function textInput(label, value, onChange, key)
 export function graphicsToggles(graphics)
 {
     const group = element("div", "toggle-group");
-    const retro = button("Retro", () => graphics.toggleRetro(), "toggle");
     const stepped = button("Stepped", () => graphics.toggleStepped(), "toggle");
+    const day = button("Day", () => graphics.toggleDay(), "toggle");
     const refresh = () =>
     {
-        retro.classList.toggle("is-active", graphics.isRetro);
         stepped.classList.toggle("is-active", graphics.isStepped);
+        day.classList.toggle("is-active", graphics.isDay);
     };
 
-    retro.dataset.action = "retro";
-    retro.title = "Render 640 pixels wide and scale up with hard pixel edges";
     stepped.dataset.action = "stepped";
     stepped.title = "Light the world in steps, in the zone's own colours";
+    day.dataset.action = "day";
+    day.title = "Show the world by day";
     refresh();
-    group.append(retro, stepped);
+    group.append(stepped, day);
 
     return { element: group, dispose: graphics.onChange(refresh) };
 }

@@ -41,11 +41,6 @@ body
     touch-action: none;
 }
 
-#app canvas.is-retro
-{
-    image-rendering: pixelated;
-}
-
 .loading
 {
     position: absolute;

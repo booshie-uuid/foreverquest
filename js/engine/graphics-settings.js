@@ -1,26 +1,21 @@
 export class GraphicsSettings
 {
-    constructor(renderer)
+    constructor()
     {
-        this.renderer = renderer;
-        this.isStepped = false;
+        this.isStepped = true;
+        this.isDay = false;
         this.listeners = [];
-    }
-
-    get isRetro()
-    {
-        return this.renderer.isRetro;
-    }
-
-    toggleRetro()
-    {
-        this.renderer.setRetro(!this.isRetro);
-        this.emitChange();
     }
 
     toggleStepped()
     {
         this.isStepped = !this.isStepped;
+        this.emitChange();
+    }
+
+    toggleDay()
+    {
+        this.isDay = !this.isDay;
         this.emitChange();
     }
 
