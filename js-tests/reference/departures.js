@@ -8,11 +8,39 @@ import { Appearance } from "../../js/character/appearance.js";
 
 const POLE_SOCKET = "pole.R";
 const POLE_GAP = 1.4;
+const LOOK_SLOTS = ["nose", "hair", "beard"];
+const NOSE_HEIGHT = 4;
+
+export function departed(library, look, records)
+{
+    return polesDeparted(library, look, nosesDeparted(library, look, records));
+}
+
+// A nose shorter than NOSE_HEIGHT texels ends where a nose of that height
+// ends, rather than starting at the eye line, so it moves down by the
+// difference.
+function nosesDeparted(library, look, records)
+{
+    const part = [...library.parts.values()].find((entry) => entry.slot === "nose" && entry.id === look.nose);
+    const block = part?.blocks[0];
+
+    if(!block || block.size[1].c >= NOSE_HEIGHT) { return records; }
+
+    const height = block.size[1].c;
+    const size = JSON.stringify(block.size.map((form) => form.c));
+
+    return records.map((record) =>
+    {
+        if(record.joint !== "head" || JSON.stringify(record.size) !== size || record.at[2] < 8) { return record; }
+
+        return { ...record, at: [record.at[0], Capture.round(record.at[1] + height - NOSE_HEIGHT), record.at[2]] };
+    });
+}
 
 // A pole held in the right hand (a staff, spear or pitchfork) stands in front
 // of the arm, at the pole.R socket, rather than through the middle of the
 // hand. Its blocks move forward by half the arm's depth and POLE_GAP.
-export function departed(library, look, records)
+function polesDeparted(library, look, records)
 {
     const item = look.equipment?.mainHand?.item;
     const part = [...library.parts.values()].find((entry) => entry.slot === "mainHand" && entry.id === item);
@@ -39,5 +67,7 @@ export function departedCase(library, label, records)
     const [body, variant, choice] = label.split(" ");
     const [slot, item] = choice.split("=");
 
-    return departed(library, { body, variant, equipment: { [slot]: { item } } }, records);
+    const look = LOOK_SLOTS.includes(slot) ? { body, variant, [slot]: item } : { body, variant, equipment: { [slot]: { item } } };
+
+    return departed(library, look, records);
 }
