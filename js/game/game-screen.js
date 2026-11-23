@@ -10,6 +10,7 @@ import { ZoneView } from "../render/zone-view.js";
 
 const ORBIT_SPEED = 1.8;
 const MAX_TICKS_PER_FRAME = 5;
+const EYE_HEIGHT = 0.93;
 
 
 /******************************************************************************/
@@ -301,7 +302,8 @@ export class GameScreen
         for(const view of this.views.values()) { view.sync(alpha, delta); }
 
         this.streamer.update(this.player.position.x, this.player.position.z);
-        this.rig.update(delta, player.position, this.player.measures.focus, (x, z) => this.zone.heightAt(x, z));
+        this.rig.update(delta, player.position, player.model.plan.height * EYE_HEIGHT, (origin, direction, distance) => this.zone.raycast(origin, direction, distance));
+        player.root.visible = !this.rig.isFirstPerson;
         this.world.update(delta, this.camera, player.position);
         this.hud.update(delta, this.camera, [...this.views.values()], player, this.size);
     }

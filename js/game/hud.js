@@ -137,7 +137,7 @@ export class Hud
             const isNear = camera.position.distanceTo(point) < LABEL_RANGE;
             const isVisible = this.project(point, camera, size) && isNear;
 
-            plate.hidden = !isVisible || this.bubbles.has(actor);
+            plate.hidden = !isVisible || !actor.root.visible || this.bubbles.has(actor);
             plate.style.left = point.x + "px";
             plate.style.top = point.y + "px";
 

@@ -141,6 +141,20 @@ describe("Movement on cells", () =>
         assert.ok(actor.position.z > metres(8) + 1, "The entity stuck at the wall instead of sliding, at z " + actor.position.z);
     });
 
+    it("casts a ray through the cells to the first solid one", () =>
+    {
+        const zone = cellZone((set) =>
+        {
+            for(let z = 0; z < 32; z++) { for(let y = BASE; y < BASE + 6; y++) { set(20, y, z); } }
+        });
+        const along = zone.raycast({ x: metres(14), y: 1, z: 0 }, { x: 1, y: 0, z: 0 }, 10);
+        const slanted = zone.raycast({ x: 0, y: 1, z: 0 }, { x: 0, y: -Math.SQRT1_2, z: Math.SQRT1_2 }, 10);
+
+        assert.ok(Math.abs(along - (20 / 3 - 16 / 3 - metres(14))) < 1e-9, "The ray met the wall after " + along);
+        assert.ok(Math.abs(slanted - Math.SQRT2) < 1e-9, "The ray met the ground after " + slanted);
+        assert.equal(zone.raycast({ x: 0, y: 1, z: 0 }, { x: 0, y: 1, z: 0 }, 5), 5);
+    });
+
     it("refuses a step into water", () =>
     {
         const zone = cellZone((set) =>

@@ -24,8 +24,8 @@ After a change to the Three.js version in `package.json`, run `npm install` and 
 | World | Click the ground | Walks to that spot |
 | World | Click a villager | Walks to the villager and talks |
 | World | W A S D | Walks relative to the camera |
-| World | Drag, or the arrow keys | Turns and tilts the camera |
-| World | Mouse wheel | Zooms the camera |
+| World | Right-drag, or the arrow keys | Turns and tilts the view |
+| World | Mouse wheel | Zooms out from first person to third person, and back in |
 | World | R | Switches between walking and running |
 | World | E | Waves |
 | World | Appearance button | Opens the creator |

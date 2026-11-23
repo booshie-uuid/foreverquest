@@ -8,6 +8,8 @@ async function enterWorld(page, baseUrl)
     await page.waitFor(() => window.foreverQuest?.isReady === true, { timeout: 20000 });
     await page.click("[data-action=confirm]");
     await page.waitFor(() => window.foreverQuest.screen === "game" && window.foreverQuest.renderer.frameCount > 10, { timeout: 20000 });
+    await page.evaluate(() => window.foreverQuest.game.rig.setDistance(9));
+    await page.waitFor(() => window.foreverQuest.game.rig.shown > 8, { timeout: 20000 });
 }
 
 function playerPosition()
@@ -40,6 +42,23 @@ export const tests =
             assert.ok(state.visiblePlates >= 4, state.visiblePlates + " visible nameplates");
             assert.equal(state.hudName, "Adventurer");
             await screenshot("village");
+        },
+    },
+    {
+        name: "the game starts in first person, and the wheel zooms out to third person",
+        run: async ({ page, baseUrl }) =>
+        {
+            await page.goto(baseUrl + "/index.html");
+            await page.waitFor(() => window.foreverQuest?.isReady === true, { timeout: 20000 });
+            await page.click("[data-action=confirm]");
+            await page.waitFor(() => window.foreverQuest.screen === "game" && window.foreverQuest.renderer.frameCount > 10, { timeout: 20000 });
+
+            const first = await page.evaluate(() => ({ isFirstPerson: window.foreverQuest.game.rig.isFirstPerson, isPlayerShown: window.foreverQuest.game.playerView.root.visible }));
+
+            await page.evaluate(() => window.foreverQuest.game.rig.zoom(1.1));
+            await page.waitFor(() => !window.foreverQuest.game.rig.isFirstPerson && window.foreverQuest.game.playerView.root.visible, { timeout: 20000 });
+
+            assert.deepEqual(first, { isFirstPerson: true, isPlayerShown: false });
         },
     },
     {
@@ -106,7 +125,7 @@ export const tests =
         },
     },
     {
-        name: "walking through the inn's door leads inside, where the roof fades away",
+        name: "walking through the inn's door leads inside, where walls pull the camera in rather than hide the player",
         run: async ({ page, baseUrl, screenshot }) =>
         {
             await enterWorld(page, baseUrl);
@@ -129,15 +148,29 @@ export const tests =
 
                 const { x, y, z } = game.player.position;
 
-                return { count, isInside: game.zone.isUnderRoof(x, z, y), y, ground: game.zone.groundAt(x, z) };
+                return { count, ceiling: game.zone.raycast({ x, y: y + 1.7, z }, { x: 0, y: 1, z: 0 }, 10), y, ground: game.zone.groundAt(x, z) };
             });
 
             await page.evaluate(() => { window.foreverQuest.game.isPaused = false; });
-            await page.waitFor(() => window.foreverQuest.materials.terrainCut.value.w < window.foreverQuest.game.player.position.y + 2.5, { timeout: 20000 });
+
+            const start = await page.evaluate(() => window.foreverQuest.renderer.frameCount);
+
+            await page.waitFor("window.foreverQuest.renderer.frameCount > " + (start + 20), { timeout: 20000 });
             await screenshot("inside-the-inn");
 
-            assert.ok(result.isInside, "The player stopped outside the inn: " + JSON.stringify(result));
+            const view = await page.evaluate(() =>
+            {
+                const game = window.foreverQuest.game;
+                const position = game.camera.position;
+                const [column, row] = game.zone.columnOf(position.x, position.z);
+
+                return { shown: game.rig.shown, isCameraInWall: game.zone.isSolid(column, Math.floor(game.zone.cellY(position.y)), row) };
+            });
+
+            assert.ok(result.ceiling < 1, "The player stopped outside the inn: " + JSON.stringify(result));
             assert.ok(result.y > result.ground, "The player is not on the inn's raised floor");
+            assert.ok(view.shown < 4, "The camera stayed " + view.shown + " metres out, behind the walls");
+            assert.equal(view.isCameraInWall, false);
         },
     },
     {

@@ -6,7 +6,6 @@ const STEP_CELLS = 1;
 const CLEARANCE_CELLS = 6;
 const EPSILON = 1e-6;
 const OPEN_GROUND_REACH = 4;
-const ROOF_REACH_CELLS = 24;
 const CUBES_PER_METRE = 3;
 const { CHUNK, REGION } = RegionCodec;
 
@@ -325,15 +324,32 @@ export class ZoneData
         return this.metresY(y);
     }
 
-    // Whether a solid cell hangs over the headroom of a cylinder at the point.
-    isUnderRoof(x, z, feet)
+    // How far, in metres, a ray from `origin` along the unit `direction`
+    // travels before it enters a solid cell, up to `distance`.
+    // Amanatides and Woo, "A Fast Voxel Traversal Algorithm for Ray Tracing".
+    raycast(origin, direction, distance)
     {
-        const [column, row] = this.columnOf(x, z);
-        const start = Math.floor(this.cellY(feet) + EPSILON) + CLEARANCE_CELLS;
+        const start = [(origin.x + this.half) * CUBES_PER_METRE, this.cellY(origin.y), (origin.z + this.half) * CUBES_PER_METRE];
+        const along = [direction.x, direction.y, direction.z].map((value) => value * CUBES_PER_METRE);
+        const cell = start.map(Math.floor);
+        const step = along.map(Math.sign);
+        const across = along.map((value) => (value === 0 ? Infinity : 1 / Math.abs(value)));
+        const next = [0, 1, 2].map((axis) => (along[axis] === 0 ? Infinity : (step[axis] > 0 ? cell[axis] + 1 - start[axis] : start[axis] - cell[axis]) * across[axis]));
 
-        for(let y = start; y < start + ROOF_REACH_CELLS; y++) { if(this.isSolid(column, y, row)) { return true; } }
+        if(this.isSolid(...cell)) { return 0; }
 
-        return false;
+        for(;;)
+        {
+            const axis = next[0] < next[1] ? (next[0] < next[2] ? 0 : 2) : (next[1] < next[2] ? 1 : 2);
+            const travelled = next[axis];
+
+            if(travelled > distance) { return distance; }
+
+            cell[axis] += step[axis];
+            next[axis] += across[axis];
+
+            if(this.isSolid(...cell)) { return travelled; }
+        }
     }
 
     // Whether a circle overlaps a column's square.

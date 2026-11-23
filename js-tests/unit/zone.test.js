@@ -134,9 +134,12 @@ describe("Zone movement", () =>
         const path = Pathfinder.find(hearthmere, from, { x: 8.45, z: -8.5 }, 0.35);
         const end = path.at(-1);
 
+        const floor = hearthmere.groundAt(end.x, end.z) + 2 / 3;
+        const up = { x: 0, y: 1, z: 0 };
+
         assert.deepEqual(end, { x: 8.45, z: -8.5 });
-        assert.ok(hearthmere.isUnderRoof(end.x, end.z, hearthmere.groundAt(end.x, end.z) + 2 / 3));
-        assert.equal(hearthmere.isUnderRoof(from.x, from.z, from.y), false);
+        assert.ok(hearthmere.raycast({ x: end.x, y: floor + 1.7, z: end.z }, up, 10) < 1, "The room has no ceiling");
+        assert.equal(hearthmere.raycast({ x: from.x, y: from.y + 1.7, z: from.z }, up, 10), 10);
     });
 
     it("places entities on open ground beside the props", () =>
@@ -234,23 +237,6 @@ describe("Zone view", () =>
 
         assert.equal(view.terrainMeshes.length, 5 * 5);
         assert.ok(area >= 96 * 96 - 1e-6, "The tops cover only " + area + " square metres");
-        view.dispose();
-    });
-
-    it("cuts the terrain above the player's head under a roof, and opens it again outside", () =>
-    {
-        const view = new ZoneView(hearthmere, materials);
-        const inside = { x: 8.45, y: hearthmere.groundAt(8.45, -8.5) + 2 / 3, z: -8.5 };
-        const outside = { x: 9.35, y: hearthmere.groundAt(9.35, -3.5), z: -3.5 };
-        const camera = { position: view.sky.position.clone() };
-
-        for(let i = 0; i < 60; i++) { view.update(0.05, camera, inside); }
-
-        assert.ok(Math.abs(materials.terrainCut.value.w - (inside.y + 2.2)) < 0.01, "The cut is at " + materials.terrainCut.value.w);
-
-        for(let i = 0; i < 60; i++) { view.update(0.05, camera, outside); }
-
-        assert.ok(materials.terrainCut.value.w > outside.y + 30, "The cut stayed at " + materials.terrainCut.value.w);
         view.dispose();
     });
 

@@ -4,50 +4,76 @@ import { describe, it } from "node:test";
 import { CameraRig } from "../../js/game/camera-rig.js";
 
 const FRAME = 1 / 60;
+const EYES = 1.7;
+const OPEN = (origin, direction, distance) => distance;
 
 function rig()
 {
     const camera = new THREE.PerspectiveCamera(55, 1.6, 0.1, 500);
-    const built = new CameraRig(camera);
 
     camera.updateMatrixWorld();
 
-    return built;
+    return new CameraRig(camera);
+}
+
+function run(built, frames, raycast)
+{
+    for(let i = 0; i < frames; i++) { built.update(FRAME, new THREE.Vector3(4, 1, -2), EYES, raycast); }
 }
 
 describe("Camera rig", () =>
 {
-    it("points the camera at its focus before the frame renders, so labels project where they belong", () =>
+    it("starts in first person at the player's eyes", () =>
     {
-        const camera = rig();
-        const target = new THREE.Vector3(30, 2, -12);
+        const built = rig();
 
-        camera.update(FRAME, target, 1.4, () => 0);
+        run(built, 1, OPEN);
 
-        const centre = target.clone().add(new THREE.Vector3(0, 1.4, 0)).project(camera.camera);
-
-        assert.ok(Math.hypot(centre.x, centre.y) < 1e-6, "The focus projects to " + centre.x + ", " + centre.y);
+        assert.ok(built.isFirstPerson);
+        assert.ok(built.camera.position.distanceTo(new THREE.Vector3(4, 1 + EYES, -2)) < 1e-9);
     });
 
-    it("rises over a roof gradually rather than jumping", () =>
+    it("zooms out of first person to third person, and back in past its nearest distance", () =>
     {
-        const camera = rig();
-        const target = new THREE.Vector3(0, 0, 0);
-        let roof = 0;
+        const built = rig();
 
-        for(let i = 0; i < 60; i++) { camera.update(FRAME, target, 1.4, () => roof); }
+        built.zoom(1.1);
+        assert.equal(built.distance, 1.5);
 
-        const before = camera.camera.position.y;
+        built.zoom(1 / 1.1);
+        assert.equal(built.distance, 0);
+    });
 
-        roof = before + 3;
-        camera.update(FRAME, target, 1.4, () => roof);
+    it("looks at the player's eyes before the frame renders, so labels project where they belong", () =>
+    {
+        const built = rig();
 
-        const after = camera.camera.position.y;
+        built.setDistance(9);
+        run(built, 240, OPEN);
 
-        assert.ok(after - before > 0 && after - before < 1, "The camera moved " + (after - before) + " in one frame");
+        const centre = new THREE.Vector3(4, 1 + EYES, -2).project(built.camera);
 
-        for(let i = 0; i < 120; i++) { camera.update(FRAME, target, 1.4, () => roof); }
+        assert.equal(built.isFirstPerson, false);
+        assert.ok(Math.hypot(centre.x, centre.y) < 1e-6, "The eyes project to " + centre.x + ", " + centre.y);
+    });
 
-        assert.ok(camera.camera.position.y >= roof + 0.6 - 0.01, "The camera stayed below the roof at " + camera.camera.position.y);
+    it("pulls in at once in front of a wall, and eases back out when it is gone", () =>
+    {
+        const built = rig();
+        const wall = (origin, direction, distance) => Math.min(distance, 3);
+
+        built.setDistance(9);
+        run(built, 240, OPEN);
+        run(built, 1, wall);
+
+        assert.ok(built.shown <= 3 - 0.25 + 1e-9, "The camera stayed " + built.shown + " behind the eyes");
+
+        run(built, 1, OPEN);
+
+        assert.ok(built.shown < 4, "The camera jumped back out to " + built.shown);
+
+        run(built, 240, OPEN);
+
+        assert.ok(Math.abs(built.shown - 9) < 0.01);
     });
 });

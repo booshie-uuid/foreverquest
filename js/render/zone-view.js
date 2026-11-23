@@ -7,10 +7,6 @@ import { ZoneData } from "../sim/zone-data.js";
 const { CHUNK, REGION } = RegionCodec;
 const CHUNK_METRES = CHUNK / ZoneData.CUBES_PER_METRE;
 const TILE = 2;
-const CUT_RADIUS = 9;
-const CUT_ABOVE_FEET = 2.2;
-const CUT_OPEN = 40;
-const CUT_RATE = 6;
 const LIGHT_BUDGET = 6;
 const SHADOW_RANGE = 26;
 const WATER_CELLS = 48;
@@ -43,7 +39,6 @@ export class ZoneView
         this.waiting = new Set();
         this.versions = new Map();
         this.inFlight = 0;
-        this.cutAboveFeet = CUT_OPEN;
         this.lamps = [];
         this.isDisposed = false;
 
@@ -389,7 +384,6 @@ export class ZoneView
     update(delta, camera, focus)
     {
         this.focus = focus;
-        this.updateCut(delta, focus);
         this.meshWaiting();
         this.buildTiles();
         this.water.update(delta);
@@ -399,18 +393,9 @@ export class ZoneView
         this.placeLamps(focus);
     }
 
-    updateCut(delta, focus)
-    {
-        const goal = this.zone.isUnderRoof(focus.x, focus.z, focus.y) ? CUT_ABOVE_FEET : CUT_OPEN;
-
-        this.cutAboveFeet += (goal - this.cutAboveFeet) * Math.min(1, delta * CUT_RATE);
-        this.materials.cutTerrain(focus.x, focus.z, CUT_RADIUS, focus.y + this.cutAboveFeet);
-    }
-
     dispose()
     {
         this.unsubscribe();
-        this.materials.cutTerrain(0, 0, 0, CUT_OPEN);
         this.scene.traverse((node) =>
         {
             node.geometry?.dispose();
