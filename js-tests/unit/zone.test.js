@@ -203,6 +203,38 @@ describe("Zone props", () =>
         assert.deepEqual([at(48, 16, 55), at(48, 17, 55)], [undefined, undefined], "A step went below the ground");
     });
 
+    it("keeps a wall thinner than a cube when a room is carved inside it", () =>
+    {
+        const cells = new Map();
+        const carved = new Map();
+
+        Voxelise.rasterise(cells, zone, { size: [3, 2, 3], at: [0.1, 1, 0.1] }, 1);
+        Voxelise.carve(cells, zone, { size: [2.8, 1.6, 2.8], at: [0.1, 1, 0.1] }, carved);
+        Voxelise.keepShell(cells, zone, carved, () => 16);
+
+        const ring = [];
+
+        for(let x = 40; x < 56; x++)
+        {
+            for(let z = 40; z < 56; z++)
+            {
+                if(cells.get((19 * 96 + z) * 96 + x) === 1) { ring.push([x, z]); }
+            }
+        }
+
+        const xs = ring.map(([x]) => x);
+        const zs = ring.map(([, z]) => z);
+        const [minX, maxX, minZ, maxZ] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
+        const isClosed = (x, z) => cells.get((19 * 96 + z) * 96 + x) === 1;
+
+        assert.ok(minX < 48 && maxX > 48 && minZ < 48 && maxZ > 48, "No wall stands around the room");
+
+        for(let x = minX; x <= maxX; x++) { assert.ok(isClosed(x, minZ) && isClosed(x, maxZ), "The wall has a gap at x " + x); }
+        for(let z = minZ; z <= maxZ; z++) { assert.ok(isClosed(minX, z) && isClosed(maxX, z), "The wall has a gap at z " + z); }
+
+        assert.equal(cells.get((19 * 96 + 48) * 96 + 48), 0, "The room was not carved");
+    });
+
     it("builds the test field's props as cubes and keeps the lamp's light", () =>
     {
         const lamp = testfield.lightSpots[0];

@@ -31,7 +31,11 @@ export function zoneCells(zone, props, runs, prefabs, numbers, where, problems, 
         const prefab = prefabs[prop.prefab];
 
         for(const block of prefab.blocks) { rasterise(cells, zone, worldBlock(block, placement), blockOf(block, numbers, where + " prefab " + prop.prefab, problems)); }
-        for(const room of prefab.rooms ?? []) { carve(cells, zone, worldBlock(room, placement)); }
+        const carved = new Map();
+
+        for(const room of prefab.rooms ?? []) { carve(cells, zone, worldBlock(room, placement), carved); }
+
+        keepShell(cells, zone, carved, groundOf);
 
         for(const door of prefab.doors ?? [])
         {
@@ -82,7 +86,8 @@ function blockOf(block, numbers, where, problems)
 /******************************************************************************/
 
 // Each side of a block counts as at least one cell thick, unless it carves.
-export function rasterise(cells, zone, block, number, isCarving = false)
+// When carving, `carved` gathers each carved cell's block before it.
+export function rasterise(cells, zone, block, number, isCarving = false, carved = null)
 {
     if(number === 0 && !isCarving) { return; }
 
@@ -103,15 +108,61 @@ export function rasterise(cells, zone, block, number, isCarving = false)
                 const offset = [(x + 0.5) / CUBES - half - block.at[0], (y + 0.5 - zone.base) / CUBES - block.at[1], (z + 0.5) / CUBES - half - block.at[2]];
                 const isInside = [0, 1, 2].every((axis) => Math.abs(matrix[0][axis] * offset[0] + matrix[1][axis] * offset[1] + matrix[2][axis] * offset[2]) <= halves[axis] + EPSILON);
 
-                if(isInside) { cells.set((y * zone.columns + z) * zone.columns + x, number); }
+                if(!isInside) { continue; }
+
+                const index = (y * zone.columns + z) * zone.columns + x;
+
+                if(carved && !carved.has(index)) { carved.set(index, cells.get(index) ?? null); }
+
+                cells.set(index, number);
             }
         }
     }
 }
 
-export function carve(cells, zone, box)
+export function carve(cells, zone, box, carved = null)
 {
-    rasterise(cells, zone, box, 0, true);
+    rasterise(cells, zone, box, 0, true, carved);
+}
+
+// A room carved through a wall or roof thinner than a cube would open onto
+// the outside, even across a corner, so each carved cell beside, diagonally
+// beside or below outside air gets its block back and becomes the wall.
+export function keepShell(cells, zone, carved, groundOf)
+{
+    const columns = zone.columns;
+    const isOutsideAir = (index) =>
+    {
+        if(carved.has(index)) { return false; }
+
+        const block = cells.get(index);
+        const x = index % columns;
+        const z = Math.floor(index / columns) % columns;
+        const y = Math.floor(index / (columns * columns));
+
+        return block === 0 || (block === undefined && y >= groundOf(x, z));
+    };
+
+    for(const [index, previous] of carved)
+    {
+        if(!previous) { continue; }
+
+        const x = index % columns;
+        const z = Math.floor(index / columns) % columns;
+        const neighbours = [index + columns * columns];
+
+        for(let dz = -1; dz <= 1; dz++)
+        {
+            for(let dx = -1; dx <= 1; dx++)
+            {
+                const isInside = x + dx >= 0 && x + dx < columns && z + dz >= 0 && z + dz < columns;
+
+                if((dx !== 0 || dz !== 0) && isInside) { neighbours.push(index + dz * columns + dx); }
+            }
+        }
+
+        if(neighbours.some(isOutsideAir)) { cells.set(index, previous); }
+    }
 }
 
 export function addSteps(cells, zone, door, angle, groundOf, step)
