@@ -1,6 +1,7 @@
 {
     "files": {
-        "migrations.json": "f9802d9fb9eb1593b49d95db5b979a7b07dc9c86ad7792798bd41545a4465c43",
+        "blocks.json": "471145445a07b94f8f7b19095bd617e4cbb3ed1f6998d465db5ff9eb1989e03a",
+        "migrations.json": "cae274dc08cec6e4654b5be7800b141cc4d35950a9cfa581ca731001e62dc9b6",
         "models/appearance.json": "8cf415eb281d3f71d9b89fc40f092eff9f6c23a35b7b23de38916110d483dfd4",
         "models/archetypes.json": "2be2c9e982bea9d46e186a6ea92b6fe9947342c48002d34b68eea53d51ec8604",
         "models/bodies/dwarf.json": "38e57469ebe3013204b9a8d100de33f136baf8697a582d20830ed1765dd207ec",
@@ -103,8 +104,8 @@
         "models/stamps.preview.png": "9f2389b18e2ba3e94058e93a6cc716a7a13e57e42b956b2d71c6f522bab52f9b",
         "npcs.json": "9b06f5c5aacaa28191302bb956ccf05b4d2beafab2ac9917b407f3bdc2cb0491",
         "props/prefabs.json": "1dfa56c8e1c6b15d5a297d29f01df6ba989df7e944d71b0a678288f4e9cedd5c",
-        "textures/world.json": "adfbfd05b7ad20a8ee18f0ea7f08bd98917afac1dd156f55ab1c750bca8a5501",
-        "textures/world.png": "465afb870e68e67ebb0d7fedb1b72666daca923c526d39b6175e4acdb1973bf4",
+        "textures/world.json": "25fe9c4b074461959974c5b7cb8cc8de4a33d98e9a48d60c1462b10c04130870",
+        "textures/world.png": "fa9cbba5ff8e1147be73284e64c82cde3d7a52105ccf015c50b55bd349274651",
         "zones/hearthmere.json": "498088273d973a25575caf88a993b0a4153886dc7b2b671c91f58e3697fc77e2",
         "zones/index.json": "5038e8ebfc486011d34ea5033b4bc4c7a43f2822be572abeab4377303730800a",
         "zones/testfield.json": "96b93c49e9f22bd30d7040153aa4b493487d30d4c57f40c7c183369b7b16f43d"
@@ -112,6 +113,32 @@
     "ids": {
         "action": [
             "humanoid/wave"
+        ],
+        "block": [
+            "banner",
+            "bark",
+            "cobble",
+            "earth",
+            "grass",
+            "iron",
+            "leaves",
+            "moss",
+            "mud",
+            "needles",
+            "oldPlanks",
+            "planks",
+            "plaster",
+            "rock",
+            "rubble",
+            "sacking",
+            "sand",
+            "slab",
+            "slate",
+            "stone",
+            "thatch",
+            "timber",
+            "water",
+            "window"
         ],
         "body": [
             "dwarf",
@@ -394,21 +421,25 @@
             "earth",
             "glow",
             "grass",
+            "grassSide",
             "grave",
             "iron",
             "leaves",
             "moss",
+            "mossSide",
             "mud",
             "needles",
             "oldPlanks",
             "planks",
             "plaster",
+            "rubble",
             "sacking",
             "sand",
             "slate",
             "stone",
             "thatch",
-            "timber"
+            "timber",
+            "water"
         ],
         "zone": [
             "hearthmere",

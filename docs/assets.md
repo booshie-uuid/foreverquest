@@ -74,6 +74,7 @@ export const IDS =
 | `manifest.json` | Each file's SHA-256 hash and size, and the ids by kind |
 | `textures/world.png` | Every world texture, 64 by 64 texels, stacked top to bottom in atlas order |
 | `textures/world.json` | The texture size, the texels per metre, and each layer's name and glow flag |
+| `blocks.json` | Every block type in baked order, with its kind, its light and the textures of its top, sides and bottom |
 | `models/index.json` | The rig ids, and the body ids in display order |
 | `models/rigs/<id>.json` | A rig, with each pivot and centre compiled into a linear form of box sizes |
 | `models/bodies/<id>.json` | A body, checked against its rig |
@@ -100,6 +101,18 @@ The game decodes PNG itself in [png.js](../js/engine/png.js), with the `Decompre
 ## Adding Content
 
 [Character Kit](character-kit.md#adding-content) describes how to add a race or a creature. The [workbench](workbench.md) shows baked bodies before they reach the game.
+
+## Adding a Block Type
+
+A block type is one world cube's material. The files in [content/blocks/](../content/blocks/) each export `BLOCKS`, a map from block id to its definition:
+
+| Field | Meaning |
+|---|---|
+| `faces` | World texture names for `top`, `side` and `bottom`; `all` covers the faces that are not named |
+| `kind` | `solid` (the default) blocks movement and hides the faces behind it; `clear` blocks movement and lets the faces behind it show, as leaves do; `liquid` lets entities enter it |
+| `light` | The light the block gives, from 0 (the default) to 15 |
+
+[BlockSet](../js/sim/block-set.js) numbers the block types from 1 in the baked order, file by file in name order, and keeps 0 for air. The simulation and the views both read it. The bake fails on a repeated id, an unknown texture, face or kind, a block without a texture on every face, or a light out of range.
 
 ## Adding a World Texture
 

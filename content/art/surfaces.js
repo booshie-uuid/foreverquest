@@ -161,6 +161,29 @@ export function earth(raster, target, random, colour = "#3a2e23")
     }
 }
 
+// A texture spans four cubes, so the fringe tops every cube face.
+export function edged(raster, target, random, base, colour)
+{
+    base(raster, target, random);
+
+    for(let top = 0; top < target.h; top += CUBE)
+    {
+        for(let x = 0; x < target.w; x++)
+        {
+            const depth = 2 + Math.floor(random.next() * 3) + (random.next() < 0.2 ? 2 : 0);
+
+            for(let y = 0; y < depth; y++) { Pixels.dot(raster, target, x, top + y, tone(y === depth - 1 ? Colour.shade(colour, 0.7) : colour, random, 0.22)); }
+        }
+    }
+}
+
+export function water(raster, target, random, colour = "#1e3034")
+{
+    Pixels.grit(raster, target, colour, random, 0.1);
+    strokes(raster, target, random, [Colour.shade(colour, 1.35), Colour.shade(colour, 1.18)], target.w * 0.8, 3, 8, 1, 0);
+    strokes(raster, target, random, [Colour.shade(colour, 0.8)], target.w * 0.5, 4, 10, 1, 0);
+}
+
 export function cobble(raster, target, random, colour = "#5a5650")
 {
     Pixels.fill(raster, target, Colour.shade(colour, 0.32));

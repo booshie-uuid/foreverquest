@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { AssetSource } from "../../js/engine/asset-source.js";
+import { BlockSet } from "../../js/sim/block-set.js";
 import { Library } from "../../js/kit/library.js";
 import { MaterialLibrary } from "../../js/engine/materials.js";
 import { WorldAtlas } from "../../js/engine/world-atlas.js";
@@ -16,6 +17,11 @@ export function open()
 export async function atlas()
 {
     return WorldAtlas.load(await open());
+}
+
+export async function blocks()
+{
+    return BlockSet.load(await open());
 }
 
 export async function library()

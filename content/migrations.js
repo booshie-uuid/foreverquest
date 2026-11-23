@@ -3,6 +3,7 @@
 export const IDS =
 {
     "world-texture": {},
+    "block": {},
     "rig": {},
     "body": {},
     "body-variant": {},
