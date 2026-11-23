@@ -2,7 +2,7 @@
 
 A zone is content: a folder in [content/zones/](../content/zones/) that holds a zone file and the zone's terrain images. The zone file lists the zone's ground, its lighting, its people and the props placed on it. The props are prefabs, built from blocks by the functions in [content/art/props.js](../content/art/props.js) and listed in [content/props/prefabs.js](../content/props/prefabs.js). The bake checks every zone and prefab, builds each zone's cubes, and writes them to `assets/`. The game loads a zone's baked files, holds its data in [ZoneData](../js/sim/zone-data.js), and draws it with [ZoneView](../js/render/zone-view.js).
 
-Two zones exist: Hearthmere, the village, and the Test Field, a small zone that the tests travel to. Hearthmere was exported once from the prototype's generator and then converted from one-metre tiles to cubes, so its colliders match the prototype's.
+Three zones exist: Hearthmere, the village; the Test Field, a small zone that the tests travel to; and the Expanse, a generated zone one kilometre square that tests how far the engine stretches. Hearthmere was exported once from the prototype's generator and then converted from one-metre tiles to cubes, so its colliders match the prototype's.
 
 ## Cubes and Cells
 
@@ -34,13 +34,15 @@ A zone folder holds `zone.json` and a `terrain` folder with one image per region
 | `people` | The residents and the crowd; see [People](#people) |
 | `props` | Prefab placements `{ prefab, x, z, angle, scale }` and runs `{ run, points }`, in metres |
 
+A zone folder may hold `terrain.js` in place of the images: a script whose `column(zone, x, z)` returns a column's `[surface, ground]`, drawing its randomness from seeded noise in [content/art/noise.js](../content/art/noise.js). The Expanse is built this way.
+
 A terrain image gives each column two values. Red is the column's surface, the cell above its top solid cell. Green is the index of its ground layer. The bake fills each column from the bottom: rock, then three cells of the ground's `under` block, then its `top` block, then water up to the `water` cell. On high ground, 12 cells or more above the base, and on the face of a drop of more than four cells, the three cells under the top are rock.
 
 A placement stands its prefab on the surface under it, turned by `angle` radians about y and scaled by `scale`, which defaults to 1. The bake fails on a missing or wrongly sized terrain image, a column taller than the zone or with an unknown ground index, a ground block that is not solid, an unknown prefab, a prop or spawn outside the zone, and an unknown resident or archetype.
 
 ## Baked Zones
 
-The bake writes `zones/<id>/index.json` and one file per region, `zones/<id>/<x>-<z>.bin`. A region file is compressed with deflate. It holds the surface of each column and the region's chunks. A chunk of one block type, such as buried rock, is stored as that one block; a chunk of air is left out. [region-codec.js](../js/sim/region-codec.js) writes and reads the format.
+The bake writes `zones/<id>/index.json` and one file per region, `zones/<id>/<x>-<z>.bin`. A region file is compressed with deflate. It holds the surface of each column and the region's chunks. A chunk of one block type, such as buried rock, is stored as that one block; a chunk of air is left out; any other chunk is stored as runs of one block, or cell by cell when runs would take more room. The bake also records the height of the ground under each prop, so a prop can be placed before its region loads. [region-codec.js](../js/sim/region-codec.js) writes and reads the format.
 
 `ZoneData.blockAt(x, y, z)` returns the block number in a cell, and `surface(column, row)` a column's surface. In metres, `heightAt(x, z)` returns the height of the surface under a point, `typeAt(x, z)` the block type on top, and `isWater(x, z)` whether water lies on it.
 
@@ -63,9 +65,15 @@ A run lays a prop along a line of points and follows the ground, such as a fence
 
 The zone keeps its colliders in a grid of 4-metre cells. A step tests only the colliders in the cells near it, in the zone's order, so it resolves exactly as a test of every collider would. `ZoneData` uses no Three.js and no page, so the simulation can run without a renderer.
 
+## Streaming
+
+The game never loads a whole zone. [RegionStreamer](../js/engine/region-streamer.js) loads the regions within the zone's fog distance and two chunks more, measured from the player to the nearest edge of each region, and frees a region once it lies 32 metres beyond that. `App` opens a zone through the streamer, which loads the regions around the spawn point before the player arrives; the game screen then updates it each frame from the player's position.
+
+`ZoneData.addRegion` and `removeRegion` change the cells, and `onRegion(listener)` reports each change, which the view follows. A region that is not loaded reads as air with a surface of 0. An entity standing on one sleeps: the simulation skips its brain and its movement. No step enters a region that is not loaded, so the player waits at its edge until it arrives.
+
 ## Drawing a Zone
 
-`ZoneView` builds one terrain mesh per chunk, with [CubeMesher](../js/render/cube-mesher.js), and the props in squares of 16 metres, so Three.js leaves out the meshes outside the camera. The mesher draws a cube face only where the cell beside it is not opaque, and lays each texture across the faces in world cells, so a texture continues from one cube to the next. It merges neighbouring faces of one texture and one shading into a single rectangle, so a flat floor of a chunk is two triangles. Each corner of a face darkens a step for each opaque cube that touches it in front of the face, which shades the foot of every step and wall. The mesher returns plain arrays and uses no Three.js. Water is one plane at the water line. The props share one material and the terrain another, which also takes the corner shading as vertex colours; both read their textures from the world texture array. `dispose()` frees every mesh and the shadow map the view made, and leaves the shared materials alone.
+`ZoneView` meshes each chunk with [CubeMesher](../js/render/cube-mesher.js) as its region arrives, and draws the terrain in tiles of two by two columns of chunks, about 21 metres square and the full height of the zone, one mesh each. Tiles keep the draw calls low, and Three.js leaves out the tiles outside the camera. The props are drawn in squares of 16 metres. In the game, [ChunkWorkers](../js/render/chunk-workers.js) meshes the chunks in web workers, up to eight queued in each, nearest the player first; without workers, as in the unit tests, the view meshes every waiting chunk at once. A chunk of one opaque block closed in on every side is not meshed. The mesher draws a cube face only where the cell beside it is not opaque, and lays each texture across the faces in world cells, so a texture continues from one cube to the next. It merges neighbouring faces of one texture and one shading into a single rectangle, so a flat floor of a chunk is two triangles. Each corner of a face darkens a step for each opaque cube that touches it in front of the face, which shades the foot of every step and wall. The mesher returns plain arrays and imports no Three.js, because a worker does not see the page's import map; the lint enforces it. Water is one plane at the water line. The props share one material and the terrain another, which also takes the corner shading as vertex colours; both read their textures from the world texture array. `dispose()` frees every mesh and the shadow map the view made, and leaves the shared materials alone.
 
 | Light | Purpose |
 |---|---|
@@ -91,7 +99,7 @@ A villager file exports `NPCS`, each with a `name`, the `lines` they say, an opt
 
 ## Travelling
 
-`App.travel(id)` loads a zone and the game screen enters it: it frees the last zone's view and villagers, moves the player to the new spawn point and places the new villagers. The address `?zone=testfield` starts the game in another zone.
+`App.travel(id)` loads a zone and the game screen enters it: it frees the last zone's view and villagers, moves the player to the new spawn point and places the new villagers. The address `?zone=testfield` or `?zone=expanse` starts the game in another zone.
 
 ## Adding to the World
 

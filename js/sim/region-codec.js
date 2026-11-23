@@ -2,13 +2,16 @@
 //   "FQRG", version, chunk size, width, depth and height in cells (u16 each),
 //   one u16 surface per column (the top solid cell + 1, or 0), a u16 chunk
 //   count, then per chunk its x, y and z within the region, a mode byte and
-//   either one block (uniform) or every cell in (y * size + z) * size + x
-//   order (dense). Chunks of air are left out.
+//   its cells in (y * size + z) * size + x order: one block (uniform), every
+//   cell (dense), or a u16 run count and runs of u16 length and one block
+//   (runs). Chunks of air are left out.
 
 const MAGIC = "FQRG";
-const VERSION = 1;
+const VERSION = 2;
 const UNIFORM = 0;
 const DENSE = 1;
+const RUNS = 2;
+const HEADER = 12;
 
 export const CHUNK = 32;
 export const REGION = 256;
@@ -22,8 +25,8 @@ export const CELLS = CHUNK * CHUNK * CHUNK;
 // `chunks` holds { x, y, z, cells } with a Uint8Array of CELLS blocks.
 export function encode({ width, depth, height, surfaces, chunks })
 {
-    const stored = chunks.map((chunk) => ({ ...chunk, uniform: uniformOf(chunk.cells) })).filter((chunk) => chunk.uniform !== 0);
-    const size = 12 + surfaces.length * 2 + 2 + stored.reduce((total, chunk) => total + 4 + (chunk.uniform === null ? CELLS : 1), 0);
+    const payloads = chunks.map((chunk) => ({ chunk, payload: payloadOf(chunk.cells) })).filter(({ payload }) => payload !== null);
+    const size = HEADER + surfaces.length * 2 + 2 + payloads.reduce((total, { payload }) => total + 4 + payload.bytes.length, 0);
     const bytes = new Uint8Array(size);
     const view = new DataView(bytes.buffer);
     let at = 0;
@@ -43,35 +46,55 @@ export function encode({ width, depth, height, surfaces, chunks })
         at += 2;
     }
 
-    view.setUint16(at, stored.length, true);
+    view.setUint16(at, payloads.length, true);
     at += 2;
 
-    for(const chunk of stored)
+    for(const { chunk, payload } of payloads)
     {
-        bytes.set([chunk.x, chunk.y, chunk.z, chunk.uniform === null ? DENSE : UNIFORM], at);
-        at += 4;
-
-        if(chunk.uniform === null)
-        {
-            bytes.set(chunk.cells, at);
-            at += CELLS;
-        }
-        else
-        {
-            bytes[at++] = chunk.uniform;
-        }
+        bytes.set([chunk.x, chunk.y, chunk.z, payload.mode], at);
+        bytes.set(payload.bytes, at + 4);
+        at += 4 + payload.bytes.length;
     }
 
     return bytes;
 }
 
-function uniformOf(cells)
+// Null for a chunk of air.
+function payloadOf(cells)
 {
-    const first = cells[0];
+    const runs = runsOf(cells);
 
-    for(let i = 1; i < cells.length; i++) { if(cells[i] !== first) { return null; } }
+    if(runs.length === 1) { return runs[0][1] === 0 ? null : { mode: UNIFORM, bytes: Uint8Array.of(runs[0][1]) }; }
+    if(2 + runs.length * 3 >= CELLS) { return { mode: DENSE, bytes: cells }; }
 
-    return first;
+    const bytes = new Uint8Array(2 + runs.length * 3);
+    const view = new DataView(bytes.buffer);
+
+    view.setUint16(0, runs.length, true);
+    runs.forEach(([length, block], i) =>
+    {
+        view.setUint16(2 + i * 3, length, true);
+        bytes[4 + i * 3] = block;
+    });
+
+    return { mode: RUNS, bytes };
+}
+
+function runsOf(cells)
+{
+    const runs = [];
+    let start = 0;
+
+    for(let i = 1; i <= cells.length; i++)
+    {
+        if(i === cells.length || cells[i] !== cells[start])
+        {
+            runs.push([i - start, cells[start]]);
+            start = i;
+        }
+    }
+
+    return runs;
 }
 
 
@@ -79,7 +102,8 @@ function uniformOf(cells)
 /* DECODE                                                                     */
 /******************************************************************************/
 
-// A uniform chunk decodes with `uniform` set and no cells.
+// A uniform chunk decodes with `uniform` set and no cells; the others decode
+// to every cell.
 export function decode(bytes)
 {
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -91,7 +115,7 @@ export function decode(bytes)
     const depth = view.getUint16(8, true);
     const height = view.getUint16(10, true);
     const surfaces = new Uint16Array(width * depth);
-    let at = 12;
+    let at = HEADER;
 
     for(let i = 0; i < surfaces.length; i++)
     {
@@ -110,14 +134,33 @@ export function decode(bytes)
 
         at += 4;
 
-        if(mode === DENSE)
+        if(mode === UNIFORM)
+        {
+            chunks.push({ x, y, z, uniform: bytes[at++], cells: null });
+        }
+        else if(mode === DENSE)
         {
             chunks.push({ x, y, z, uniform: null, cells: bytes.slice(at, at + CELLS) });
             at += CELLS;
         }
         else
         {
-            chunks.push({ x, y, z, uniform: bytes[at++], cells: null });
+            const cells = new Uint8Array(CELLS);
+            const runs = view.getUint16(at, true);
+            let cell = 0;
+
+            at += 2;
+
+            for(let run = 0; run < runs; run++)
+            {
+                const length = view.getUint16(at, true);
+
+                cells.fill(bytes[at + 2], cell, cell + length);
+                cell += length;
+                at += 3;
+            }
+
+            chunks.push({ x, y, z, uniform: null, cells });
         }
     }
 

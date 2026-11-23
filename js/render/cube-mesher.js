@@ -55,7 +55,7 @@ export function buildChunk(zone, table, atlas, cx, cy, cz)
 {
     const frame = { half: zone.half, base: zone.base, perCell: atlas.uvPerMetre / ZoneData.CUBES_PER_METRE };
 
-    return meshCells(padded(zone, cx, cy, cz), table, [cx * CHUNK, cy * CHUNK, cz * CHUNK], frame);
+    return meshCells(paddedCells(zone, cx, cy, cz), table, [cx * CHUNK, cy * CHUNK, cz * CHUNK], frame);
 }
 
 // `cells` is a chunk with a one-cell border of its neighbours, in
@@ -87,8 +87,8 @@ export function meshCells(cells, table, origin, frame)
 
 /* CELLS **********************************************************************/
 
-// Cells below the zone count as solid.
-function padded(zone, cx, cy, cz)
+// Cells below the zone, and in regions not loaded, count as solid.
+export function paddedCells(zone, cx, cy, cz)
 {
     const cells = new Uint8Array(PADDED * PADDED * PADDED);
     const [left, bottom, back] = [cx * CHUNK - 1, cy * CHUNK - 1, cz * CHUNK - 1];
@@ -106,7 +106,7 @@ function padded(zone, cx, cy, cz)
                 let block = BEDROCK;
 
                 if(cellY >= 0 && isInnerRow && x > 0 && x <= CHUNK) { block = chunkCell(chunk, x - 1, y - 1, z - 1); }
-                else if(cellY >= 0) { block = zone.blockAt(left + x, cellY, back + z); }
+                else if(cellY >= 0 && (!zone.isCell(left + x, cellY, back + z) || zone.isColumnLoaded(left + x, back + z))) { block = zone.blockAt(left + x, cellY, back + z); }
 
                 cells[(y * PADDED + z) * PADDED + x] = block;
             }
@@ -124,10 +124,8 @@ function chunkCell(chunk, x, y, z)
     return chunk.cells[(y * CHUNK + z) * CHUNK + x];
 }
 
-function cellAt(cells, x, y, z)
-{
-    return cells[(y * PADDED + z) * PADDED + x];
-}
+// The step through the padded cells along x, y and z.
+const STRIDES = [1, PADDED * PADDED, PADDED];
 
 /* MASK ***********************************************************************/
 
@@ -136,26 +134,29 @@ function cellAt(cells, x, y, z)
 function fillMask(mask, cells, table, direction, slice)
 {
     const { axis, sign, u, v, side } = direction;
-    const position = [0, 0, 0];
+    const [stepU, stepV, stepAxis] = [STRIDES[u], STRIDES[v], STRIDES[axis]];
+    const layers = table[side];
     let hasFace = false;
 
     for(let j = 0; j < CHUNK; j++)
     {
-        for(let i = 0; i < CHUNK; i++)
+        let index = slice * stepAxis + stepU + (j + 1) * stepV;
+
+        for(let i = 0; i < CHUNK; i++, index += stepU)
         {
-            position[axis] = slice;
-            position[u] = i + 1;
-            position[v] = j + 1;
-
-            const block = cellAt(cells, ...position);
-
-            position[axis] = slice + sign;
-
-            const neighbour = cellAt(cells, ...position);
+            const block = cells[index];
+            const front = index + sign * stepAxis;
+            const neighbour = cells[front];
             const isHidden = block === 0 || table.liquid[block] === 1 || table.opaque[neighbour] === 1 || (table.clear[block] === 1 && neighbour === block);
 
-            mask[j * CHUNK + i] = isHidden ? 0 : ((table[side][block] + 1) << 8) | shadesOf(cells, table, position, u, v);
-            hasFace ||= !isHidden;
+            if(isHidden)
+            {
+                mask[j * CHUNK + i] = 0;
+                continue;
+            }
+
+            mask[j * CHUNK + i] = ((layers[block] + 1) << 8) | shadesOf(cells, table.opaque, front, stepU, stepV);
+            hasFace = true;
         }
     }
 
@@ -164,29 +165,20 @@ function fillMask(mask, cells, table, direction, slice)
 
 // Vertex ambient occlusion, after
 // https://0fps.net/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/
-function shadesOf(cells, table, front, u, v)
+function shadesOf(cells, opaque, front, stepU, stepV)
 {
     let packed = 0;
 
-    CORNERS.forEach(([cornerU, cornerV], corner) =>
+    for(let corner = 0; corner < 4; corner++)
     {
-        const du = cornerU * 2 - 1;
-        const dv = cornerV * 2 - 1;
-        const side = [...front];
-        const other = [...front];
-        const diagonal = [...front];
-
-        side[u] += du;
-        other[v] += dv;
-        diagonal[u] += du;
-        diagonal[v] += dv;
-
-        const a = table.opaque[cellAt(cells, ...side)];
-        const b = table.opaque[cellAt(cells, ...other)];
-        const shade = a && b ? 3 : a + b + table.opaque[cellAt(cells, ...diagonal)];
+        const du = CORNERS[corner][0] * 2 - 1;
+        const dv = CORNERS[corner][1] * 2 - 1;
+        const a = opaque[cells[front + du * stepU]];
+        const b = opaque[cells[front + dv * stepV]];
+        const shade = a && b ? 3 : a + b + opaque[cells[front + du * stepU + dv * stepV]];
 
         packed |= shade << (corner * 2);
-    });
+    }
 
     return packed;
 }

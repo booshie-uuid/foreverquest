@@ -149,10 +149,15 @@ export class Simulation
 
         this.talk();
 
-        for(const npc of this.npcs) { npc.brain.tick(TICK, this.zone); }
-        for(const entity of this.entities) { entity.tick(TICK, this.zone); }
+        for(const npc of this.npcs.filter((entity) => this.isAwake(entity))) { npc.brain.tick(TICK, this.zone); }
+        for(const entity of this.entities.filter((each) => this.isAwake(each))) { entity.tick(TICK, this.zone); }
 
         this.ticks++;
+    }
+
+    isAwake(entity)
+    {
+        return this.zone.isLoaded(entity.position.x, entity.position.z);
     }
 
     talk()

@@ -64,6 +64,12 @@ const SIMULATION_IMPORTS =
     message: "The simulation runs without a renderer or a page.",
 };
 
+const WORKER_IMPORTS =
+{
+    regex: "^three$",
+    message: "Worker code cannot import Three.js, because a worker does not see the page's import map.",
+};
+
 const UNSEEDED =
 [
     { object: "Math", property: "random", message: "Use a seeded Random so every bake gives the same files." },
@@ -122,6 +128,10 @@ export default [
         files: ["js/**/*.js"],
         languageOptions: { globals: BROWSER_GLOBALS },
         rules: { "no-restricted-imports": ["error", { patterns: [GAME_IMPORTS] }] },
+    },
+    {
+        files: ["js/render/cube-mesher.js", "js/render/mesh-worker.js"],
+        rules: { "no-restricted-imports": ["error", { patterns: [GAME_IMPORTS, WORKER_IMPORTS] }] },
     },
     {
         files: ["js/sim/**/*.js"],

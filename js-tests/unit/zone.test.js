@@ -62,9 +62,10 @@ describe("Zone cells", () =>
 
 describe("Region files", () =>
 {
-    it("keep uniform chunks as one block, leave air out and keep dense chunks whole", () =>
+    it("keep uniform chunks as one block, leave air out, and keep layered and mixed chunks whole", () =>
     {
         const dense = new Uint8Array(RegionCodec.CELLS).map((value, i) => i % 7);
+        const layered = new Uint8Array(RegionCodec.CELLS).map((value, i) => (i < 20 * 1024 ? 4 : 0));
         const region =
         {
             width: 40,
@@ -76,14 +77,18 @@ describe("Region files", () =>
                 { x: 0, y: 0, z: 0, cells: new Uint8Array(RegionCodec.CELLS).fill(3) },
                 { x: 1, y: 0, z: 0, cells: dense },
                 { x: 0, y: 1, z: 0, cells: new Uint8Array(RegionCodec.CELLS) },
+                { x: 1, y: 1, z: 0, cells: layered },
             ],
         };
-        const decoded = RegionCodec.decode(RegionCodec.encode(region));
+        const encoded = RegionCodec.encode(region);
+        const decoded = RegionCodec.decode(encoded);
 
         assert.deepEqual([decoded.width, decoded.depth, decoded.height], [40, 32, 64]);
         assert.deepEqual(decoded.surfaces, region.surfaces);
-        assert.deepEqual(decoded.chunks.map((chunk) => [chunk.x, chunk.y, chunk.z, chunk.uniform]), [[0, 0, 0, 3], [1, 0, 0, null]]);
+        assert.deepEqual(decoded.chunks.map((chunk) => [chunk.x, chunk.y, chunk.z, chunk.uniform]), [[0, 0, 0, 3], [1, 0, 0, null], [1, 1, 0, null]]);
         assert.deepEqual(decoded.chunks[1].cells, dense);
+        assert.deepEqual(decoded.chunks[2].cells, layered);
+        assert.ok(encoded.length < 12 + 40 * 32 * 2 + 2 + 4 + 1 + 4 + RegionCodec.CELLS + 4 + 100, "A layered chunk is stored as runs");
     });
 
     it("tops each column with its ground, then subsoil, then rock, and fills water to the water line", () =>
@@ -184,7 +189,7 @@ describe("Zone placement", () =>
 
 describe("Zone view", () =>
 {
-    it("covers every column with top faces, in chunks of 32 cubes", () =>
+    it("covers every column with top faces, in tiles of two by two chunks", () =>
     {
         const view = new ZoneView(hearthmere, prefabs, materials);
         const area = view.terrainMeshes.reduce((total, mesh) =>
@@ -201,7 +206,7 @@ describe("Zone view", () =>
             return total + sum;
         }, 0);
 
-        assert.ok(view.terrainMeshes.length >= 9 * 9 && view.terrainMeshes.length <= 9 * 9 * 2, view.terrainMeshes.length + " meshes");
+        assert.equal(view.terrainMeshes.length, 5 * 5);
         assert.ok(Math.abs(area - 96 * 96) < 1e-6, "The tops cover " + area + " square metres");
         assert.ok(view.propMeshes.length > 10);
         view.dispose();

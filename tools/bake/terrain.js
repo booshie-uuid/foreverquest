@@ -2,6 +2,7 @@ import * as Png from "../../js/engine/png.js";
 import * as RegionCodec from "../../js/sim/region-codec.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as url from "node:url";
 import * as zlib from "node:zlib";
 import { ZoneData } from "../../js/sim/zone-data.js";
 
@@ -31,13 +32,42 @@ export function regionNames(columns)
     return names;
 }
 
-// Each region's terrain image holds a column's surface in red and its ground
-// index in green.
+// A zone's terrain is a script whose `column(zone, x, z)` returns a
+// column's [surface, ground], or one image per region with a column's surface
+// in red and its ground index in green.
 export async function readColumns(folder, zone, where, problems)
 {
     const columns = zone.columns;
     const surfaces = new Uint16Array(columns * columns);
     const grounds = new Uint8Array(columns * columns);
+    const script = path.join(folder, "terrain.js");
+
+    if(fs.existsSync(script))
+    {
+        const { column } = await import(url.pathToFileURL(script).href);
+
+        for(let z = 0; z < columns; z++)
+        {
+            for(let x = 0; x < columns; x++) { [surfaces[z * columns + x], grounds[z * columns + x]] = column(zone, x, z); }
+        }
+    }
+    else
+    {
+        await readImages(folder, zone, { surfaces, grounds }, where, problems);
+    }
+
+    for(let i = 0; i < surfaces.length; i++)
+    {
+        if(surfaces[i] > zone.height) { problems.push(where + " has a column taller than its height of " + zone.height + " cells"); break; }
+        if(grounds[i] >= zone.ground.length) { problems.push(where + " has a column with ground " + grounds[i] + ", which its ground list does not have"); break; }
+    }
+
+    return { surfaces, grounds };
+}
+
+async function readImages(folder, zone, { surfaces, grounds }, where, problems)
+{
+    const columns = zone.columns;
 
     for(const name of regionNames(columns))
     {
@@ -64,14 +94,6 @@ export async function readColumns(folder, zone, where, problems)
             }
         }
     }
-
-    for(let i = 0; i < surfaces.length; i++)
-    {
-        if(surfaces[i] > zone.height) { problems.push(where + " has a column taller than its height of " + zone.height + " cells"); break; }
-        if(grounds[i] >= zone.ground.length) { problems.push(where + " has a column with ground " + grounds[i] + ", which its ground list does not have"); break; }
-    }
-
-    return { surfaces, grounds };
 }
 
 export function heightsOf(zone, surfaces)
@@ -109,16 +131,17 @@ export function composeRegion(zone, terrain, ground, blocks, rx, rz)
     const columns = zone.columns;
     const width = Math.min(REGION, columns - rx * REGION);
     const depth = Math.min(REGION, columns - rz * REGION);
-    const chunks = new Map();
+    const [wide, deep, high] = [Math.ceil(width / CHUNK), Math.ceil(depth / CHUNK), zone.height / CHUNK];
+    const grid = new Array(wide * deep * high).fill(null);
     const surfaces = new Uint16Array(width * depth);
 
-    const set = (x, y, z, block) =>
+    const cellsOf = (cx, cy, cz) =>
     {
-        const key = Math.floor(x / CHUNK) + "," + Math.floor(y / CHUNK) + "," + Math.floor(z / CHUNK);
+        const index = (cy * deep + cz) * wide + cx;
 
-        if(!chunks.has(key)) { chunks.set(key, new Uint8Array(CELLS)); }
+        grid[index] ??= new Uint8Array(CELLS);
 
-        chunks.get(key)[((y % CHUNK) * CHUNK + (z % CHUNK)) * CHUNK + (x % CHUNK)] = block;
+        return grid[index];
     };
 
     for(let z = 0; z < depth; z++)
@@ -130,30 +153,38 @@ export function composeRegion(zone, terrain, ground, blocks, rx, rz)
             const surface = terrain.surfaces[row * columns + column];
             const layers = ground[terrain.grounds[row * columns + column]];
             const under = isRocky(zone, terrain.surfaces, column, row) ? blocks.rock : layers.under;
+            const top = Math.max(surface, zone.water);
+            const offset = (z % CHUNK) * CHUNK + (x % CHUNK);
 
             surfaces[z * width + x] = surface;
 
-            for(let y = 0; y < surface; y++)
+            for(let cy = 0; cy * CHUNK < top; cy++)
             {
-                const below = surface - 1 - y;
+                const cells = cellsOf(Math.floor(x / CHUNK), cy, Math.floor(z / CHUNK));
 
-                set(x, y, z, below === 0 ? layers.top : below <= UNDER_DEPTH ? under : blocks.rock);
+                for(let y = cy * CHUNK; y < Math.min(top, (cy + 1) * CHUNK); y++)
+                {
+                    const below = surface - 1 - y;
+                    let block = blocks.water;
+
+                    if(below > UNDER_DEPTH) { block = blocks.rock; }
+                    else if(below > 0) { block = under; }
+                    else if(below === 0) { block = layers.top; }
+
+                    cells[(y - cy * CHUNK) * CHUNK * CHUNK + offset] = block;
+                }
             }
-
-            for(let y = surface; y < zone.water; y++) { set(x, y, z, blocks.water); }
         }
     }
 
-    const list = [...chunks].map(([key, cells]) =>
-    {
-        const [x, y, z] = key.split(",").map(Number);
+    const chunks = [];
 
-        return { x, y, z, cells };
+    grid.forEach((cells, index) =>
+    {
+        if(cells) { chunks.push({ x: index % wide, y: Math.floor(index / (wide * deep)), z: Math.floor(index / wide) % deep, cells }); }
     });
 
-    list.sort((a, b) => a.y - b.y || a.z - b.z || a.x - b.x);
-
-    return { width, depth, height: zone.height, surfaces, chunks: list };
+    return { width, depth, height: zone.height, surfaces, chunks };
 }
 
 function isRocky(zone, surfaces, column, row)

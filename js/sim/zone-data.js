@@ -74,8 +74,11 @@ export class ZoneData
         this.runs = zone.runs;
         this.chunksWide = zone.columns / CHUNK;
         this.chunksHigh = zone.height / CHUNK;
+        this.regionNames = zone.regions;
+        this.regions = new Map();
         this.chunks = new Map();
         this.surfaces = new Uint16Array(zone.columns * zone.columns);
+        this.listeners = [];
         this.placements = [];
         this.colliders = [];
         this.lightSpots = [];
@@ -86,11 +89,37 @@ export class ZoneData
         this.grid = this.buildGrid();
     }
 
+    /* REGIONS ****************************************************************/
+
+    onRegion(listener)
+    {
+        this.listeners.push(listener);
+
+        return () => { this.listeners = this.listeners.filter((entry) => entry !== listener); };
+    }
+
+    emitRegion(type, name)
+    {
+        for(const listener of this.listeners) { listener({ type, name }); }
+    }
+
+    hasRegion(name)
+    {
+        return this.regions.has(name);
+    }
+
+    // The cell column at the region's -x, -z corner.
+    static regionCorner(name)
+    {
+        return name.split("-").map((value) => Number(value) * REGION);
+    }
+
     addRegion(region)
     {
-        const [rx, rz] = region.name.split("-").map(Number);
-        const left = rx * REGION;
-        const top = rz * REGION;
+        if(this.regions.has(region.name)) { return; }
+
+        const [left, top] = ZoneData.regionCorner(region.name);
+        const keys = [];
 
         for(let z = 0; z < region.depth; z++)
         {
@@ -99,8 +128,44 @@ export class ZoneData
 
         for(const chunk of region.chunks)
         {
-            this.chunks.set(this.chunkKey(left / CHUNK + chunk.x, chunk.y, top / CHUNK + chunk.z), chunk);
+            const key = this.chunkKey(left / CHUNK + chunk.x, chunk.y, top / CHUNK + chunk.z);
+
+            this.chunks.set(key, chunk);
+            keys.push(key);
         }
+
+        this.regions.set(region.name, { width: region.width, depth: region.depth, keys });
+        this.emitRegion("added", region.name);
+    }
+
+    removeRegion(name)
+    {
+        const region = this.regions.get(name);
+
+        if(!region) { return; }
+
+        const [left, top] = ZoneData.regionCorner(name);
+
+        for(const key of region.keys) { this.chunks.delete(key); }
+        for(let z = 0; z < region.depth; z++) { this.surfaces.fill(0, (top + z) * this.columns + left, (top + z) * this.columns + left + region.width); }
+
+        this.regions.delete(name);
+        this.emitRegion("removed", name);
+    }
+
+    regionOfColumn(column, row)
+    {
+        return Math.floor(column / REGION) + "-" + Math.floor(row / REGION);
+    }
+
+    isColumnLoaded(column, row)
+    {
+        return this.regions.has(this.regionOfColumn(column, row));
+    }
+
+    isLoaded(x, z)
+    {
+        return this.isColumnLoaded(...this.columnOf(x, z));
     }
 
     place(props, prefabs)
@@ -115,7 +180,7 @@ export class ZoneData
             }
 
             const prefab = prefabs[prop.prefab];
-            const placement = { prefab: prop.prefab, x: prop.x, y: this.heightAt(prop.x, prop.z), z: prop.z, angle: prop.angle ?? 0, scale: prop.scale ?? 1 };
+            const placement = { prefab: prop.prefab, x: prop.x, y: prop.y, z: prop.z, angle: prop.angle ?? 0, scale: prop.scale ?? 1 };
 
             this.placements.push(placement);
             this.colliders.push(...prefab.colliders.map((collider) => placeCollider(collider, placement)));
@@ -201,7 +266,7 @@ export class ZoneData
 
     isWalkable(x, z)
     {
-        return this.isInside(x, z, EDGE_MARGIN) && !this.isWater(x, z);
+        return this.isInside(x, z, EDGE_MARGIN) && this.isLoaded(x, z) && !this.isWater(x, z);
     }
 
     canStep(from, to)

@@ -1,0 +1,68 @@
+{
+    "id": "expanse",
+    "name": "the Expanse",
+    "welcome": [
+        "You arrive in the Expanse, a kilometre of empty hills that tests how far the world can stretch."
+    ],
+    "columns": 3072,
+    "height": 128,
+    "base": 32,
+    "water": 40,
+    "ground": [
+        {
+            "top": "grass",
+            "under": "earth"
+        },
+        {
+            "top": "moss",
+            "under": "earth"
+        },
+        {
+            "top": "mud",
+            "under": "earth"
+        },
+        {
+            "top": "sand",
+            "under": "sand"
+        },
+        {
+            "top": "rock",
+            "under": "rock"
+        }
+    ],
+    "lighting": {
+        "sky": {
+            "top": "#0e1118",
+            "horizon": "#262b34"
+        },
+        "fog": {
+            "near": 40,
+            "far": 160
+        },
+        "hemisphere": {
+            "sky": "#6a7488",
+            "ground": "#221b14",
+            "intensity": 1.5
+        },
+        "moon": {
+            "colour": "#a8b8d8",
+            "intensity": 1.7
+        },
+        "lamp": {
+            "colour": "#ff9a40",
+            "intensity": 5,
+            "distance": 8,
+            "decay": 1.6
+        }
+    },
+    "spawn": {
+        "x": 0,
+        "z": 0,
+        "heading": 0
+    },
+    "people": {
+        "seed": 1,
+        "residents": []
+    },
+    "props": []
+}

@@ -7,9 +7,9 @@ import { GameScreen } from "./game/game-screen.js";
 import { GraphicsSettings } from "./engine/graphics-settings.js";
 import { Library } from "./kit/library.js";
 import { MaterialLibrary } from "./engine/materials.js";
+import { RegionStreamer } from "./engine/region-streamer.js";
 import { Renderer } from "./engine/renderer.js";
 import { WorldAtlas } from "./engine/world-atlas.js";
-import { ZoneData } from "./sim/zone-data.js";
 
 export class App
 {
@@ -19,7 +19,7 @@ export class App
         this.assets = assets;
         this.startZone = zone;
         this.content = null;
-        this.zone = null;
+        this.streamer = null;
         this.store = new CharacterStore(storage);
         this.renderer = new Renderer(container);
         this.graphics = new GraphicsSettings(this.renderer);
@@ -42,7 +42,7 @@ export class App
             this.library = await Library.load(this.assets);
             this.materials = new MaterialLibrary(await WorldAtlas.load(this.assets));
             this.content = { prefabs: await this.assets.json("props/prefabs.json"), people: await this.assets.json("npcs.json"), blocks: await BlockSet.load(this.assets) };
-            this.zone = await this.loadZone(this.startZone);
+            this.streamer = await this.loadZone(this.startZone);
         }
         finally
         {
@@ -67,13 +67,17 @@ export class App
 
     async loadZone(id)
     {
-        return ZoneData.load(this.assets, id, this.content.prefabs, this.content.blocks);
+        return RegionStreamer.open(this.assets, id, this.content.prefabs, this.content.blocks);
     }
 
     async travel(id)
     {
-        this.zone = await this.loadZone(id);
-        this.game?.enterZone(this.zone);
+        const streamer = await this.loadZone(id);
+
+        if(this.game) { this.game.enterZone(streamer); }
+        else { this.streamer.dispose(); }
+
+        this.streamer = streamer;
     }
 
     get screen()
@@ -98,7 +102,7 @@ export class App
     {
         if(!this.game)
         {
-            this.game = new GameScreen(this.container, this.renderer.canvas, this.appearance, this.materials, this.graphics, () => this.showCreator("edit"), this.content, this.zone);
+            this.game = new GameScreen(this.container, this.renderer.canvas, this.appearance, this.materials, this.graphics, () => this.showCreator("edit"), this.content, this.streamer);
         }
 
         this.renderer.setScreen(this.game);

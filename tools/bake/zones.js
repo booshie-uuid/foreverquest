@@ -110,7 +110,7 @@ export async function bakeZone(zone, folder, people, context, where, problems)
         if(!context.prefabs[prop.prefab]) { problems.push(where + " prop " + i + " is an unknown prefab: " + prop.prefab); continue; }
         if(!(Math.abs(prop.x) < half && Math.abs(prop.z) < half)) { problems.push(where + " prop " + i + " is outside the zone"); }
 
-        props.push(prop);
+        props.push({ ...prop, y: heightAt(prop.x, prop.z) });
     }
 
     if(problems.length > before) { return null; }

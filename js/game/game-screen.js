@@ -1,5 +1,7 @@
+import * as CubeMesher from "../render/cube-mesher.js";
 import * as THREE from "three";
 import { CameraRig } from "./camera-rig.js";
+import { ChunkWorkers } from "../render/chunk-workers.js";
 import { EntityView } from "../render/entity-view.js";
 import { Hud } from "./hud.js";
 import { Input } from "./input.js";
@@ -16,13 +18,15 @@ const MAX_TICKS_PER_FRAME = 5;
 
 export class GameScreen
 {
-    constructor(container, canvas, appearance, materials, graphics, onAppearance, content, zone)
+    constructor(container, canvas, appearance, materials, graphics, onAppearance, content, streamer)
     {
         this.materials = materials;
         this.content = content;
         this.onAppearance = onAppearance;
         this.size = { width: 1, height: 1 };
         this.world = null;
+        this.streamer = null;
+        this.workers = ChunkWorkers.forMachine(CubeMesher.faceTable(content.blocks, materials.atlas));
         this.views = new Map();
         this.accumulator = 0;
         this.isPaused = false;
@@ -50,7 +54,7 @@ export class GameScreen
         ];
 
         this.sim.setPlayer(appearance);
-        this.enterZone(zone);
+        this.enterZone(streamer);
         this.hud.setPlayer(appearance);
     }
 
@@ -76,12 +80,16 @@ export class GameScreen
 
     /* ZONES ******************************************************************/
 
-    enterZone(zone)
+    // The streamer has loaded the regions around the zone's spawn point.
+    enterZone(streamer)
     {
+        const zone = streamer.zone;
+
         if(this.world) { this.leaveZone(); }
 
+        this.streamer = streamer;
         this.sim.enter(zone);
-        this.world = new ZoneView(zone, this.content.prefabs, this.materials);
+        this.world = new ZoneView(zone, this.content.prefabs, this.materials, this.workers);
 
         for(const entity of this.sim.entities)
         {
@@ -105,6 +113,8 @@ export class GameScreen
         this.views.clear();
         this.world.dispose();
         this.world = null;
+        this.streamer.dispose();
+        this.streamer = null;
     }
 
     /* EVENTS *****************************************************************/
@@ -290,6 +300,7 @@ export class GameScreen
 
         for(const view of this.views.values()) { view.sync(alpha, delta); }
 
+        this.streamer.update(this.player.position.x, this.player.position.z);
         this.rig.update(delta, player.position, this.player.measures.focus, (x, z) => this.zone.heightAt(x, z));
         this.world.update(delta, this.camera, player.position);
         this.hud.update(delta, this.camera, [...this.views.values()], player, this.size);
@@ -306,6 +317,7 @@ export class GameScreen
 
         this.input.detach();
         this.leaveZone();
+        this.workers.dispose();
         this.hud.dispose();
     }
 }
