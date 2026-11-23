@@ -1,6 +1,9 @@
+import * as RegionCodec from "../../js/sim/region-codec.js";
+import * as Terrain from "../../tools/bake/terrain.js";
 import * as TestAssets from "../helpers/assets.js";
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { BlockSet } from "../../js/sim/block-set.js";
 import { Random } from "../../js/util/random.js";
 import { ZoneData } from "../../js/sim/zone-data.js";
 import { ZoneView } from "../../js/render/zone-view.js";
@@ -27,27 +30,79 @@ function fullScan(zone, from, to, radius)
     return zone.canStep(from, result) ? result : { x: from.x, z: from.z };
 }
 
-describe("Zone tiles", () =>
+describe("Zone cells", () =>
 {
-    it("rises and falls in quarter-metre steps and keeps one height across each tile", () =>
+    it("rises and falls in whole cubes, with each column solid up to its surface", () =>
     {
+        const blocks = hearthmere.blocks;
+
         for(let i = 0; i < 400; i++)
         {
-            const height = hearthmere.heightAt(-47 + (i % 20) * 4.7, -47 + Math.floor(i / 20) * 4.7);
+            const [x, z] = [-47 + (i % 20) * 4.7, -47 + Math.floor(i / 20) * 4.7];
+            const [column, row] = hearthmere.columnOf(x, z);
+            const surface = hearthmere.surface(column, row);
+            const height = hearthmere.heightAt(x, z);
 
-            assert.ok(Math.abs(height / 0.25 - Math.round(height / 0.25)) < 1e-9, "Height " + height);
+            assert.ok(Math.abs(height * 3 - Math.round(height * 3)) < 1e-9, "Height " + height);
+            assert.ok(hearthmere.isSolid(column, surface - 1, row) && hearthmere.isSolid(column, 0, row), x + ", " + z);
+            assert.equal(blocks.isSolid(hearthmere.blockAt(column, surface, row)), false, x + ", " + z);
         }
-
-        assert.equal(hearthmere.heightAt(3.05, -7.05), hearthmere.heightAt(3.95, -7.95));
     });
 
     it("keeps the village square flat and dry and floods the lake", () =>
     {
-        for(const [x, z] of [[0, 0], [5, 3], [-4, -5], [10, 2]]) { assert.equal(hearthmere.heightAt(x, z), 0.5, x + ", " + z); }
+        for(const [x, z] of [[0, 0], [5, 3], [-4, -5], [10, 2]]) { assert.equal(hearthmere.heightAt(x, z), 2 / 3, x + ", " + z); }
 
         assert.equal(hearthmere.typeAt(0, 0), "cobble");
-        assert.equal(hearthmere.typeAt(60, 0), "edge");
+        assert.equal(hearthmere.isWater(0, 0), false);
         assert.ok(hearthmere.isWater(22, 16));
+        assert.equal(hearthmere.blockAt(-1, 20, 0), BlockSet.AIR);
+    });
+});
+
+describe("Region files", () =>
+{
+    it("keep uniform chunks as one block, leave air out and keep dense chunks whole", () =>
+    {
+        const dense = new Uint8Array(RegionCodec.CELLS).map((value, i) => i % 7);
+        const region =
+        {
+            width: 40,
+            depth: 32,
+            height: 64,
+            surfaces: Uint16Array.from({ length: 40 * 32 }, (value, i) => i % 65),
+            chunks:
+            [
+                { x: 0, y: 0, z: 0, cells: new Uint8Array(RegionCodec.CELLS).fill(3) },
+                { x: 1, y: 0, z: 0, cells: dense },
+                { x: 0, y: 1, z: 0, cells: new Uint8Array(RegionCodec.CELLS) },
+            ],
+        };
+        const decoded = RegionCodec.decode(RegionCodec.encode(region));
+
+        assert.deepEqual([decoded.width, decoded.depth, decoded.height], [40, 32, 64]);
+        assert.deepEqual(decoded.surfaces, region.surfaces);
+        assert.deepEqual(decoded.chunks.map((chunk) => [chunk.x, chunk.y, chunk.z, chunk.uniform]), [[0, 0, 0, 3], [1, 0, 0, null]]);
+        assert.deepEqual(decoded.chunks[1].cells, dense);
+    });
+
+    it("tops each column with its ground, then subsoil, then rock, and fills water to the water line", () =>
+    {
+        const zone = { columns: 32, height: 32, base: 4, water: 6 };
+        const surfaces = new Uint16Array(32 * 32).fill(10);
+        const grounds = new Uint8Array(32 * 32);
+
+        surfaces[0] = 3;
+        surfaces[5] = 20;
+
+        const region = Terrain.composeRegion(zone, { surfaces, grounds }, [{ top: 1, under: 2 }], { rock: 9, water: 8 }, 0, 0);
+        const cell = (x, y, z) => region.chunks[0].cells[(y * 32 + z) * 32 + x];
+
+        assert.deepEqual([10, 9, 8, 7, 6, 5].map((y) => cell(10, y, 10)), [0, 1, 2, 2, 2, 9]);
+        assert.deepEqual([2, 3, 4, 5, 6].map((y) => cell(0, y, 0)), [1, 8, 8, 8, 0]);
+        assert.deepEqual([9, 8].map((y) => cell(1, y, 0)), [1, 9], "The face of a drop of more than four cubes is rock");
+        assert.deepEqual([19, 18].map((y) => cell(5, y, 0)), [1, 9], "High ground is rock under its top");
+        assert.equal(region.surfaces[5], 20);
     });
 });
 
@@ -129,7 +184,7 @@ describe("Zone placement", () =>
 
 describe("Zone view", () =>
 {
-    it("draws the terrain and props in chunks of 16 tiles", () =>
+    it("draws one top face for every column, in chunks of 32 cubes", () =>
     {
         const view = new ZoneView(hearthmere, prefabs, materials);
         const tops = view.terrainMeshes.reduce((total, mesh) =>
@@ -137,13 +192,13 @@ describe("Zone view", () =>
             const normal = mesh.geometry.getAttribute("normal");
             let count = 0;
 
-            for(let i = 0; i < normal.count; i += 6) { if(normal.getY(i) === 1) { count++; } }
+            for(let i = 0; i < normal.count; i += 4) { if(normal.getY(i) === 1) { count++; } }
 
             return total + count;
         }, 0);
 
-        assert.equal(view.terrainMeshes.length, 36);
-        assert.equal(tops, 96 * 96);
+        assert.ok(view.terrainMeshes.length >= 9 * 9 && view.terrainMeshes.length <= 9 * 9 * 2, view.terrainMeshes.length + " meshes");
+        assert.equal(tops, 288 * 288);
         assert.ok(view.propMeshes.length > 10);
         view.dispose();
     });

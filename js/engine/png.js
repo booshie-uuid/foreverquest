@@ -56,7 +56,7 @@ function readHeader(body)
     return header;
 }
 
-async function inflate(parts)
+export async function inflate(parts)
 {
     const stream = new Blob(parts).stream().pipeThrough(new DecompressionStream("deflate"));
 

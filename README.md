@@ -116,11 +116,11 @@ To add a world texture, add a name, a seed and a painter to `TEXTURES` in [conte
 
 ## The World
 
-The village of Hearthmere is a zone file, [content/zones/hearthmere.json](content/zones/hearthmere.json): a grid of 96 by 96 one-metre tiles in quarter-metre steps, typed as grass, moss, mud, cobble, sand or stone, with the props placed on it. Where the ground drops, the tile shows an earth or rock face.
+The village of Hearthmere is a zone folder, [content/zones/hearthmere/](content/zones/hearthmere/): 96 metres square, built from cubes 1/3 metre on a side, with ground of grass, moss, mud, cobble, sand or stone and the props placed on it. Under the ground lie earth and rock, and the faces of tall drops show rock.
 
-Every prop is a prefab built from textured blocks by [content/art/props.js](content/art/props.js): jettied timber houses on stone plinths with stepped slate or thatch roofs, stone cottages, a chapel with a bell tower, a graveyard, a well, lamp posts, stocks, a cart, barrels, crates, sacks, fences, a signpost, a gibbet, pines, oaks, dead trees, rocks, bushes and weeds. The game draws a zone in chunks of 16 by 16 tiles, and every world block shares one material, which reads its textures from one texture array.
+Every prop is a prefab built from textured blocks by [content/art/props.js](content/art/props.js): jettied timber houses on stone plinths with stepped slate or thatch roofs, stone cottages, a chapel with a bell tower, a graveyard, a well, lamp posts, stocks, a cart, barrels, crates, sacks, fences, a signpost, a gibbet, pines, oaks, dead trees, rocks, bushes and weeds. The game draws the ground in chunks of 32 cubes each way, and every world block shares one material, which reads its textures from one texture array.
 
-Characters can step up at most half a metre from one tile to the next, and cannot enter the lake. Fourteen villagers walk around the village. Seven have set appearances and lines in [content/npcs/](content/npcs/). The other seven come from the same random generator as the creator's Randomise button. [docs/world.md](docs/world.md) describes zones.
+Characters can step up one cube at a time, and cannot enter the lake. Fourteen villagers walk around the village. Seven have set appearances and lines in [content/npcs/](content/npcs/). The other seven come from the same random generator as the creator's Randomise button. [docs/world.md](docs/world.md) describes zones.
 
 ## Project Layout
 

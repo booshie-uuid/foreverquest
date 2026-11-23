@@ -1,5 +1,6 @@
 import * as Controls from "./ui/controls.js";
 import { Appearance } from "./character/appearance.js";
+import { BlockSet } from "./sim/block-set.js";
 import { CharacterStore } from "./character-store.js";
 import { CreatorScreen } from "./ui/creator-screen.js";
 import { GameScreen } from "./game/game-screen.js";
@@ -40,7 +41,7 @@ export class App
         {
             this.library = await Library.load(this.assets);
             this.materials = new MaterialLibrary(await WorldAtlas.load(this.assets));
-            this.content = { prefabs: await this.assets.json("props/prefabs.json"), people: await this.assets.json("npcs.json") };
+            this.content = { prefabs: await this.assets.json("props/prefabs.json"), people: await this.assets.json("npcs.json"), blocks: await BlockSet.load(this.assets) };
             this.zone = await this.loadZone(this.startZone);
         }
         finally
@@ -66,7 +67,7 @@ export class App
 
     async loadZone(id)
     {
-        return new ZoneData(await this.assets.json("zones/" + id + ".json"), this.content.prefabs);
+        return ZoneData.load(this.assets, id, this.content.prefabs, this.content.blocks);
     }
 
     async travel(id)

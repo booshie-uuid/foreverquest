@@ -1,6 +1,11 @@
+import * as RegionCodec from "./region-codec.js";
+import { BlockSet } from "./block-set.js";
+
 const MAX_STEP_UP = 0.5;
 const EDGE_MARGIN = 2;
 const CELL = 4;
+const CUBES_PER_METRE = 3;
+const { CHUNK, REGION } = RegionCodec;
 
 
 /******************************************************************************/
@@ -29,6 +34,7 @@ function extentOf(collider)
 export class ZoneData
 {
     static MAX_STEP_UP = MAX_STEP_UP;
+    static CUBES_PER_METRE = CUBES_PER_METRE;
 
     // A placement turns its prefab about y by its angle and scales it about
     // the prefab's origin, which stands on the ground under the placement.
@@ -42,27 +48,59 @@ export class ZoneData
         return [x + (lx * cos + lz * sin), y + ly, z + (-lx * sin + lz * cos)];
     }
 
-    constructor(zone, prefabs)
+    static async load(source, id, prefabs, blocks)
+    {
+        const index = await source.json("zones/" + id + "/index.json");
+        const regions = await Promise.all(index.regions.map(async (name) => ({ name, ...RegionCodec.decode(await source.inflated("zones/" + id + "/" + name + ".bin")) })));
+
+        return new ZoneData(index, regions, prefabs, blocks);
+    }
+
+    constructor(zone, regions, prefabs, blocks)
     {
         this.id = zone.id;
         this.name = zone.name;
         this.welcome = zone.welcome ?? [];
-        this.size = zone.size;
-        this.half = zone.size / 2;
-        this.step = zone.step;
-        this.waterLevel = zone.waterLevel;
+        this.blocks = blocks;
+        this.columns = zone.columns;
+        this.height = zone.height;
+        this.base = zone.base;
+        this.size = zone.columns / CUBES_PER_METRE;
+        this.half = this.size / 2;
+        this.waterLevel = (zone.water - zone.base) / CUBES_PER_METRE;
         this.lighting = zone.lighting;
         this.spawn = zone.spawn;
         this.people = zone.people;
-        this.levels = Int16Array.from(zone.levels.flatMap((row) => row.split(",").map(Number)));
-        this.types = zone.types.flatMap((row) => [...row].map((code) => zone.typeCodes[code]));
         this.runs = zone.runs;
+        this.chunksWide = zone.columns / CHUNK;
+        this.chunksHigh = zone.height / CHUNK;
+        this.chunks = new Map();
+        this.surfaces = new Uint16Array(zone.columns * zone.columns);
         this.placements = [];
         this.colliders = [];
         this.lightSpots = [];
 
+        for(const region of regions) { this.addRegion(region); }
+
         this.place(zone.props, prefabs);
         this.grid = this.buildGrid();
+    }
+
+    addRegion(region)
+    {
+        const [rx, rz] = region.name.split("-").map(Number);
+        const left = rx * REGION;
+        const top = rz * REGION;
+
+        for(let z = 0; z < region.depth; z++)
+        {
+            this.surfaces.set(region.surfaces.subarray(z * region.width, (z + 1) * region.width), (top + z) * this.columns + left);
+        }
+
+        for(const chunk of region.chunks)
+        {
+            this.chunks.set(this.chunkKey(left / CHUNK + chunk.x, chunk.y, top / CHUNK + chunk.z), chunk);
+        }
     }
 
     place(props, prefabs)
@@ -85,44 +123,73 @@ export class ZoneData
         }
     }
 
-    /* TILES ******************************************************************/
+    /* CELLS ******************************************************************/
 
-    tileOf(x, z)
+    chunkKey(x, y, z)
     {
-        return [Math.floor(x + this.half), Math.floor(z + this.half)];
+        return (y * this.chunksWide + z) * this.chunksWide + x;
     }
 
-    isTile(column, row)
+    chunkAt(x, y, z)
     {
-        return column >= 0 && row >= 0 && column < this.size && row < this.size;
+        return this.chunks.get(this.chunkKey(x, y, z)) ?? null;
     }
 
-    tileHeight(column, row)
+    isCell(x, y, z)
     {
-        const clampedColumn = Math.max(0, Math.min(this.size - 1, column));
-        const clampedRow = Math.max(0, Math.min(this.size - 1, row));
-
-        return this.levels[clampedRow * this.size + clampedColumn] * this.step;
+        return x >= 0 && z >= 0 && y >= 0 && x < this.columns && z < this.columns && y < this.height;
     }
 
-    tileType(column, row)
+    blockAt(x, y, z)
     {
-        return this.isTile(column, row) ? this.types[row * this.size + column] : "edge";
+        if(!this.isCell(x, y, z)) { return BlockSet.AIR; }
+
+        const chunk = this.chunkAt(Math.floor(x / CHUNK), Math.floor(y / CHUNK), Math.floor(z / CHUNK));
+
+        if(!chunk) { return BlockSet.AIR; }
+        if(chunk.cells === null) { return chunk.uniform; }
+
+        return chunk.cells[((y % CHUNK) * CHUNK + (z % CHUNK)) * CHUNK + (x % CHUNK)];
+    }
+
+    isSolid(x, y, z)
+    {
+        return this.blocks.isSolid(this.blockAt(x, y, z));
+    }
+
+    // The top solid cell + 1, or 0 for an empty column.
+    surface(column, row)
+    {
+        const x = Math.max(0, Math.min(this.columns - 1, column));
+        const z = Math.max(0, Math.min(this.columns - 1, row));
+
+        return this.surfaces[z * this.columns + x];
+    }
+
+    /* METRES *****************************************************************/
+
+    columnOf(x, z)
+    {
+        return [Math.floor((x + this.half) * CUBES_PER_METRE), Math.floor((z + this.half) * CUBES_PER_METRE)];
     }
 
     heightAt(x, z)
     {
-        return this.tileHeight(...this.tileOf(x, z));
+        return (this.surface(...this.columnOf(x, z)) - this.base) / CUBES_PER_METRE;
     }
 
     typeAt(x, z)
     {
-        return this.tileType(...this.tileOf(x, z));
+        const [column, row] = this.columnOf(x, z);
+
+        return this.blocks.block(this.blockAt(column, this.surface(column, row) - 1, row))?.id ?? "air";
     }
 
     isWater(x, z)
     {
-        return this.heightAt(x, z) < this.waterLevel;
+        const [column, row] = this.columnOf(x, z);
+
+        return this.blocks.isLiquid(this.blockAt(column, this.surface(column, row), row));
     }
 
     isInside(x, z, margin = 0)

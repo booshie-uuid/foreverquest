@@ -84,7 +84,7 @@ export const IDS =
 | `models/clips/index.json`, `models/clips/<rig>.json` | The rigs that have clips, and each rig's clips and actions |
 | `models/palettes.json`, `models/archetypes.json`, `models/appearance.json` | The colour palettes, the villager archetypes, and the appearance defaults and random rules |
 | `props/prefabs.json` | Every prefab's blocks, colliders and light spots |
-| `zones/index.json`, `zones/<id>.json` | The zone ids, and each zone with its runs built |
+| `zones/index.json`, `zones/<id>/index.json`, `zones/<id>/<x>-<z>.bin` | The zone ids, each zone's settings and props with its runs built, and its compressed region files |
 | `npcs.json` | Every villager, and the shared lines crowds say |
 | `migrations.json` | The id maps from [migrations.js](../content/migrations.js) |
 

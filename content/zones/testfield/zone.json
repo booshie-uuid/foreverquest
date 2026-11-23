@@ -1,0 +1,137 @@
+{
+    "id": "testfield",
+    "name": "the Test Field",
+    "welcome": [
+        "You arrive in the Test Field."
+    ],
+    "columns": 96,
+    "height": 64,
+    "base": 16,
+    "water": 16,
+    "ground": [
+        {
+            "top": "grass",
+            "under": "earth"
+        },
+        {
+            "top": "cobble",
+            "under": "earth"
+        },
+        {
+            "top": "mud",
+            "under": "earth"
+        },
+        {
+            "top": "stone",
+            "under": "rubble"
+        }
+    ],
+    "lighting": {
+        "sky": {
+            "top": "#0e1118",
+            "horizon": "#262b34"
+        },
+        "fog": {
+            "near": 14,
+            "far": 58
+        },
+        "hemisphere": {
+            "sky": "#6a7488",
+            "ground": "#221b14",
+            "intensity": 1.5
+        },
+        "moon": {
+            "colour": "#a8b8d8",
+            "intensity": 1.7
+        },
+        "lamp": {
+            "colour": "#ff9a40",
+            "intensity": 5,
+            "distance": 8,
+            "decay": 1.6
+        }
+    },
+    "spawn": {
+        "x": 0,
+        "z": 6,
+        "heading": 3.141593
+    },
+    "people": {
+        "seed": 7,
+        "residents": [
+            {
+                "npc": "mirelle",
+                "home": [
+                    4,
+                    4
+                ],
+                "roam": 3
+            }
+        ],
+        "crowd": {
+            "count": 2,
+            "centre": [
+                0,
+                0
+            ],
+            "radius": 6,
+            "startAngle": 0,
+            "roam": 3,
+            "lines": "villager",
+            "archetypes": [
+                "villager"
+            ]
+        }
+    },
+    "props": [
+        {
+            "prefab": "well",
+            "x": 0,
+            "z": 0,
+            "angle": 0
+        },
+        {
+            "prefab": "lampPost",
+            "x": 3,
+            "z": -3,
+            "angle": 0.8
+        },
+        {
+            "prefab": "pine.0",
+            "x": -8,
+            "z": -8,
+            "angle": 0.3,
+            "scale": 1.1
+        },
+        {
+            "prefab": "pine.3",
+            "x": -10,
+            "z": -4,
+            "angle": 1.1
+        },
+        {
+            "prefab": "rock.1",
+            "x": 9,
+            "z": 8,
+            "angle": 0.5,
+            "scale": 0.9
+        },
+        {
+            "run": "fence",
+            "points": [
+                [
+                    -6,
+                    8
+                ],
+                [
+                    -2,
+                    11
+                ],
+                [
+                    3,
+                    11
+                ]
+            ]
+        }
+    ]
+}

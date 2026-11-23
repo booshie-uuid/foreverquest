@@ -47,14 +47,14 @@ describe("Prototype reference", () =>
     });
 
     // The zone file stores scales to six places, so a scaled radius can
-    // differ from the reference in its sixth place.
-    it("bakes Hearthmere with the same tiles, colliders and light spots", () =>
+    // differ from the reference in its sixth place. The ground moved to whole
+    // cubes, so light spots keep only their places on the ground.
+    it("bakes Hearthmere with the same colliders and light spots", () =>
     {
         const actual = Capture.zoneRecord(hearthmere);
         const expected = REFERENCE.zone;
         const near = (a, b, label) => assert.ok(Math.abs(a - b) <= 1e-5, label + ": " + a + " is not " + b);
 
-        assert.deepEqual([actual.size, actual.levels, actual.types], [expected.size, expected.levels, expected.types]);
         assert.equal(actual.colliders.length, expected.colliders.length);
         assert.equal(actual.lightSpots.length, expected.lightSpots.length);
 
@@ -65,6 +65,6 @@ describe("Prototype reference", () =>
             for(const [key, value] of Object.entries(collider)) { near(actual.colliders[i][key], value, "collider " + i + " " + key); }
         });
 
-        expected.lightSpots.forEach((spot, i) => spot.forEach((value, axis) => near(actual.lightSpots[i][axis], value, "light " + i)));
+        expected.lightSpots.forEach((spot, i) => [0, 2].forEach((axis) => near(actual.lightSpots[i][axis], spot[axis], "light " + i)));
     });
 });

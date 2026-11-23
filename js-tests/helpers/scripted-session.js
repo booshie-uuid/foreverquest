@@ -19,6 +19,7 @@ const { Appearance } = await import("../../js/character/appearance.js");
 const { Library } = await import("../../js/kit/library.js");
 const { Simulation } = await import("../../js/sim/simulation.js");
 const { ZoneData } = await import("../../js/sim/zone-data.js");
+const { BlockSet } = await import("../../js/sim/block-set.js");
 
 const ASSETS = path.resolve(import.meta.dirname, "..", "..", "assets");
 const source = await AssetSource.open((file) => fs.promises.readFile(path.join(ASSETS, file)));
@@ -30,7 +31,7 @@ const round = (value) => Math.round(value * 1e6) / 1e6;
 
 sim.onEvent((event) => events.push({ tick: sim.ticks, type: event.type, id: event.id ?? null, line: event.line ?? null }));
 sim.setPlayer(new Appearance(library, { name: "Tester" }));
-sim.enter(new ZoneData(await source.json("zones/hearthmere.json"), prefabs));
+sim.enter(await ZoneData.load(source, "hearthmere", prefabs, await BlockSet.load(source)));
 
 const run = (ticks) =>
 {

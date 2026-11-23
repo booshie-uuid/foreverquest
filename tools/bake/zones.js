@@ -1,6 +1,7 @@
 import * as Archetypes from "../../content/archetypes.js";
 import * as Prefabs from "../../content/props/prefabs.js";
 import * as PropBaker from "./props.js";
+import * as Terrain from "./terrain.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as url from "node:url";
@@ -20,15 +21,22 @@ export async function bake(problems, context)
     const files = [{ path: "npcs.json", bytes: Buffer.from(JSON.stringify(people, null, 4) + "\n") }];
     const ids = [];
 
-    for(const file of fs.readdirSync(path.join(CONTENT, "zones")).filter((name) => name.endsWith(".json")).sort())
+    for(const id of fs.readdirSync(path.join(CONTENT, "zones")).filter((name) => fs.existsSync(path.join(CONTENT, "zones", name, "zone.json"))).sort())
     {
-        const zone = JSON.parse(fs.readFileSync(path.join(CONTENT, "zones", file), "utf8"));
-        const baked = bakeZone(zone, people, context, "Zone zones/" + file, problems);
+        const folder = path.join(CONTENT, "zones", id);
+        const zone = JSON.parse(fs.readFileSync(path.join(folder, "zone.json"), "utf8"));
+        const where = "Zone zones/" + id;
+
+        if(zone.id !== id) { problems.push(where + " has the id " + zone.id + ", not its folder's name"); continue; }
+
+        const baked = await bakeZone(zone, folder, people, context, where, problems);
 
         if(!baked) { continue; }
 
         ids.push(zone.id);
-        files.push({ path: "zones/" + zone.id + ".json", bytes: Buffer.from(JSON.stringify(baked) + "\n") });
+        files.push({ path: "zones/" + zone.id + "/index.json", bytes: Buffer.from(JSON.stringify(baked.index) + "\n") });
+
+        for(const region of baked.regions) { files.push({ path: "zones/" + zone.id + "/" + region.name + ".bin", bytes: region.bytes }); }
     }
 
     files.push({ path: "zones/index.json", bytes: Buffer.from(JSON.stringify(ids, null, 4) + "\n") });
@@ -56,25 +64,32 @@ async function loadPeople()
 /* ZONES                                                                      */
 /******************************************************************************/
 
-export function bakeZone(zone, people, context, where, problems)
+export async function bakeZone(zone, folder, people, context, where, problems)
 {
     const before = problems.length;
-    const size = zone.size;
 
     if(!ID_PATTERN.test(zone.id ?? "")) { problems.push(where + " has an invalid id: " + zone.id); }
-    if(!(Number.isInteger(size) && size > 0 && size % 16 === 0)) { problems.push(where + " needs a size that is a whole multiple of 16 tiles"); return null; }
 
-    checkTiles(zone, context, where, problems);
+    checkShape(zone, where, problems);
+
+    if(problems.length > before) { return null; }
+
+    const ground = groundOf(zone, context, where, problems);
+
     checkLighting(zone.lighting, where, problems);
     checkPeople(zone, people, where, problems);
 
-    const half = size / 2;
+    const half = zone.columns / Terrain.CUBES_PER_METRE / 2;
 
     if(!(Math.abs(zone.spawn?.x) < half && Math.abs(zone.spawn?.z) < half)) { problems.push(where + " needs a spawn point inside the zone"); }
     if(zone.welcome !== undefined && !(Array.isArray(zone.welcome) && zone.welcome.every((line) => typeof line === "string"))) { problems.push(where + " needs its welcome to be a list of lines"); }
     if(problems.length > before) { return null; }
 
-    const heightAt = heightsOf(zone);
+    const terrain = await Terrain.readColumns(folder, zone, where, problems);
+
+    if(problems.length > before) { return null; }
+
+    const heightAt = Terrain.heightsOf(zone, terrain.surfaces);
     const runs = [];
     const props = [];
 
@@ -100,27 +115,43 @@ export function bakeZone(zone, people, context, where, problems)
 
     if(problems.length > before) { return null; }
 
-    return { ...zone, props, runs };
+    const numbers = Object.fromEntries(context.blocks.map((block, i) => [block.id, i + 1]));
+    const regions = Terrain.bakeRegions(zone, terrain, ground, numbers);
+    const { id, name, welcome, columns, height, base, water, lighting, spawn } = zone;
+    const index = { id, name, welcome, columns, height, base, water, lighting, spawn, people: zone.people, props, runs, regions: regions.map((region) => region.name) };
+
+    return { index, regions };
 }
 
-function checkTiles(zone, context, where, problems)
+function checkShape(zone, where, problems)
 {
-    const isRows = (rows) => Array.isArray(rows) && rows.length === zone.size;
+    const { columns, height, base, water } = zone;
+    const isWhole = (value, low, high) => Number.isInteger(value) && value >= low && value <= high;
 
-    if(!isRows(zone.levels) || !zone.levels.every((row) => row.split(",").length === zone.size && row.split(",").every((value) => Number.isInteger(Number(value)))))
-    {
-        problems.push(where + " needs " + zone.size + " rows of " + zone.size + " whole-number levels");
-    }
+    if(!(isWhole(columns, 32, 65535) && columns % 32 === 0)) { problems.push(where + " needs a whole multiple of 32 columns"); }
+    if(!(isWhole(height, 32, 256) && height % 32 === 0)) { problems.push(where + " needs a height of 32 to 256 cells, a whole multiple of 32"); }
+    if(!isWhole(base, 0, height - 1)) { problems.push(where + " needs a base cell inside its height"); }
+    if(!isWhole(water, 0, height)) { problems.push(where + " needs a water cell inside its height"); }
+}
 
-    if(!isRows(zone.types) || !zone.types.every((row) => row.length === zone.size && [...row].every((code) => zone.typeCodes?.[code])))
-    {
-        problems.push(where + " needs " + zone.size + " rows of " + zone.size + " tile type codes from its typeCodes");
-    }
+function groundOf(zone, context, where, problems)
+{
+    const solid = new Set(context.blocks.filter((block) => block.kind === "solid").map((block) => block.id));
+    const numbers = Object.fromEntries(context.blocks.map((block, i) => [block.id, i + 1]));
 
-    for(const type of Object.values(zone.typeCodes ?? {}))
+    if(!(Array.isArray(zone.ground) && zone.ground.length > 0)) { problems.push(where + " needs a list of ground layers"); return []; }
+
+    for(const block of ["rock", "water"]) { if(!numbers[block]) { problems.push(where + " needs the " + block + " block"); } }
+
+    return zone.ground.map((layers, i) =>
     {
-        if(!context.worldTextures.includes(type)) { problems.push(where + " has a tile type with no world texture: " + type); }
-    }
+        for(const block of [layers.top, layers.under])
+        {
+            if(!solid.has(block)) { problems.push(where + " ground " + i + " needs a solid block, not " + block); }
+        }
+
+        return { top: numbers[layers.top], under: numbers[layers.under] };
+    });
 }
 
 function checkLighting(lighting, where, problems)
@@ -147,18 +178,4 @@ function checkPeople(zone, people, where, problems)
     {
         if(!Archetypes.ARCHETYPES.some((entry) => entry.id === archetype)) { problems.push(where + " gives its crowd an unknown archetype: " + archetype); }
     }
-}
-
-export function heightsOf(zone)
-{
-    const half = zone.size / 2;
-    const levels = zone.levels.map((row) => row.split(",").map(Number));
-
-    return (x, z) =>
-    {
-        const column = Math.max(0, Math.min(zone.size - 1, Math.floor(x + half)));
-        const row = Math.max(0, Math.min(zone.size - 1, Math.floor(z + half)));
-
-        return levels[row][column] * zone.step;
-    };
 }

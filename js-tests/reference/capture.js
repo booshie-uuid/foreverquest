@@ -183,9 +183,6 @@ export function worldTexturesRecord(atlas)
 export function zoneRecord(zone)
 {
     return {
-        size: zone.size,
-        levels: hash(zone.levels),
-        types: hash(new TextEncoder().encode(zone.types.join(","))),
         colliders: zone.colliders.map((collider) => Object.fromEntries(Object.entries(collider).map(([key, value]) => [key, round(value)]))),
         lightSpots: zone.lightSpots.map(round),
     };

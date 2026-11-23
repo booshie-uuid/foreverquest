@@ -106,9 +106,14 @@
         "props/prefabs.json": "1dfa56c8e1c6b15d5a297d29f01df6ba989df7e944d71b0a678288f4e9cedd5c",
         "textures/world.json": "25fe9c4b074461959974c5b7cb8cc8de4a33d98e9a48d60c1462b10c04130870",
         "textures/world.png": "fa9cbba5ff8e1147be73284e64c82cde3d7a52105ccf015c50b55bd349274651",
-        "zones/hearthmere.json": "498088273d973a25575caf88a993b0a4153886dc7b2b671c91f58e3697fc77e2",
+        "zones/hearthmere/0-0.bin": "2dcee1e8d39603d6dc5801a982ffa52be6269741609c931be4c642b0fbccc998",
+        "zones/hearthmere/0-1.bin": "9e1fe5e66e2063492aa45c7823a0b8dbdfd8f7ba3fd3e9ec494611fb449fe083",
+        "zones/hearthmere/1-0.bin": "77aa48177dde9b37547fe4bf0a20ea8def1fad312c870f9666d6c9f165468394",
+        "zones/hearthmere/1-1.bin": "c769761ee28ff5fcf012d9b405faa71acba45713d96a09c862867ee3022723dc",
+        "zones/hearthmere/index.json": "411372c92914dcb6262a123c7c154dc1c878b72d5dbe6e81116dc074e21256ec",
         "zones/index.json": "5038e8ebfc486011d34ea5033b4bc4c7a43f2822be572abeab4377303730800a",
-        "zones/testfield.json": "96b93c49e9f22bd30d7040153aa4b493487d30d4c57f40c7c183369b7b16f43d"
+        "zones/testfield/0-0.bin": "b7859bfe83929dac235001d1ea98c9f07e3f9979e981fa4f014de34b5ea05527",
+        "zones/testfield/index.json": "ac197596713886e48f269524dff15763970787ad885f54c568a1cf91454411e4"
     },
     "ids": {
         "action": [

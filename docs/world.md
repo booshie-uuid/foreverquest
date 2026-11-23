@@ -1,32 +1,48 @@
 # World
 
-A zone is content: a zone file in [content/zones/](../content/zones/) that lists its tiles, its lighting, its people and the props placed on it. The props are prefabs, built from blocks by the functions in [content/art/props.js](../content/art/props.js) and listed in [content/props/prefabs.js](../content/props/prefabs.js). The bake checks every zone and prefab and writes them to `assets/`. The game loads a zone's baked file, holds its data in [ZoneData](../js/sim/zone-data.js), and draws it with [ZoneView](../js/render/zone-view.js).
+A zone is content: a folder in [content/zones/](../content/zones/) that holds a zone file and the zone's terrain images. The zone file lists the zone's ground, its lighting, its people and the props placed on it. The props are prefabs, built from blocks by the functions in [content/art/props.js](../content/art/props.js) and listed in [content/props/prefabs.js](../content/props/prefabs.js). The bake checks every zone and prefab, builds each zone's cubes, and writes them to `assets/`. The game loads a zone's baked files, holds its data in [ZoneData](../js/sim/zone-data.js), and draws it with [ZoneView](../js/render/zone-view.js).
 
-Two zones exist: Hearthmere, the village, and the Test Field, a small zone that the tests travel to. Hearthmere was exported once from the prototype's generator, so its tiles and colliders match the prototype's.
+Two zones exist: Hearthmere, the village, and the Test Field, a small zone that the tests travel to. Hearthmere was exported once from the prototype's generator and then converted from one-metre tiles to cubes, so its colliders match the prototype's.
 
-## Zone Files
+## Cubes and Cells
 
-A zone file is JSON. It writes each tile row and each prop on one line, so a diff shows what changed.
+The world is built from cubes 1/3 metre on a side, the size of a character's head. A cell is one cube's place in the zone, counted in whole numbers: x and z from the zone's -x and -z edges, and y up from the bottom of the zone. Metres appear only where the game needs them, so cell positions never gather rounding error.
+
+| Unit | Size |
+|---|---|
+| Cell | 1/3 metre; three cells make a metre |
+| Chunk | 32 by 32 by 32 cells, 10 2/3 metres a side; the unit of storage and drawing |
+| Region | 256 by 256 columns of cells, 85 1/3 metres a side; the unit of a terrain image and a baked file |
+
+Each cell holds one block type, or air. [Adding a Block Type](assets.md#adding-a-block-type) describes block types.
+
+## Zone Folders
+
+A zone folder holds `zone.json` and a `terrain` folder with one image per region, named `<x>-<z>.png` from region `0-0` at the -x, -z corner. A region at the +x or +z edge is as wide or deep as the columns left. The zone file is JSON, with each prop on one line, so a diff shows what changed.
 
 | Field | Holds |
 |---|---|
-| `id`, `name` | The zone's id, and the name the game shows |
+| `id`, `name` | The zone's id, which matches its folder, and the name the game shows |
 | `welcome` | Optional lines the chat shows when the player arrives |
-| `size` | The width and depth in one-metre tiles, a whole multiple of 16 |
-| `step`, `waterLevel` | The height of one level in metres, and the height below which a tile is under water |
-| `typeCodes` | One letter for each tile type, which names a world texture, such as `"g": "grass"` |
-| `levels` | One row of comma-separated whole-number levels per row of tiles, from -z to +z |
-| `types` | One row of type letters per row of tiles |
+| `columns` | The width and depth in cells, a whole multiple of 32 |
+| `height` | The height in cells, a whole multiple of 32 up to 256 |
+| `base` | The cell whose bottom is at height 0 in metres |
+| `water` | The cell below which every empty cell of a column fills with water |
+| `ground` | The ground layers `{ top, under }`, two solid block types each, that the terrain images refer to by index |
 | `lighting` | The sky, fog, hemisphere, moon and lamp colours and strengths |
-| `spawn` | Where the player arrives, and the heading they face |
+| `spawn` | Where the player arrives, in metres, and the heading they face |
 | `people` | The residents and the crowd; see [People](#people) |
-| `props` | Prefab placements `{ prefab, x, z, angle, scale }` and runs `{ run, points }` |
+| `props` | Prefab placements `{ prefab, x, z, angle, scale }` and runs `{ run, points }`, in metres |
 
-A placement stands its prefab on the tile under it, turned by `angle` radians about y and scaled by `scale`, which defaults to 1. The bake fails on a row of the wrong length, an unknown type letter or prefab, a type with no world texture, a prop or spawn outside the zone, and an unknown resident or archetype.
+A terrain image gives each column two values. Red is the column's surface, the cell above its top solid cell. Green is the index of its ground layer. The bake fills each column from the bottom: rock, then three cells of the ground's `under` block, then its `top` block, then water up to the `water` cell. On high ground, 12 cells or more above the base, and on the face of a drop of more than four cells, the three cells under the top are rock.
 
-## Tiles
+A placement stands its prefab on the surface under it, turned by `angle` radians about y and scaled by `scale`, which defaults to 1. The bake fails on a missing or wrongly sized terrain image, a column taller than the zone or with an unknown ground index, a ground block that is not solid, an unknown prefab, a prop or spawn outside the zone, and an unknown resident or archetype.
 
-Each tile is flat, so `heightAt(x, z)` returns the height of the tile under a point. Where a tile stands above a neighbour, the terrain adds a side face down to the neighbour's height: earth for a drop of up to 1.5 metres, and dark stone for a taller drop or for a tile 4 metres high or more. Each tile's top takes the texture of its type.
+## Baked Zones
+
+The bake writes `zones/<id>/index.json` and one file per region, `zones/<id>/<x>-<z>.bin`. A region file is compressed with deflate. It holds the surface of each column and the region's chunks. A chunk of one block type, such as buried rock, is stored as that one block; a chunk of air is left out. [region-codec.js](../js/sim/region-codec.js) writes and reads the format.
+
+`ZoneData.blockAt(x, y, z)` returns the block number in a cell, and `surface(column, row)` a column's surface. In metres, `heightAt(x, z)` returns the height of the surface under a point, `typeAt(x, z)` the block type on top, and `isWater(x, z)` whether water lies on it.
 
 ## Prefabs and Runs
 
@@ -39,17 +55,17 @@ A prefab is a prop built at the origin, facing +z, at a scale of 1. The bake run
 
 `Props.block(builder, size, at, faces, rotation)` records one block in metres. `faces` is a texture name for every face, or a map from face names to texture names with `all` as the fallback. Inside a prop, the `put` function that `placed()` returns adds blocks in the prop's own frame.
 
-A run lays a prop along a line of points and follows the ground, such as a fence. The bake builds each run in the zone's own coordinates, with its posts at the height of the tiles under them, and stores the blocks and colliders with the zone.
+A run lays a prop along a line of points and follows the ground, such as a fence. The bake builds each run in the zone's own coordinates, with its posts at the height of the surface under them, and stores the blocks and colliders with the zone.
 
 ## Collision and Movement
 
-`ZoneData.resolveStep(from, to, radius)` pushes a moving circle out of every nearby circle and box collider, twice over, then checks the tile it lands on. The step is refused when that tile is under water, within 2 metres of the zone's edge, or more than half a metre above the tile the entity stands on. An entity eases its height towards the tile under it, so a quarter-metre step reads as a short climb.
+`ZoneData.resolveStep(from, to, radius)` pushes a moving circle out of every nearby circle and box collider, twice over, then checks the column it lands on. The step is refused when that column is under water, within 2 metres of the zone's edge, or more than half a metre above the column the entity stands on, so an entity steps up one cube and not two. An entity eases its height towards the surface under it, so a step reads as a short climb.
 
 The zone keeps its colliders in a grid of 4-metre cells. A step tests only the colliders in the cells near it, in the zone's order, so it resolves exactly as a test of every collider would. `ZoneData` uses no Three.js and no page, so the simulation can run without a renderer.
 
 ## Drawing a Zone
 
-`ZoneView` builds the terrain and the props in chunks of 16 by 16 tiles, one mesh per chunk for each, so Three.js leaves out the chunks outside the camera. Every terrain tile and prop shares one material, which reads its textures from the world texture array. `dispose()` frees every mesh and the shadow map the view made, and leaves the shared materials alone.
+`ZoneView` builds one terrain mesh per chunk, with [CubeMesher](../js/render/cube-mesher.js), and the props in squares of 16 metres, so Three.js leaves out the meshes outside the camera. The mesher draws a cube face only where the cell beside it is not opaque, and lays each texture across the faces in world cells, so a texture continues from one cube to the next. Water is one plane at the water line. Every terrain cube and prop shares one material, which reads its textures from the world texture array. `dispose()` frees every mesh and the shadow map the view made, and leaves the shared materials alone.
 
 | Light | Purpose |
 |---|---|
@@ -81,7 +97,7 @@ A villager file exports `NPCS`, each with a `name`, the `lines` they say, an opt
 
 1. To add a prop, write a function in [content/art/props.js](../content/art/props.js) that builds with `placed()` and returns its collider, and list it in `PREFABS` in [content/props/prefabs.js](../content/props/prefabs.js). Check it in the workbench's prop viewer.
 2. To place props, add placements to a zone file's `props`.
-3. To add a world texture, follow [Adding a World Texture](assets.md#adding-a-world-texture). To use it as a tile type, give it a letter in the zone's `typeCodes`.
-4. To add a zone, write a zone file in [content/zones/](../content/zones/).
+3. To add a world texture, follow [Adding a World Texture](assets.md#adding-a-world-texture). To use it as ground, give it a block type and add a ground layer to the zone's `ground`.
+4. To add a zone, make a folder in [content/zones/](../content/zones/) with a zone file and its terrain images.
 
 Run `npm run bake`, then `npm run bake -- --accept` once the change looks right, then `npm test` and `node js-tests/browser/run.js --covers zones`.

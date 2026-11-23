@@ -1,10 +1,10 @@
+import * as CubeMesher from "./cube-mesher.js";
 import * as PropMesher from "./prop-mesher.js";
 import * as THREE from "three";
-import * as TerrainMesher from "./terrain-mesher.js";
 import { BlockBuilder } from "../geometry/block-builder.js";
 import { Water } from "./water.js";
 
-const CHUNK = 16;
+const PROP_CHUNK = 16;
 const LIGHT_BUDGET = 6;
 const SHADOW_RANGE = 26;
 const WATER_CELLS = 48;
@@ -52,18 +52,21 @@ export class ZoneView
     addTerrain()
     {
         const atlas = this.materials.atlas;
+        const table = CubeMesher.faceTable(this.zone.blocks, atlas);
+        const wide = this.zone.chunksWide;
 
-        for(let row = 0; row < this.zone.size; row += CHUNK)
+        for(const key of this.zone.chunks.keys())
         {
-            for(let column = 0; column < this.zone.size; column += CHUNK)
-            {
-                const mesh = new THREE.Mesh(TerrainMesher.buildChunk(this.zone, atlas, column, row, CHUNK), this.materials.world);
+            const geometry = CubeMesher.buildChunk(this.zone, table, atlas, key % wide, Math.floor(key / (wide * wide)), Math.floor(key / wide) % wide);
 
-                mesh.name = "terrain";
-                mesh.receiveShadow = true;
-                this.terrainMeshes.push(mesh);
-                this.scene.add(mesh);
-            }
+            if(!geometry) { continue; }
+
+            const mesh = new THREE.Mesh(geometry, this.materials.world);
+
+            mesh.name = "terrain";
+            mesh.receiveShadow = true;
+            this.terrainMeshes.push(mesh);
+            this.scene.add(mesh);
         }
     }
 
@@ -75,7 +78,7 @@ export class ZoneView
         const chunks = new Map();
         const chunkAt = (x, z) =>
         {
-            const key = Math.floor((x + this.zone.half) / CHUNK) + "," + Math.floor((z + this.zone.half) / CHUNK);
+            const key = Math.floor((x + this.zone.half) / PROP_CHUNK) + "," + Math.floor((z + this.zone.half) / PROP_CHUNK);
 
             if(!chunks.has(key)) { chunks.set(key, new BlockBuilder()); }
 

@@ -59,4 +59,9 @@ export class AssetSource
     {
         return Png.decode(await this.bytes(path));
     }
+
+    async inflated(path)
+    {
+        return Png.inflate([await this.bytes(path)]);
+    }
 }
