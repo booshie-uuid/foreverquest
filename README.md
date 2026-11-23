@@ -31,6 +31,8 @@ After a change to the Three.js version in `package.json`, run `npm install` and 
 | World | Appearance button | Opens the creator |
 | Both | Retro | Renders 640 pixels wide and scales the picture up with hard pixel edges |
 
+Two address options help testing: `?zone=testfield` or `?zone=expanse` starts in another zone, and `?stats` shows the frame rate, the triangles and draw calls of the last frame, and the regions loaded.
+
 Mirelle, the tailor in the village square, also opens the creator. The creator saves the character to the browser's `localStorage` when the player enters the world or saves changes.
 
 ## Character Customisation

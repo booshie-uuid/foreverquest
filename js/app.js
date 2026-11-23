@@ -9,15 +9,18 @@ import { Library } from "./kit/library.js";
 import { MaterialLibrary } from "./engine/materials.js";
 import { RegionStreamer } from "./engine/region-streamer.js";
 import { Renderer } from "./engine/renderer.js";
+import { StatsOverlay } from "./ui/stats-overlay.js";
 import { WorldAtlas } from "./engine/world-atlas.js";
 
 export class App
 {
-    constructor(container, storage, assets, { zone = "hearthmere" } = {})
+    constructor(container, storage, assets, { zone = "hearthmere", showStats = false } = {})
     {
         this.container = container;
         this.assets = assets;
         this.startZone = zone;
+        this.showStats = showStats;
+        this.stats = null;
         this.content = null;
         this.streamer = null;
         this.store = new CharacterStore(storage);
@@ -62,6 +65,9 @@ export class App
 
         this.showCreator("create");
         this.renderer.start();
+
+        if(this.showStats) { this.stats = new StatsOverlay(this.container, this); }
+
         this.isReady = true;
     }
 

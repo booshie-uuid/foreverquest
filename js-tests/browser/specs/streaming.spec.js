@@ -80,6 +80,8 @@ export const tests =
                 assert.ok(sample.calls <= MAX_DRAW_CALLS, label + ": " + sample.calls + " draw calls");
             }
 
+            await page.goto(baseUrl + "/index.html?zone=testfield&stats");
+            await page.waitFor(() => /\d+ fps · \d+k triangles · \d+ draws/.test(document.querySelector(".frame-stats")?.textContent ?? ""), { timeout: 20000 });
             Log.info("Streaming budgets: " + JSON.stringify({ spawn: { triangles: start.triangles, calls: start.calls, meshes: start.meshes }, far: { triangles: far.triangles, calls: far.calls, meshes: far.meshes } }));
         },
     },
