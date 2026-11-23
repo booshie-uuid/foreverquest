@@ -4,6 +4,8 @@ const MIN_DISTANCE = 2.5;
 const MAX_DISTANCE = 22;
 const MIN_PITCH = 0.08;
 const MAX_PITCH = 1.35;
+const CLEARANCE = 0.6;
+const LIFT_RATE = 5;
 
 export class CameraRig
 {
@@ -15,6 +17,7 @@ export class CameraRig
         this.distance = 9;
         this.focus = new THREE.Vector3();
         this.hasFocus = false;
+        this.lift = 0;
     }
 
     orbit(deltaYaw, deltaPitch)
@@ -53,11 +56,16 @@ export class CameraRig
             this.focus.y + Math.sin(this.pitch) * this.distance,
             this.focus.z + Math.cos(this.yaw) * horizontal,
         );
-        const ground = heightAt(position.x, position.z) + 0.6;
+        const needed = Math.max(0, heightAt(position.x, position.z) + CLEARANCE - position.y);
 
-        if(position.y < ground) { position.y = ground; }
+        this.lift += (needed - this.lift) * Math.min(1, delta * LIFT_RATE);
+        position.y += this.lift;
 
         this.camera.position.copy(position);
         this.camera.lookAt(this.focus);
+
+        // The HUD projects nameplates through the camera before the frame
+        // renders, which is when Three.js would update these matrices.
+        this.camera.updateMatrixWorld();
     }
 }
