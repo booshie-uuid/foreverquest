@@ -1,4 +1,5 @@
 import * as Capture from "../reference/capture.js";
+import * as Departures from "../reference/departures.js";
 import * as TestAssets from "../helpers/assets.js";
 import * as assert from "node:assert/strict";
 import * as fs from "node:fs";
@@ -30,7 +31,7 @@ describe("Prototype reference", () =>
             }
 
             assert.deepEqual(current.bodyBlocks, record.bodyBlocks, label);
-            assert.deepEqual(current.partBlocks, Capture.sorted(record.partBlocks), label);
+            assert.deepEqual(current.partBlocks, Capture.sorted(Departures.departed(library, look, record.partBlocks)), label);
             assert.deepEqual([current.scale, current.triangles], [record.scale, record.triangles], label);
             near(current.height, record.height, label + " height");
         }
@@ -42,6 +43,6 @@ describe("Prototype reference", () =>
 
         assert.deepEqual(Object.keys(sweep).sort(), Object.keys(REFERENCE.parts).sort());
 
-        for(const [label, blocks] of Object.entries(REFERENCE.parts)) { assert.deepEqual(sweep[label], Capture.sorted(blocks), label); }
+        for(const [label, blocks] of Object.entries(REFERENCE.parts)) { assert.deepEqual(sweep[label], Capture.sorted(Departures.departedCase(library, label, blocks)), label); }
     });
 });

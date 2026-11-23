@@ -345,6 +345,30 @@ describe("Zone view", () =>
         assert.equal(materials.fog.heightFog.value.z, 0, "A zone without height fog kept the last zone's");
     });
 
+    it("shines the moon, and by day the sun, from where its disc stands in the sky", () =>
+    {
+        const view = new ZoneView(testfield, materials);
+        const camera = { position: view.sky.position.clone() };
+        const along = () =>
+        {
+            const light = view.moon.position.clone().sub(view.moon.target.position).normalize();
+            const disc = view.moonDisc.position.clone().normalize();
+
+            return light.dot(disc);
+        };
+
+        view.update(0.016, camera, { x: 3, y: 1, z: -2 });
+
+        const night = along();
+
+        view.setDaylight(true);
+        view.update(0.016, camera, { x: 3, y: 1, z: -2 });
+
+        assert.ok(night > 0.9999, "The moonlight does not come from the moon");
+        assert.ok(along() > 0.9999, "The sunlight does not come from the sun");
+        view.dispose();
+    });
+
     it("frees its geometry when disposed, and leaves the shared materials alone", () =>
     {
         const view = new ZoneView(testfield, materials);

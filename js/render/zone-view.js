@@ -14,6 +14,7 @@ const SKY_RADIUS = 300;
 const OBJECT_DROP = 8;
 const MOON_AT = [-120, 150, -180];
 const SUN_AT = [90, 220, -120];
+const LIGHT_DISTANCE = 46;
 
 // Daylight for every zone until a zone gives its own.
 const DAY =
@@ -581,7 +582,10 @@ export class ZoneView
         this.lightObjects();
         this.water.update(delta);
         this.sky.position.copy(camera.position);
-        this.moon.position.set(focus.x + (this.isDay ? 18 : -20), focus.y + 40, focus.z + (this.isDay ? -10 : 14));
+        const disc = this.isDay ? SUN_AT : MOON_AT;
+        const toLight = LIGHT_DISTANCE / Math.hypot(...disc);
+
+        this.moon.position.set(focus.x + disc[0] * toLight, focus.y + disc[1] * toLight, focus.z + disc[2] * toLight);
         this.moon.target.position.copy(focus);
     }
 

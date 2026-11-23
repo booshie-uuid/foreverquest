@@ -137,7 +137,7 @@ A block is a plain object:
 
 A face that a painter leaves transparent stays see-through, because the character material discards texels with alpha below 0.5. The hood and the mail coif use this for their face openings, and the cloak for its ragged hem.
 
-Weapons such as swords hang from the `grip.R` socket, which points them forwards with the tip low. Poles such as staffs, spears and pitchforks hang from `hand.R` and stand upright.
+Weapons such as swords hang from the `grip.R` socket, which points them forwards with the tip low. Poles such as staffs, spears and pitchforks hang from `pole.R` and stand upright. The socket is at the front face of the hand, so a pole runs down the front of the arm instead of through it.
 
 ## Texture Sheet and Painters
 
@@ -157,7 +157,7 @@ The humanoid rig names the places where parts attach and paint:
 
 | Field | Holds |
 |---|---|
-| `sockets` | Points on a bone, such as `hand.R`, with an optional rotation. `grip.R` is the hand turned so that a held weapon points forwards with its tip low. Every bone is also a socket at its pivot |
+| `sockets` | Points on a bone, such as `hand.R`, with an optional rotation. `grip.R` is the hand turned so that a held weapon points forwards with its tip low, and `pole.R` the front face of the hand, where a pole rests. Every bone is also a socket at its pivot |
 | `regions` | Areas of bone faces, such as `face`, `scalp`, `torso`, `sleeves` and `hands`, each a list of bones with optional faces and rows |
 | `slots` | The slots the rig offers, in the order their parts paint. `feature` holds the parts the body lists |
 | `gear` | The equipment slots, with the names the creator shows |

@@ -395,9 +395,9 @@ function wornLayer(context, block, index, age, layer)
 }
 
 // Two overlays, each as layer * 4 + level, or 0 for none: moss in the high 16
-// bits, and grime or a crack in the low 16. Moss grows on a top face open to
-// the sky, hangs from the top of a side face under open sky, and climbs a side
-// face from the floor in front of it. Grime streaks down a side face below an
+// bits, and grime or a crack in the low 16. Moss grows only under open sky: on
+// a top face, hanging from the top of a side face, and climbing a side face
+// from the floor in front of it. Grime streaks down a side face below an
 // overhang, up to three cells down.
 function weatherOf(context, block, index, front, direction, age)
 {
@@ -415,7 +415,7 @@ function weatherOf(context, block, index, front, direction, age)
 
         if(!isSide && direction.sign > 0 && isOpenSky) { moss = overlays.mossTop * 4 + levelOf(growth); }
         else if(isSide && isOpenSky && opaque[cells[index + UP]] === 0) { moss = overlays.mossEdge * 4 + levelOf(growth * 0.9); }
-        else if(isSide && opaque[cells[front - UP]] === 1) { moss = overlays.mossFoot * 4 + levelOf(growth * 0.8); }
+        else if(isSide && isOpenSky && opaque[cells[front - UP]] === 1) { moss = overlays.mossFoot * 4 + levelOf(growth * 0.8); }
     }
 
     if(isSide && bits & WEATHERS.grime)

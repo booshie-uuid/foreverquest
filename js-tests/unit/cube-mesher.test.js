@@ -156,7 +156,7 @@ describe("Cube mesher", () =>
         assert.ok(floor.some(([, , , lamp]) => lamp === 11), "No floor face takes the lamp's light");
     });
 
-    it("weathers nothing at age 0, and at age 100 grows moss on open tops, streaks grime under an overhang and wears some faces", () =>
+    it("weathers nothing at age 0, and at age 100 grows moss on open tops but not under cover, streaks grime under an overhang and wears some faces", () =>
     {
         const build = (set) =>
         {
@@ -182,6 +182,7 @@ describe("Cube mesher", () =>
         assert.ok(!young.layers.includes(WORN));
         assert.ok(codes(old, 0, isTop).filter((layer) => layer === OVERLAYS.mossTop).length > 20, "No moss on the open floor");
         assert.ok(codes(old, 1, isUnderOverhang).includes(OVERLAYS.grime), "No grime under the overhang");
+        assert.deepEqual(codes(old, 0, isUnderOverhang).filter((layer) => layer > 0), [], "Moss grows under cover");
         assert.ok(old.layers.includes(WORN), "No face wore");
     });
 

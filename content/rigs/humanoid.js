@@ -25,6 +25,8 @@ export const RIG =
         { name: "hand.R", bone: "armR", at: [0, "4 - arm.h", 0] },
         { name: "grip.L", bone: "armL", at: [0, "4 - arm.h", 0], rotation: [GRIP, 0, 0] },
         { name: "grip.R", bone: "armR", at: [0, "4 - arm.h", 0], rotation: [GRIP, 0, 0] },
+        { name: "pole.L", bone: "armL", at: [0, "4 - arm.h", "arm.d/2 + 1.4"] },
+        { name: "pole.R", bone: "armR", at: [0, "4 - arm.h", "arm.d/2 + 1.4"] },
     ],
     regions:
     {

@@ -1,5 +1,6 @@
 import * as Capture from "../reference/capture.js";
 import * as Compositor from "../../js/kit/compositor.js";
+import * as Departures from "../reference/departures.js";
 import * as Dresser from "../../js/kit/dresser.js";
 import * as Fitter from "../../js/kit/fitter.js";
 import * as TestAssets from "../helpers/assets.js";
@@ -177,7 +178,7 @@ describe("Dresser", () =>
                     const fitted = Fitter.fit(library.rig(body.rig), appearance.body, { variant: variant.id });
                     const blocks = Dresser.dress(fitted, appearance, library).blocks;
 
-                    assert.deepEqual(sorted(blocks), [...REFERENCE.parts[key]].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))), key);
+                    assert.deepEqual(sorted(blocks), [...Departures.departedCase(library, key, REFERENCE.parts[key])].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))), key);
                     checked++;
                 }
             }

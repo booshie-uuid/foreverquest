@@ -10,7 +10,7 @@ export const PART =
     stance: "pole",
     blocks:
     [
-        { at: "hand.R", size: [2, 80, 2], centre: [0, 18, 0], faces: { all: [{ stamp: "planks", tint: "trim" }] } },
-        { at: "hand.R", size: [1.4, 9, 3], centre: [0, 62, 0], faces: { all: [{ stamp: "plate", tint: "primary" }] } },
+        { at: "pole.R", size: [2, 80, 2], centre: [0, 18, 0], faces: { all: [{ stamp: "planks", tint: "trim" }] } },
+        { at: "pole.R", size: [1.4, 9, 3], centre: [0, 62, 0], faces: { all: [{ stamp: "plate", tint: "primary" }] } },
     ],
 };
