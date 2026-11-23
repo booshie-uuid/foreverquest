@@ -353,13 +353,14 @@ button
 .frame-stats
 {
     position: absolute;
-    bottom: 8px;
+    top: 16px;
     left: 50%;
     transform: translateX(-50%);
-    padding: 2px 10px;
-    color: var(--ink);
-    background: rgb(0 0 0 / 0.6);
-    font: 12px monospace;
+    padding: 6px 14px;
+    color: var(--accent);
+    background: rgb(0 0 0 / 0.75);
+    border: 1px solid var(--accent);
+    font: 16px monospace;
     pointer-events: none;
     z-index: 10;
 }
