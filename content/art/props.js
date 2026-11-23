@@ -173,14 +173,13 @@ export function chapel(builder, x, y, z, angle)
     stepRoof(put, 7.0, 9.8, 5.1, "slate", "darkStone", 0.26);
     put([2.4, 4.2, 2.4], [0, 7.4, 4.0], "darkStone");
     put([0.6, 0.9, 0.06], [0, 8.2, 5.22], "iron");
-    stepRoof(put, 2.8, 2.8, 9.5, "slate", "darkStone", 0.3);
-    put([0.18, 1.6, 0.18], [0, 11.6, 4.0], "iron");
-    put([0.9, 0.18, 0.18], [0, 11.9, 4.0], "iron");
 
-    for(const side of [1, -1])
+    let spireBase = 29;
+
+    for(const [half, tall] of [[5, 1], [4, 2], [3, 2], [2, 3], [1, 3]])
     {
-        put([0.12, 3.2, 0.12], [side * 1.4, 1.6, 5.6], "timber");
-        put([0.08, 1.4, 0.7], [side * 1.4, 2.4, 5.95], { left: "banner", right: "banner", all: "banner" });
+        cubes(put, [-half, spireBase, 12 - half], [half, spireBase + tall, 12 + half], "slate");
+        spireBase += tall;
     }
 
     return {

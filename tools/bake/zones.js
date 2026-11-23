@@ -112,8 +112,9 @@ export async function bakeZone(zone, folder, people, context, where, problems)
         {
             if(!context.objects[prop.object]) { problems.push(where + " prop " + i + " is an unknown object: " + prop.object); continue; }
             if(!(Math.abs(prop.x) < half && Math.abs(prop.z) < half)) { problems.push(where + " prop " + i + " is outside the zone"); }
+            if(prop.on !== undefined && prop.on !== "top" && prop.on !== "ceiling") { problems.push(where + " prop " + i + " has an unknown on: " + prop.on); }
 
-            objects.push({ ...prop, index: i, y: heightAt(prop.x, prop.z) });
+            objects.push({ ...prop, index: i });
             continue;
         }
 
@@ -129,7 +130,7 @@ export async function bakeZone(zone, folder, people, context, where, problems)
     const terrainTop = (column, row) => terrain.surfaces[row * zone.columns + column];
     const placed = Voxelise.zoneCells(zone, props, runs, context.prefabs, numbers, where, problems, terrainTop);
 
-    placed.objects.push(...Voxelise.placeObjects(placed.cells, zone, objects, context.objects, numbers));
+    placed.objects.push(...Voxelise.placeObjects(placed.cells, zone, objects, context.objects, numbers, terrainTop));
 
     if(problems.length > before) { return null; }
 

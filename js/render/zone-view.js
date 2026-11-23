@@ -11,6 +11,7 @@ const TILE = 2;
 const SHADOW_RANGE = 26;
 const WATER_CELLS = 48;
 const SKY_RADIUS = 300;
+const OBJECT_DROP = 8;
 const MOON_AT = [-120, 150, -180];
 const SUN_AT = [90, 220, -120];
 
@@ -288,18 +289,22 @@ export class ZoneView
         const zone = this.zone;
         const [column, row] = zone.columnOf(position.x, position.z);
         const y = Math.floor(zone.cellY(position.y) + 0.01);
+
+        return this.floorLight(column, y, row) ?? { sky: y >= zone.surface(column, row) ? 15 : 0, lamp: 0 };
+    }
+
+    // The levels of cell `y` when the cell under it is a floor, or null.
+    floorLight(column, y, row)
+    {
         const floor = y - 1;
-        const fallback = { sky: y >= zone.surface(column, row) ? 15 : 0, lamp: 0 };
 
-        if(floor < 0) { return fallback; }
+        if(floor < 0) { return null; }
 
-        const floors = this.floors.get(zone.chunkKey(Math.floor(column / CHUNK), Math.floor(floor / CHUNK), Math.floor(row / CHUNK)));
+        const floors = this.floors.get(this.zone.chunkKey(Math.floor(column / CHUNK), Math.floor(floor / CHUNK), Math.floor(row / CHUNK)));
         const index = ((floor % CHUNK) * CHUNK + (row % CHUNK)) * CHUNK + (column % CHUNK);
         const found = floors ? ZoneView.search(floors.indices, index) : -1;
 
-        if(found < 0) { return fallback; }
-
-        return { sky: floors.levels[found] >> 4, lamp: floors.levels[found] & 0xf };
+        return found < 0 ? null : { sky: floors.levels[found] >> 4, lamp: floors.levels[found] & 0xf };
     }
 
     static search(sorted, value)
@@ -368,6 +373,7 @@ export class ZoneView
         geometry.setIndex(mesh.indices);
         geometry.computeBoundingSphere();
         geometry.userData.size = object.cells.map((count) => count / ZoneData.CUBES_PER_METRE);
+        geometry.userData.lamp = object.lights ? blocks.light(blocks.number("objectLight")) - 1 : 0;
 
         return geometry;
     }
@@ -430,7 +436,7 @@ export class ZoneView
 
             mesh.userData.entries.forEach((entry, i) =>
             {
-                const level = this.lightAt({ x: entry.x, y: this.zone.metresY(entry.box[4] + 1), z: entry.z });
+                const level = this.objectLight(entry);
                 const [sky, lamp] = [level.sky / 15, level.lamp / 15];
 
                 if(light.getX(i) === sky && light.getY(i) === lamp) { return; }
@@ -441,6 +447,26 @@ export class ZoneView
 
             if(isChanged) { light.needsUpdate = true; }
         }
+    }
+
+    // An object takes the light of the highest floor in its middle column, from
+    // the cell above its top down to the floor under it, as the top of a column
+    // may be open air with no floor under it. An object with lights takes at
+    // least the lamp level beside them.
+    objectLight(entry)
+    {
+        const [column, row] = this.zone.columnOf(entry.x, entry.z);
+        const own = this.objectGeometries.get(entry.object).userData.lamp;
+        let level = null;
+
+        for(let y = entry.box[4] + 1; y >= Math.max(0, entry.box[1] - OBJECT_DROP) && !level; y--)
+        {
+            level = this.floorLight(column, y, row);
+        }
+
+        level ??= this.lightAt({ x: entry.x, y: this.zone.metresY(entry.box[4] + 1), z: entry.z });
+
+        return { sky: level.sky, lamp: Math.max(level.lamp, own) };
     }
 
     /* PROPS ******************************************************************/

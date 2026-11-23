@@ -60,7 +60,7 @@ export function bakeObject(id, object, blocks, where, problems)
     object.build(grid);
 
     if(grid.count === 0) { problems.push(where + " has no fine cubes"); }
-    if(object.light !== undefined && !isCellOf(object.light, cells)) { problems.push(where + " needs its light to be one of its cells, as [x, y, z]"); }
+    if(object.lights !== undefined && !(Array.isArray(object.lights) && object.lights.every((cell) => isCellOf(cell, cells)))) { problems.push(where + " needs its lights to be a list of its cells, each as [x, y, z]"); }
     if(problems.length > before) { return null; }
 
     const mesh = FineMesher.mesh(grid, (block) => blocks.get(block).faces, WorldTextures.TEXELS_PER_METRE / WorldTextures.SIZE);
@@ -70,7 +70,7 @@ export function bakeObject(id, object, blocks, where, problems)
 
     const baked = { cells, isSolid: object.isSolid !== false, palette: grid.palette, runs: FineMesher.encode(grid.data) };
 
-    if(object.light) { baked.light = object.light; }
+    if(object.lights) { baked.lights = object.lights; }
 
     return baked;
 }

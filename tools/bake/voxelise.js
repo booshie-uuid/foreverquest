@@ -165,8 +165,9 @@ class Box
 }
 
 // An object's `x` and `z` give the middle of its footprint. `numbers` maps
-// block ids to block numbers.
-export function placeObjects(cells, zone, placements, objects, numbers)
+// block ids to block numbers, and `groundOf(column, row)` gives the terrain's
+// surface.
+export function placeObjects(cells, zone, placements, objects, numbers, groundOf)
 {
     const half = zone.columns / CUBES / 2;
     const occupied = new Map();
@@ -179,14 +180,15 @@ export function placeObjects(cells, zone, placements, objects, numbers)
         const [across, along] = turns % 2 === 0 ? [width, depth] : [depth, width];
         const column = Math.round((placement.x + half) * CUBES - across / 2);
         const row = Math.round((placement.z + half) * CUBES - along / 2);
-        const floor = Math.round(placement.y * CUBES + zone.base);
+        const middle = [column + Math.floor(across / 2), row + Math.floor(along / 2)];
+        const floor = { top: () => topOf(cells, zone, middle, groundOf), ceiling: () => ceilingOf(cells, zone, middle, groundOf) - height }[placement.on]?.() ?? floorOf(cells, zone, middle, groundOf);
 
         if(!occupied.has(placement.object)) { occupied.set(placement.object, occupiedCells(object)); }
 
         for(const local of object.isSolid ? occupied.get(placement.object) : [])
         {
             const [x, z] = turnedCell(local, object.cells, turns);
-            const isLight = object.light?.every((value, axis) => value === local[axis]);
+            const isLight = (object.lights ?? []).some((cell) => cell.every((value, axis) => value === local[axis]));
             const index = ((floor + local[1]) * zone.columns + row + z) * zone.columns + column + x;
 
             cells.set(index, isLight ? numbers.objectLight : numbers.object);
@@ -203,6 +205,44 @@ export function placeObjects(cells, zone, placements, objects, numbers)
             box: [column, floor, row, column + across - 1, floor + height - 1, row + along - 1],
         };
     });
+}
+
+function isFilled(cells, zone, [column, row], y, groundOf)
+{
+    const block = cells.get((y * zone.columns + row) * zone.columns + column);
+
+    return block === undefined ? y < groundOf(column, row) : block !== 0;
+}
+
+// The lowest open cell of the floor nearest the terrain's surface, which may
+// be a building's floor above it or a carved floor below it.
+function floorOf(cells, zone, middle, groundOf)
+{
+    let y = groundOf(...middle);
+
+    while(y < zone.height - 1 && isFilled(cells, zone, middle, y, groundOf)) { y++; }
+    while(y > 0 && !isFilled(cells, zone, middle, y - 1, groundOf)) { y--; }
+
+    return y;
+}
+
+// The lowest filled cell above the floor.
+function ceilingOf(cells, zone, middle, groundOf)
+{
+    let y = floorOf(cells, zone, middle, groundOf);
+
+    while(y < zone.height && !isFilled(cells, zone, middle, y, groundOf)) { y++; }
+
+    return y;
+}
+
+function topOf(cells, zone, middle, groundOf)
+{
+    let y = zone.height - 1;
+
+    while(y > 0 && !isFilled(cells, zone, middle, y - 1, groundOf)) { y--; }
+
+    return y;
 }
 
 function occupiedCells(object)

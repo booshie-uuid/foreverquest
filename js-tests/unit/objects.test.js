@@ -30,8 +30,10 @@ describe("Fine-cube objects", () =>
         const outside = bake({ cells: [1, 1, 1], build: (o) => o.box([0, 0, 0], [9, 1, 1], "planks") });
         const unknown = bake({ cells: [1, 1, 1], build: (o) => o.set(0, 0, 0, "lava") });
         const tooBig = bake({ cells: [9, 1, 1], build: () => {} });
+        const lightOutside = bake({ cells: [1, 1, 1], lights: [[1, 0, 0]], build: (o) => o.set(0, 0, 0, "planks") });
 
         assert.match(outside.problems[0], /outside its cubes at 8, 0, 0/);
+        assert.match(lightOutside.problems[0], /lights to be a list of its cells/);
         assert.match(unknown.problems[0], /unknown block: lava/);
         assert.match(tooBig.problems[0], /from 1 to 8/);
         assert.equal(outside.baked, null);
@@ -139,18 +141,49 @@ describe("Objects in a zone", () =>
     it("blocks the turned cells that the view draws fine cubes in, at every quarter turn", () =>
     {
         const { baked } = bake({ cells: [3, 1, 2], build: (o) => o.set(20, 3, 2, "planks") });
-        const zone = { columns: 48, base: 0 };
+        const zone = { columns: 48, height: 8, base: 0 };
         const half = zone.columns / 6;
 
         for(let turns = 0; turns < 4; turns++)
         {
             const cells = new Map();
-            const [entry] = Voxelise.placeObjects(cells, zone, [{ object: "sample", x: 0.2, z: -0.4, y: 0, angle: turns * Math.PI / 2, index: 0 }], { sample: baked }, { object: 7 });
+            const [entry] = Voxelise.placeObjects(cells, zone, [{ object: "sample", x: 0.2, z: -0.4, angle: turns * Math.PI / 2, index: 0 }], { sample: baked }, { object: 7 }, () => 0);
             const fine = new THREE.Vector3(20.5 / 24, 3.5 / 24, 2.5 / 24).applyMatrix4(ZoneView.objectMatrix(entry, [1, 1 / 3, 2 / 3]));
             const drawn = (Math.floor(fine.z * 3 + half * 3) * zone.columns) + Math.floor(fine.x * 3 + half * 3);
 
             assert.deepEqual([...cells.keys()], [drawn], "Turned " + turns + " times");
         }
+    });
+
+    it("stands an object on the floor under it, on top of what is there, or hangs it from the ceiling", async () =>
+    {
+        const zone = await TestAssets.zone("hearthmere");
+        const placed = (name) => zone.objects.find((entry) => entry.name === "object " + name);
+        const [altar, cross, chandelier] = ["altar", "cross", "chandelier"].map(placed);
+        const [column, row] = zone.columnOf(cross.x - 0.1, cross.z - 0.1);
+        const [middle, middleRow] = zone.columnOf(chandelier.x, chandelier.z);
+
+        assert.ok(zone.isSolid(altar.box[0], altar.box[1] - 1, altar.box[2]) && !zone.isSolid(altar.box[0] - 1, altar.box[1], altar.box[2] + 2), "The altar is not on the chapel's floor");
+        assert.equal(altar.y, placed("pew").y);
+        assert.ok(zone.isSolid(column, cross.box[1] - 1, row), "The cross does not stand on the spire");
+        assert.ok(!zone.isSolid(column, cross.box[4] + 1, row));
+        assert.ok(zone.blocks.block(zone.blockAt(middle, chandelier.box[4] + 1, middleRow)).kind === "solid", "The chandelier does not hang from the ceiling");
+        assert.ok(chandelier.y - altar.y >= 2, "The chandelier hangs lower than 2 metres");
+    });
+
+    it("lights an object from the floor below its top, and an object with lights at least as brightly as beside them", async () =>
+    {
+        const zone = await TestAssets.zone("hearthmere");
+        const view = new ZoneView(zone, await TestAssets.materials(), null, await TestAssets.objects());
+        const placed = (name) => zone.objects.find((entry) => entry.name === "object " + name);
+
+        view.update(0.016, { position: view.sky.position.clone() }, { x: 0, y: 1, z: 0 });
+
+        assert.ok(view.objectLight(placed("runner")).lamp > 0, "The aisle's runner is unlit");
+        assert.ok(view.objectLight(placed("pew")).lamp > 0);
+        assert.equal(view.objectLight(placed("chandelier")).lamp, 11);
+        assert.equal(view.objectLight(placed("altar")).lamp, 11);
+        view.dispose();
     });
 
     it("lets a lamp post light the street under its lantern, and blocks only the cells it fills", async () =>

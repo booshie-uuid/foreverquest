@@ -205,7 +205,7 @@ export const OBJECTS =
     lampPost:
     {
         cells: [3, 8, 1],
-        light: [2, 6, 0],
+        lights: [[2, 6, 0]],
         build(post)
         {
             post.box([1, 0, 1], [7, 3, 7], "stone");

@@ -124,7 +124,7 @@ An object is a thing built from fine cubes, eight to a world cube's edge, such a
 | `cells` | `[width, height, depth]` in world cubes, each from 1 to 8 |
 | `build(object)` | Fills fine cubes with `object.box(from, to, block)`, from one corner up to but not including the other, or `object.set(x, y, z, block)`, counted from the object's lower corner |
 | `isSolid` | `false` lets entities walk through the object; it defaults to `true` |
-| `light` | Optional. One of the object's cells, as `[x, y, z]` in world cubes, that gives lamp light, such as the cell holding a lamp post's lantern |
+| `lights` | Optional. A list of the object's cells, each as `[x, y, z]` in world cubes, that give lamp light, such as the cell holding a lamp post's lantern or an altar's candles |
 
 [content/objects/shapes.js](../content/objects/shapes.js) fills discs, rings, ellipsoids and slanted bars of fine cubes, for barrels, sacks and braces. A fine cube takes the textures of its block type, so a timber fine cube shows end grain on top. The bake fails on a fine cube outside the object's cells, so an object never reaches beyond the cubes it claims; on an unknown block; and on a mesh of more than 6,000 triangles. The bake writes the fine cubes to `objects.json`, not the mesh, because the cubes compress to a fraction of the mesh's size. The game builds each object's mesh once at load with [js/render/fine-mesher.js](../js/render/fine-mesher.js), which merges the faces of each texture into rectangles; the bake uses the same module to count the triangles. To place an object, add `{ object, x, z, angle }` to a zone's `props`; [World](world.md#fine-cube-objects) describes placement.
 
