@@ -5,7 +5,9 @@ const HEAD = [16, 16];
 const WHITE = "#c9c0ae";
 const SIDES = ["top", "back", "left", "right"];
 
-// Face shapes by face id: brow raise, eye height, line depth and mouth shape.
+// Face shapes by face id: brow raise, eye height, line depth and mouth shape,
+// with optional arched brows a row higher, lashes at the eyes' outer corners,
+// rosy cheeks and a beauty mark. Mouth 3 is fuller lips.
 export const FACES =
 {
     1: { name: "Stern", brow: 0, eyes: 1, lines: 0, mouth: 0 },
@@ -14,6 +16,8 @@ export const FACES =
     4: { name: "Broad", brow: -1, eyes: 1, lines: 0, mouth: 2 },
     5: { name: "Young", brow: 1, eyes: 2, lines: 0, mouth: 0 },
     6: { name: "Grim", brow: -1, eyes: 1, lines: 1, mouth: 1 },
+    7: { name: "Gentle", brow: 1, eyes: 2, lines: 0, mouth: 3, arched: true, lashes: true, cheeks: true },
+    8: { name: "Proud", brow: 1, eyes: 2, lines: 0, mouth: 0, arched: true, lashes: true, mark: true },
 };
 
 /* FACES **********************************************************************/
@@ -23,6 +27,18 @@ function brows(face)
     return (r, a, random, colour) =>
     {
         const row = 6 - face.brow;
+
+        if(face.arched)
+        {
+            for(const left of [3, 9])
+            {
+                Pixels.dot(r, a, left, row, colour);
+                Pixels.rect(r, a, left + 1, row - 1, 2, 1, colour);
+                Pixels.dot(r, a, left + 3, row, colour);
+            }
+
+            return;
+        }
 
         Pixels.rect(r, a, 3, row, 4, 1, colour);
         Pixels.rect(r, a, 9, row, 4, 1, colour);
@@ -52,6 +68,19 @@ function lids(r, a, random, colour)
     for(const left of [3, 10]) { Pixels.rect(r, a, left, 7, 3, 1, colour); }
 }
 
+function cheeks(r, a, random, colour)
+{
+    Pixels.rect(r, a, 3, 11, 2, 1, colour);
+    Pixels.rect(r, a, 11, 11, 2, 1, colour);
+}
+
+function lashes(r, a, random, colour)
+{
+    lids(r, a, random, colour);
+    Pixels.dot(r, a, 2, 7, colour);
+    Pixels.dot(r, a, 13, 7, colour);
+}
+
 function skin(face)
 {
     return (r, a, random, colour) =>
@@ -71,6 +100,8 @@ function skin(face)
         }
 
         Pixels.rect(r, a, 7, 12, 2, 1, shadow);
+
+        if(face.mark) { Pixels.dot(r, a, 11, 13, Pixels.shade(colour, 0.5)); }
         Pixels.rect(r, a, 4, 15, 8, 1, Pixels.shade(colour, 0.9));
 
         if(face.mouth === 1)
@@ -87,6 +118,8 @@ function mouth(face)
     {
         if(face.mouth === 2) { Pixels.rect(r, a, 5, 13, 6, 1, colour); }
         else { Pixels.rect(r, a, 6, 13, 4, 1, colour); }
+
+        if(face.mouth === 3) { Pixels.rect(r, a, 7, 14, 2, 1, Pixels.shade(colour, 1.15)); }
     };
 }
 
@@ -169,6 +202,8 @@ export const STAMPS =
     "eyes.1": { size: HEAD, seed: 40, paint: eyes(1) },
     "eyes.2": { size: HEAD, seed: 41, paint: eyes(2) },
     "lids": { size: HEAD, seed: 42, paint: lids },
+    "lids.lashes": { size: HEAD, seed: 50, paint: lashes },
+    "cheeks": { size: HEAD, seed: 51, paint: cheeks },
     "hairline.full": { size: HEAD, seed: 43, paint: hairline(3) },
     "hairline.swept": { size: HEAD, seed: 48, paint: hairline(2) },
     "hairline.stubble": { size: HEAD, seed: 49, paint: stubbleLine },

@@ -45,7 +45,7 @@ Mirelle, the tailor in the village square, also opens the creator. The creator s
 | Body | Male, Female |
 | Height, Build | Sliders: height scales the character, build widens the torso and limbs |
 | Skin | Four to six tones, from a palette that belongs to each race |
-| Face | Stern, Weary, Gaunt, Broad, Young, Grim |
+| Face | Stern, Weary, Gaunt, Broad, Young, Grim, Gentle, Proud |
 | Nose | Straight, Small, Broad, Hooked, Long |
 | Eyes | Seven colours |
 | Hair | Nine styles in 11 colours |
