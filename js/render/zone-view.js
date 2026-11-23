@@ -48,6 +48,7 @@ export class ZoneView
         this.scene.add(this.water.mesh);
 
         this.unsubscribe = zone.onRegion((event) => this.onRegion(event));
+        materials.setSteps(lighting.steps);
 
         for(const name of zone.regions.keys()) { this.queueRegion(name); }
 
@@ -170,7 +171,7 @@ export class ZoneView
     meshChunk(key)
     {
         const position = this.chunkPosition(key);
-        const cells = CubeMesher.paddedCells(this.zone, ...position);
+        const volume = CubeMesher.paddedCells(this.zone, ...position);
         const origin = position.map((value) => value * CHUNK);
         const version = (this.versions.get(key) ?? 0) + 1;
 
@@ -178,12 +179,12 @@ export class ZoneView
 
         if(!this.workers)
         {
-            this.placeChunk(key, CubeMesher.meshCells(cells, this.table, origin, this.frame));
+            this.placeChunk(key, CubeMesher.meshCells(volume, this.table, origin, this.frame));
             return;
         }
 
         this.inFlight++;
-        this.workers.mesh(cells, origin, this.frame).then((arrays) =>
+        this.workers.mesh(volume, origin, this.frame).then((arrays) =>
         {
             this.inFlight--;
 
@@ -257,7 +258,7 @@ export class ZoneView
         const joined = {};
         let vertices = 0;
 
-        for(const name of ["positions", "normals", "uvs", "layers", "colours"])
+        for(const name of ["positions", "normals", "uvs", "layers", "colours", "lights"])
         {
             joined[name] = new Float32Array(parts.reduce((total, part) => total + part[name].length, 0));
 
@@ -296,6 +297,7 @@ export class ZoneView
         geometry.setAttribute("uv", new THREE.BufferAttribute(arrays.uvs, 2));
         geometry.setAttribute("layer", new THREE.BufferAttribute(arrays.layers, 1));
         geometry.setAttribute("color", new THREE.BufferAttribute(arrays.colours, 3));
+        geometry.setAttribute("light", new THREE.BufferAttribute(arrays.lights, 2));
         geometry.setIndex(new THREE.BufferAttribute(arrays.indices, 1));
         geometry.computeBoundingSphere();
 
@@ -384,6 +386,7 @@ export class ZoneView
     update(delta, camera, focus)
     {
         this.focus = focus;
+        this.materials.setPlayerLight(focus);
         this.meshWaiting();
         this.buildTiles();
         this.water.update(delta);

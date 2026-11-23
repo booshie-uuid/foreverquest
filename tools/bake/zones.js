@@ -166,6 +166,11 @@ function checkLighting(lighting, where, problems)
 
     if(!colours.every((colour) => COLOUR_PATTERN.test(colour ?? ""))) { problems.push(where + " needs lower-case #rrggbb lighting colours"); }
     if(!(lighting?.fog?.far > lighting?.fog?.near)) { problems.push(where + " needs a fog that ends after it starts"); }
+
+    for(const [name, steps] of Object.entries(lighting?.steps ?? {}))
+    {
+        if(!(COLOUR_PATTERN.test(steps.dark ?? "") && COLOUR_PATTERN.test(steps.bright ?? "") && steps.curve > 0)) { problems.push(where + " needs its " + name + " steps to have lower-case #rrggbb dark and bright colours and a positive curve"); }
+    }
 }
 
 function checkPeople(zone, people, where, problems)

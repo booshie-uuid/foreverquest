@@ -2,30 +2,45 @@ import * as CubeMesher from "../../js/render/cube-mesher.js";
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-const PADDED = 34;
+const MARGIN = CubeMesher.PADDING;
+const PADDED = 32 + MARGIN * 2;
 const FRAME = { half: 0, base: 0, perCell: 0.25 };
 const STONE = 1;
 const LEAVES = 2;
+const LAMP = 3;
 
 function table()
 {
-    const faces = { top: new Int16Array([0, 10, 20]), side: new Int16Array([0, 11, 21]), bottom: new Int16Array([0, 12, 22]) };
+    const faces = { top: new Int16Array([0, 10, 20, 30]), side: new Int16Array([0, 11, 21, 31]), bottom: new Int16Array([0, 12, 22, 32]) };
     const flags = () => new Uint8Array(256);
-    const built = { ...faces, opaque: flags(), clear: flags(), liquid: flags() };
+    const built = { ...faces, opaque: flags(), clear: flags(), liquid: flags(), lights: flags() };
 
     built.opaque[STONE] = 1;
+    built.opaque[LAMP] = 1;
     built.clear[LEAVES] = 1;
+    built.lights[LAMP] = 12;
 
     return built;
 }
 
+// A padded volume around the chunk at the origin, with each column's
+// surface found from its cells.
 function cells(fill)
 {
     const padded = new Uint8Array(PADDED * PADDED * PADDED);
+    const surfaces = new Uint16Array(PADDED * PADDED);
 
-    fill((x, y, z, block) => { padded[((y + 1) * PADDED + z + 1) * PADDED + x + 1] = block; });
+    fill((x, y, z, block) => { padded[((y + MARGIN) * PADDED + z + MARGIN) * PADDED + x + MARGIN] = block; });
 
-    return padded;
+    for(let z = 0; z < PADDED; z++)
+    {
+        for(let x = 0; x < PADDED; x++)
+        {
+            for(let y = 0; y < PADDED; y++) { if(padded[(y * PADDED + z) * PADDED + x] !== 0) { surfaces[z * PADDED + x] = y + 1 - MARGIN; } }
+        }
+    }
+
+    return { cells: padded, surfaces, bottom: -MARGIN };
 }
 
 function quads(mesh)
@@ -105,6 +120,30 @@ describe("Cube mesher", () =>
 
             assert.ok(cross[0] * normal[0] + cross[1] * normal[1] + cross[2] * normal[2] > 0, "Triangle " + t / 3 + " faces away from " + normal);
         }
+    });
+
+    it("lights faces in steps: the open sky fully, under cover a level dimmer a cell, and near a lamp", () =>
+    {
+        const mesh = CubeMesher.meshCells(cells((set) =>
+        {
+            for(let x = 0; x < 32; x++) { for(let z = 0; z < 32; z++) { set(x, 0, z, STONE); } }
+            for(let x = 10; x < 20; x++) { for(let z = 0; z < 32; z++) { set(x, 4, z, STONE); } }
+
+            set(25, 1, 25, LAMP);
+        }), table(), [0, 0, 0], FRAME);
+        const floor = [];
+
+        for(let v = 0; v < mesh.positions.length / 3; v++)
+        {
+            if(mesh.normals[v * 3 + 1] === 1 && Math.abs(mesh.positions[v * 3 + 1] - 1 / 3) < 1e-5) { floor.push([mesh.positions[v * 3], mesh.positions[v * 3 + 2], Math.round(mesh.lights[v * 2] * 15), Math.round(mesh.lights[v * 2 + 1] * 15)]); }
+        }
+
+        const skies = new Set(floor.map(([, , sky]) => sky));
+
+        assert.ok(floor.some(([x, , sky]) => x < 3 && sky === 15), "The open floor is not fully lit");
+        assert.deepEqual([12, 11, 10].map((level) => skies.has(level)), [true, true, true], "The floor under cover does not dim a level a cell");
+        assert.ok(!skies.has(9), "The cover's middle is five cells from open sky, so no floor should be darker than 10");
+        assert.ok(floor.some(([, , , lamp]) => lamp === 11), "No floor face takes the lamp's light");
     });
 
     it("draws see-through blocks beside each other only on their outer faces", () =>

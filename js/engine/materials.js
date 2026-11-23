@@ -22,6 +22,54 @@ vec4 tileTexel = texture(worldAtlas, vec3(vTileUv, floor(vLayer + 0.5)));
 diffuseColor *= tileTexel;
 `;
 
+const STEPPED_VERTEX_PARS = `
+attribute vec2 light;
+varying vec2 vLight;
+varying vec3 vStepPosition;
+varying vec3 vStepNormal;
+`;
+
+const STEPPED_VERTEX = `
+vLight = light;
+vStepPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;
+vStepNormal = objectNormal;
+`;
+
+const STEPPED_FRAGMENT_PARS = `
+uniform float steppedLight;
+uniform vec3 skyRamp[16];
+uniform vec3 lampRamp[16];
+uniform vec4 playerLight;
+varying vec2 vLight;
+varying vec3 vStepPosition;
+varying vec3 vStepNormal;
+`;
+
+// In stepped mode a face takes the sum of its sky and lamp colours from the
+// zone's ramps, in place of the scene's lights. The player's own light falls
+// off a level a cell from the cell the player stands in.
+const STEPPED_FRAGMENT = `
+if(steppedLight > 0.5)
+{
+    vec3 stepCell = floor((vStepPosition + vStepNormal * 0.05) * 3.0);
+    float nearPlayer = playerLight.w - floor(distance(stepCell, floor(playerLight.xyz * 3.0)));
+    int skyLevel = int(vLight.x * 15.0 + 0.5);
+    int lampLevel = clamp(int(max(vLight.y * 15.0 + 0.5, nearPlayer)), 0, 15);
+    vec3 stepLight = min(skyRamp[skyLevel] + lampRamp[lampLevel], vec3(1.0));
+    float stepFace = vStepNormal.y > 0.5 ? 1.0 : (vStepNormal.y < -0.5 ? 0.55 : (abs(vStepNormal.x) > 0.5 ? 0.72 : 0.86));
+
+    outgoingLight = diffuseColor.rgb * stepLight * stepFace + totalEmissiveRadiance;
+}
+`;
+
+const LEVELS = 16;
+const PLAYER_LIGHT = 7;
+const DEFAULT_STEPS =
+{
+    sky: { dark: "#12141f", bright: "#56607e", curve: 1.4 },
+    lamp: { dark: "#000000", bright: "#ffb466", curve: 1.0 },
+};
+
 export class MaterialLibrary
 {
     constructor(atlas)
@@ -29,14 +77,16 @@ export class MaterialLibrary
         this.atlas = atlas;
         this.atlasTexture = atlas.createTexture();
         this.world = this.worldMaterial();
-        this.terrain = this.worldMaterial({ vertexColors: true });
+        this.stepped = { steppedLight: { value: 0 }, skyRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.sky) }, lampRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.lamp) }, playerLight: { value: new THREE.Vector4(0, 0, 0, PLAYER_LIGHT) } };
+        this.terrain = this.worldMaterial({ vertexColors: true }, this.stepped);
         this.water = new THREE.MeshPhongMaterial({ color: "#1e2a30", specular: 0x5a6a78, shininess: 80, transparent: true, opacity: 0.82 });
     }
 
-    worldMaterial(options = {})
+    // `stepped` adds the uniforms and code of stepped light.
+    worldMaterial(options = {}, stepped = null)
     {
         const material = new THREE.MeshLambertMaterial(options);
-        const uniforms = { worldAtlas: { value: this.atlasTexture } };
+        const uniforms = { worldAtlas: { value: this.atlasTexture }, ...stepped };
         const emissive = MaterialLibrary.emissiveShader(this.atlas.glowLayers);
 
         material.onBeforeCompile = (shader) =>
@@ -44,18 +94,51 @@ export class MaterialLibrary
             Object.assign(shader.uniforms, uniforms);
 
             shader.vertexShader = shader.vertexShader
-                .replace("#include <common>", "#include <common>\n" + VERTEX_PARS)
-                .replace("#include <begin_vertex>", "#include <begin_vertex>\n" + VERTEX);
+                .replace("#include <common>", "#include <common>\n" + VERTEX_PARS + (stepped ? STEPPED_VERTEX_PARS : ""))
+                .replace("#include <begin_vertex>", "#include <begin_vertex>\n" + VERTEX + (stepped ? STEPPED_VERTEX : ""));
 
             shader.fragmentShader = shader.fragmentShader
-                .replace("#include <common>", "#include <common>\n" + FRAGMENT_PARS)
+                .replace("#include <common>", "#include <common>\n" + FRAGMENT_PARS + (stepped ? STEPPED_FRAGMENT_PARS : ""))
                 .replace("#include <color_fragment>", "#include <color_fragment>\n" + FRAGMENT)
-                .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n" + emissive);
+                .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n" + emissive)
+                .replace("#include <opaque_fragment>", (stepped ? STEPPED_FRAGMENT : "") + "#include <opaque_fragment>");
         };
 
-        material.customProgramCacheKey = () => "world-atlas:" + this.atlas.glowLayers.join(",") + (material.vertexColors ? ":shaded" : "");
+        material.customProgramCacheKey = () => "world-atlas:" + this.atlas.glowLayers.join(",") + (material.vertexColors ? ":shaded" : "") + (stepped ? ":stepped" : "");
 
         return material;
+    }
+
+    setStepped(isStepped)
+    {
+        this.stepped.steppedLight.value = isStepped ? 1 : 0;
+    }
+
+    // `steps` gives each of sky and lamp its darkest and brightest colours
+    // and the curve between them; a zone without steps takes the defaults.
+    setSteps(steps = DEFAULT_STEPS)
+    {
+        this.stepped.skyRamp.value = MaterialLibrary.ramp(steps.sky);
+        this.stepped.lampRamp.value = MaterialLibrary.ramp(steps.lamp);
+    }
+
+    setPlayerLight(position)
+    {
+        this.stepped.playerLight.value.set(position.x, position.y + 1, position.z, PLAYER_LIGHT);
+    }
+
+    // The colours are mixed as written, in sRGB, then converted for the shader.
+    static ramp({ dark, bright, curve })
+    {
+        const from = new THREE.Color(dark).getRGB({}, THREE.SRGBColorSpace);
+        const to = new THREE.Color(bright).getRGB({}, THREE.SRGBColorSpace);
+
+        return Array.from({ length: LEVELS }, (unused, level) =>
+        {
+            const t = (level / (LEVELS - 1)) ** curve;
+
+            return new THREE.Color().setRGB(from.r + (to.r - from.r) * t, from.g + (to.g - from.g) * t, from.b + (to.b - from.b) * t, THREE.SRGBColorSpace);
+        });
     }
 
     static emissiveShader(glowLayers)

@@ -38,7 +38,7 @@ export class ChunkWorkers
         return this.capacity > 0;
     }
 
-    mesh(cells, origin, frame)
+    mesh(volume, origin, frame)
     {
         const worker = this.workers.reduce((best, each) => (this.outstanding.get(each) < this.outstanding.get(best) ? each : best), this.workers[0]);
         const id = this.nextId++;
@@ -49,7 +49,7 @@ export class ChunkWorkers
         {
             this.requests.set(id, { worker, resolve, reject });
             this.outstanding.set(worker, this.outstanding.get(worker) + 1);
-            worker.postMessage({ type: "mesh", id, cells, origin, frame }, [cells.buffer]);
+            worker.postMessage({ type: "mesh", id, volume, origin, frame }, [volume.cells.buffer, volume.surfaces.buffer]);
         });
     }
 

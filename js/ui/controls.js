@@ -100,12 +100,19 @@ export function graphicsToggles(graphics)
 {
     const group = element("div", "toggle-group");
     const retro = button("Retro", () => graphics.toggleRetro(), "toggle");
-    const refresh = () => retro.classList.toggle("is-active", graphics.isRetro);
+    const stepped = button("Stepped", () => graphics.toggleStepped(), "toggle");
+    const refresh = () =>
+    {
+        retro.classList.toggle("is-active", graphics.isRetro);
+        stepped.classList.toggle("is-active", graphics.isStepped);
+    };
 
     retro.dataset.action = "retro";
     retro.title = "Render 640 pixels wide and scale up with hard pixel edges";
+    stepped.dataset.action = "stepped";
+    stepped.title = "Light the world in steps, in the zone's own colours";
     refresh();
-    group.append(retro);
+    group.append(retro, stepped);
 
     return { element: group, dispose: graphics.onChange(refresh) };
 }

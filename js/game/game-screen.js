@@ -47,6 +47,7 @@ export class GameScreen
         this.unsubscribers =
         [
             this.sim.onEvent((event) => this.onEvent(event)),
+            graphics.onChange(() => materials.setStepped(graphics.isStepped)),
             appearance.onChange(() => this.hud.setPlayer(appearance)),
             this.input.on("click", (x, y) => this.onClick(x, y)),
             this.input.on("orbit", (dx, dy) => this.rig.orbit(-dx * 0.008, dy * 0.006)),
@@ -54,6 +55,7 @@ export class GameScreen
             this.input.on("key", (code) => this.onKey(code)),
         ];
 
+        materials.setStepped(graphics.isStepped);
         this.sim.setPlayer(appearance);
         this.enterZone(streamer);
         this.hud.setPlayer(appearance);

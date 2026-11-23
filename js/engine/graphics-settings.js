@@ -3,6 +3,7 @@ export class GraphicsSettings
     constructor(renderer)
     {
         this.renderer = renderer;
+        this.isStepped = false;
         this.listeners = [];
     }
 
@@ -14,6 +15,12 @@ export class GraphicsSettings
     toggleRetro()
     {
         this.renderer.setRetro(!this.isRetro);
+        this.emitChange();
+    }
+
+    toggleStepped()
+    {
+        this.isStepped = !this.isStepped;
         this.emitChange();
     }
 

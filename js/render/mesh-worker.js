@@ -12,7 +12,7 @@ self.onmessage = (event) =>
         return;
     }
 
-    const arrays = CubeMesher.meshCells(message.cells, table, message.origin, message.frame);
+    const arrays = CubeMesher.meshCells(message.volume, table, message.origin, message.frame);
     const buffers = arrays ? Object.values(arrays).map((array) => array.buffer) : [];
 
     self.postMessage({ id: message.id, arrays }, buffers);

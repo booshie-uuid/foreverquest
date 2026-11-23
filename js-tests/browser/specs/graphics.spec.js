@@ -37,6 +37,29 @@ export const tests =
         },
     },
     {
+        name: "the Stepped toggle lights the world in steps, and the HUD shows it",
+        run: async ({ page, baseUrl, screenshot }) =>
+        {
+            await openCreator(page, baseUrl);
+            await page.click("[data-action=confirm]");
+            await page.waitFor(() => window.foreverQuest.screen === "game" && window.foreverQuest.renderer.frameCount > 10, { timeout: 20000 });
+            await page.click(".hud [data-action=stepped]");
+
+            const stepped = await page.evaluate(() => (
+            {
+                uniform: window.foreverQuest.materials.stepped.steppedLight.value,
+                isActive: document.querySelector(".hud [data-action=stepped]").classList.contains("is-active"),
+                hasLight: window.foreverQuest.game.world.terrainMeshes.every((mesh) => mesh.geometry.getAttribute("light")?.itemSize === 2),
+            }));
+
+            await screenshot("stepped");
+            await page.click(".hud [data-action=stepped]");
+
+            assert.deepEqual(stepped, { uniform: 1, isActive: true, hasLight: true });
+            assert.equal(await page.evaluate(() => window.foreverQuest.materials.stepped.steppedLight.value), 0);
+        },
+    },
+    {
         name: "the moonlight casts shadows in the world",
         run: async ({ page, baseUrl }) =>
         {

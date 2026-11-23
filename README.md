@@ -30,6 +30,7 @@ After a change to the Three.js version in `package.json`, run `npm install` and 
 | World | E | Waves |
 | World | Appearance button | Opens the creator |
 | Both | Retro | Renders 640 pixels wide and scales the picture up with hard pixel edges |
+| Both | Stepped | Lights the world in visible steps, in the zone's own colours |
 
 Two address options help testing: `?zone=testfield` or `?zone=expanse` starts in another zone, and `?stats` shows the frame rate, the triangles and draw calls of the last frame, and the regions loaded.
 
