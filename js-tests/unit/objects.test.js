@@ -1,3 +1,4 @@
+import * as FineMesher from "../../js/render/fine-mesher.js";
 import * as Objects from "../../tools/bake/objects.js";
 import * as TestAssets from "../helpers/assets.js";
 import * as assert from "node:assert/strict";
@@ -11,12 +12,14 @@ const BLOCKS = new Map(
     ["object", { id: "object", kind: "object", faces: {} }],
 ]);
 
+// The mesh the game builds from the baked grid.
 function bake(object)
 {
     const problems = [];
     const baked = Objects.bakeObject("sample", object, BLOCKS, "Object sample", problems);
+    const mesh = baked && FineMesher.mesh(FineMesher.decode(baked), (block) => BLOCKS.get(block).faces, 1);
 
-    return { baked, problems };
+    return { baked, mesh, problems };
 }
 
 describe("Fine-cube objects", () =>
@@ -35,30 +38,30 @@ describe("Fine-cube objects", () =>
 
     it("draws a lone fine cube as six faces an eighth of a cube across, with each side's texture", () =>
     {
-        const { baked } = bake({ cells: [1, 1, 1], build: (o) => o.set(3, 0, 3, "timber") });
-        const xs = baked.positions.filter((value, i) => i % 3 === 0);
+        const { mesh } = bake({ cells: [1, 1, 1], build: (o) => o.set(3, 0, 3, "timber") });
+        const xs = mesh.positions.filter((value, i) => i % 3 === 0);
 
-        assert.equal(baked.indices.length / 3, 12);
+        assert.equal(mesh.indices.length / 3, 12);
         assert.deepEqual([Math.min(...xs), Math.max(...xs)].map((value) => Math.round(value * 24)), [3, 4]);
-        assert.deepEqual(baked.textures.sort(), ["bark", "timber"]);
+        assert.deepEqual(mesh.textures.sort(), ["bark", "timber"]);
     });
 
     it("winds every triangle to face along its normal", () =>
     {
-        const { baked } = bake({ cells: [1, 1, 1], build: (o) =>
+        const { mesh } = bake({ cells: [1, 1, 1], build: (o) =>
         {
             o.box([1, 1, 1], [5, 3, 4], "planks");
             o.set(6, 6, 6, "timber");
         } });
-        const at = (index) => baked.positions.slice(index * 3, index * 3 + 3);
+        const at = (index) => mesh.positions.slice(index * 3, index * 3 + 3);
 
-        for(let t = 0; t < baked.indices.length; t += 3)
+        for(let t = 0; t < mesh.indices.length; t += 3)
         {
-            const [a, b, c] = [0, 1, 2].map((k) => at(baked.indices[t + k]));
+            const [a, b, c] = [0, 1, 2].map((k) => at(mesh.indices[t + k]));
             const ab = b.map((value, i) => value - a[i]);
             const ac = c.map((value, i) => value - a[i]);
             const cross = [ab[1] * ac[2] - ab[2] * ac[1], ab[2] * ac[0] - ab[0] * ac[2], ab[0] * ac[1] - ab[1] * ac[0]];
-            const normal = baked.normals.slice(baked.indices[t] * 3, baked.indices[t] * 3 + 3);
+            const normal = mesh.normals.slice(mesh.indices[t] * 3, mesh.indices[t] * 3 + 3);
 
             assert.ok(cross[0] * normal[0] + cross[1] * normal[1] + cross[2] * normal[2] > 0, "Triangle " + t / 3 + " faces away from " + normal);
         }
@@ -66,11 +69,38 @@ describe("Fine-cube objects", () =>
 
     it("merges the faces of one texture into rectangles", () =>
     {
-        const { baked } = bake({ cells: [2, 1, 1], build: (o) => o.box([0, 0, 0], [16, 8, 8], "planks") });
+        const { baked, mesh } = bake({ cells: [2, 1, 1], build: (o) => o.box([0, 0, 0], [16, 8, 8], "planks") });
 
-        assert.equal(baked.indices.length / 3, 12);
+        assert.equal(mesh.indices.length / 3, 12);
         assert.deepEqual(baked.cells, [2, 1, 1]);
         assert.equal(baked.isSolid, true);
+    });
+
+    it("stores the fine cubes as runs that decode to the same grid", () =>
+    {
+        const { baked } = bake({ cells: [1, 1, 1], build: (o) =>
+        {
+            o.box([0, 0, 0], [8, 1, 8], "planks");
+            o.set(7, 7, 7, "timber");
+        } });
+        const { data, palette } = FineMesher.decode(baked);
+
+        assert.equal(data.length, 512);
+        assert.deepEqual([palette[data[0]], palette[data[63]], palette[data[64]], palette[data[511]]], ["planks", "planks", null, "timber"]);
+        assert.equal(baked.runs.length, 6);
+    });
+
+    it("fails an object whose mesh goes over the triangle budget", () =>
+    {
+        const checker = bake({ cells: [8, 1, 8], build: (o) =>
+        {
+            for(let x = 0; x < 64; x++)
+            {
+                for(let z = 0; z < 64; z++) { if((x + z) % 2 === 0) { o.set(x, 0, z, "planks"); } }
+            }
+        } });
+
+        assert.match(checker.problems[0], /triangles, more than 6000/);
     });
 });
 

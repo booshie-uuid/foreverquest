@@ -1,4 +1,5 @@
 import * as CubeMesher from "./cube-mesher.js";
+import * as FineMesher from "./fine-mesher.js";
 import * as RegionCodec from "../sim/region-codec.js";
 import * as THREE from "three";
 import { Water } from "./water.js";
@@ -42,7 +43,7 @@ export class ZoneView
         this.frame = { half: zone.half, base: zone.base, perCell: materials.atlas.uvPerMetre / ZoneData.CUBES_PER_METRE };
         this.scene = new THREE.Scene();
         this.objectMeshes = new Map();
-        this.objectGeometries = new Map(Object.entries(objects).map(([id, object]) => [id, ZoneView.objectGeometry(object, materials.atlas)]));
+        this.objectGeometries = new Map(Object.entries(objects).map(([id, object]) => [id, ZoneView.objectGeometry(object, materials.atlas, zone.blocks)]));
         this.chunkArrays = new Map();
         this.floors = new Map();
         this.tileMeshes = new Map();
@@ -355,15 +356,16 @@ export class ZoneView
 
     /* OBJECTS ****************************************************************/
 
-    static objectGeometry(object, atlas)
+    static objectGeometry(object, atlas, blocks)
     {
         const geometry = new THREE.BufferGeometry();
+        const mesh = FineMesher.mesh(FineMesher.decode(object), (block) => blocks.block(blocks.number(block)).faces, atlas.uvPerMetre);
 
-        geometry.setAttribute("position", new THREE.Float32BufferAttribute(object.positions, 3));
-        geometry.setAttribute("normal", new THREE.Float32BufferAttribute(object.normals, 3));
-        geometry.setAttribute("uv", new THREE.Float32BufferAttribute(object.uvs, 2));
-        geometry.setAttribute("layer", new THREE.Float32BufferAttribute(object.layers.map((texture) => atlas.layer(object.textures[texture])), 1));
-        geometry.setIndex(object.indices);
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(mesh.positions, 3));
+        geometry.setAttribute("normal", new THREE.Float32BufferAttribute(mesh.normals, 3));
+        geometry.setAttribute("uv", new THREE.Float32BufferAttribute(mesh.uvs, 2));
+        geometry.setAttribute("layer", new THREE.Float32BufferAttribute(mesh.layers.map((texture) => atlas.layer(mesh.textures[texture])), 1));
+        geometry.setIndex(mesh.indices);
         geometry.computeBoundingSphere();
         geometry.userData.size = object.cells.map((count) => count / ZoneData.CUBES_PER_METRE);
 
