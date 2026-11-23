@@ -37,6 +37,7 @@ function measure()
         triangles: info.triangles,
         calls: info.calls,
         isPlayerLoaded: game.zone.isLoaded(game.player.position.x, game.player.position.z),
+        isPlayerOnGround: game.player.position.y >= game.zone.heightAt(game.player.position.x, game.player.position.z) - 0.01,
     };
 }
 
@@ -72,6 +73,7 @@ export const tests =
             assert.ok(start.regions.includes("6-6") && !start.regions.includes("10-10"), start.regions.join(" "));
             assert.ok(far.regions.includes("10-10") && !far.regions.includes("6-6"), far.regions.join(" "));
             assert.ok(far.isPlayerLoaded);
+            assert.ok(far.isPlayerOnGround, "The player arrived before the ground and stayed inside it");
 
             for(const [label, sample] of [["spawn", start], ["far", far]])
             {

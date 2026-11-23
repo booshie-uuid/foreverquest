@@ -61,9 +61,15 @@ A run lays a prop along a line of points and follows the ground, such as a fence
 
 ## Collision and Movement
 
-`ZoneData.resolveStep(from, to, radius)` pushes a moving circle out of every nearby circle and box collider, twice over, then checks the column it lands on. The step is refused when that column is under water, within 2 metres of the zone's edge, or more than half a metre above the column the entity stands on, so an entity steps up one cube and not two. An entity eases its height towards the surface under it, so a step reads as a short climb.
+An entity is an upright cylinder of its body's radius. `ZoneData.standAt(x, z, feet, radius)` finds where it stands: on the highest solid cell under any part of it whose top is no more than one cube above its feet. It is blocked when a solid cell reaches into the six cells, 2 metres, above that floor, so it steps up one cube but not two, and cannot pass under a ceiling lower than 2 metres. `footingAt` also refuses a floor covered by water, a point within 2 metres of the zone's edge, and a region that is not loaded.
 
-The zone keeps its colliders in a grid of 4-metre cells. A step tests only the colliders in the cells near it, in the zone's order, so it resolves exactly as a test of every collider would. `ZoneData` uses no Three.js and no page, so the simulation can run without a renderer.
+`ZoneData.resolveMove(from, to, radius)` first pushes the cylinder out of every nearby circle and box collider of the props, twice over. It then tries the cells at that point, and failing that, the move along x alone and along z alone, so an entity walking into a wall at an angle slides along it. An entity eases up onto a higher floor, so a step reads as a short climb, and falls to a lower one under gravity. An entity found inside solid cells, which happens when it was placed before its region loaded, is lifted onto them.
+
+The zone keeps its colliders in a grid of 4-metre cells. A move tests only the colliders in the cells near it, in the zone's order, so it resolves exactly as a test of every collider would. `ZoneData` uses no Three.js and no page, so the simulation can run without a renderer.
+
+## Pathfinding
+
+Clicking the ground asks [Pathfinder](../js/sim/pathfinder.js) for a route. It searches the zone's columns with A*, one node per column an entity can stand in, moving to the eight neighbouring columns by the same rules as a step, and dropping at most one metre. A diagonal move needs both columns beside it open, so a route never cuts a corner, and a column inside a prop's collider is closed. The search stops after 6,000 columns; when it does not reach the goal, the route ends at the column it reached nearest the goal. The route is then straightened: each point that a straight walk from the last kept point can skip is dropped. When no route leaves the start, the player walks straight at the point instead. Villagers still walk straight to the places they choose.
 
 ## Streaming
 

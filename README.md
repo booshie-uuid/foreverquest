@@ -163,7 +163,7 @@ The [docs/](docs/) folder describes the architecture, the assets and the bake, t
 
 The project is a proof of concept, and it leaves out most of a game.
 
-- Click-to-move walks in a straight line and stops at the first obstacle or cliff. The game has no pathfinding.
+- Villagers walk in straight lines and stop at the first obstacle. The player's click-to-move finds a route, but only within about 6,000 columns of searching.
 - Characters walk through each other.
 - Equipment is cosmetic. The game has no combat, inventory or stats.
 - The game has no server, so it has no other players.

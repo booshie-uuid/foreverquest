@@ -10,15 +10,17 @@ const library = await TestAssets.library();
 const OPEN_FIELD =
 {
     heightAt: () => 1,
-    resolveStep: (from, to) => ({ x: to.x, z: to.z }),
-    isWalkable: () => true,
+    liftOut: (x, z, y) => y,
+    standAt: () => ({ floor: 1 }),
+    resolveMove: (from, to) => ({ x: to.x, z: to.z, floor: 1 }),
 };
 
 const WALL =
 {
     heightAt: () => 0,
-    resolveStep: (from) => ({ x: from.x, z: from.z }),
-    isWalkable: () => true,
+    liftOut: (x, z, y) => y,
+    standAt: () => ({ floor: 0 }),
+    resolveMove: (from) => ({ x: from.x, z: from.z, floor: 0 }),
 };
 
 function run(actor, world, seconds)
@@ -40,6 +42,26 @@ describe("Entity", () =>
         assert.equal(actor.position.y, 1);
         assert.equal(actor.target, null);
         assert.ok(Math.abs(actor.heading - Math.PI / 2) < 0.05, "heading is " + actor.heading);
+    });
+
+    it("follows a route through each of its points", () =>
+    {
+        const actor = new Entity(1, new Appearance(library));
+        const passed = new Set();
+
+        actor.placeAt(0, 0, OPEN_FIELD);
+        actor.follow([{ x: 2, z: 0 }, { x: 2, z: 2 }, { x: 0, z: 2 }]);
+
+        for(let time = 0; time < 6; time += 0.05)
+        {
+            actor.tick(0.05, OPEN_FIELD);
+
+            if(Math.hypot(actor.position.x - 2, actor.position.z - 2) < 0.35) { passed.add("corner"); }
+        }
+
+        assert.ok(passed.has("corner"), "The route cut its corner");
+        assert.ok(Math.hypot(actor.position.x, actor.position.z - 2) < 0.2, JSON.stringify(actor.position));
+        assert.deepEqual([actor.target, actor.route], [null, []]);
     });
 
     it("runs faster than it walks", () =>

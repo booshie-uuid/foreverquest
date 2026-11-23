@@ -14,7 +14,7 @@ const materials = await TestAssets.materials();
 const prefabs = await TestAssets.prefabs();
 
 // The prototype's collision: every collider, twice over, in the zone's order.
-function fullScan(zone, from, to, radius)
+function fullScan(zone, to, radius)
 {
     const result = { x: to.x, z: to.z };
 
@@ -27,7 +27,7 @@ function fullScan(zone, from, to, radius)
         }
     }
 
-    return zone.canStep(from, result) ? result : { x: from.x, z: from.z };
+    return result;
 }
 
 describe("Zone cells", () =>
@@ -122,32 +122,35 @@ describe("Zone collision", () =>
         assert.ok(Math.abs(point.z) >= 2.5 - 1e-9 || Math.abs(point.x) >= 1.5 - 1e-9, JSON.stringify(point));
     });
 
-    it("stops a step into the well, into the lake, and up more than half a metre", () =>
+    it("stops a move into the well, into the lake, and up two cubes", () =>
     {
-        const intoWell = hearthmere.resolveStep({ x: 0, z: 2 }, { x: 0, z: 0.5 }, 0.35);
+        const intoWell = hearthmere.resolveMove({ x: 0, y: hearthmere.heightAt(0, 2), z: 2 }, { x: 0, z: 0.5 }, 0.35);
+        const shore = { x: 21, y: hearthmere.heightAt(21, 16), z: 16 };
+        const intoLake = hearthmere.resolveMove(shore, { x: 22, z: 16 }, 0.35);
 
         assert.ok(Math.hypot(intoWell.x, intoWell.z) >= 1.2 + 0.35 - 1e-6);
-        assert.deepEqual(hearthmere.resolveStep({ x: 21, z: 16 }, { x: 22, z: 16 }, 0.35), { x: 21, z: 16 });
+        assert.deepEqual([intoLake.x, intoLake.z], [21, 16]);
 
         for(let x = -40; x < 40; x++)
         {
             for(let z = -40; z < 40; z++)
             {
-                const step = hearthmere.heightAt(x + 1.5, z + 0.5) - hearthmere.heightAt(x + 0.5, z + 0.5);
+                const from = { x: x + 0.5, y: hearthmere.heightAt(x + 0.5, z + 0.5), z: z + 0.5 };
+                const step = hearthmere.heightAt(x + 1.5, z + 0.5) - from.y;
 
-                if(step > 0.5 && hearthmere.isWalkable(x + 1.5, z + 0.5))
+                if(step > 0.5 && hearthmere.isWalkable(x + 1.5, z + 0.5) && hearthmere.isClearOfColliders(x + 1.5, z + 0.5, 0.35))
                 {
-                    assert.equal(hearthmere.canStep({ x: x + 0.5, z: z + 0.5 }, { x: x + 1.5, z: z + 0.5 }), false);
+                    assert.equal(hearthmere.footingAt(x + 1.5, z + 0.5, from.y, 0.35), null);
 
                     return;
                 }
             }
         }
 
-        assert.fail("The zone has no step taller than half a metre to test");
+        assert.fail("The zone has no rise of two cubes to test");
     });
 
-    it("resolves every step as a scan of every collider would, deep inside props included", () =>
+    it("pushes out of the colliders as a scan of every collider would, deep inside props included", () =>
     {
         const random = new Random(11);
 
@@ -157,7 +160,7 @@ describe("Zone collision", () =>
             const isLong = i % 3 === 0;
             const to = isLong ? { x: random.range(-44, 44), z: random.range(-44, 44) } : { x: from.x + random.range(-0.2, 0.2), z: from.z + random.range(-0.2, 0.2) };
 
-            assert.deepEqual(hearthmere.resolveStep(from, to, 0.35), fullScan(hearthmere, from, to, 0.35), JSON.stringify({ from, to }));
+            assert.deepEqual(hearthmere.pushOut(to, 0.35), fullScan(hearthmere, to, 0.35), JSON.stringify({ from, to }));
         }
     });
 });

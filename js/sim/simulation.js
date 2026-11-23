@@ -1,3 +1,4 @@
+import * as Pathfinder from "./pathfinder.js";
 import { Appearance } from "../character/appearance.js";
 import { Entity } from "./entity.js";
 import { NpcBrain } from "./npc-brain.js";
@@ -115,7 +116,7 @@ export class Simulation
         {
             case "moveTo":
                 this.talkTarget = null;
-                player.moveTo(command);
+                this.route(player, command);
                 break;
             case "steer":
                 if(command.x !== 0 || command.z !== 0) { this.talkTarget = null; }
@@ -158,6 +159,16 @@ export class Simulation
     isAwake(entity)
     {
         return this.zone.isLoaded(entity.position.x, entity.position.z);
+    }
+
+    // A route the pathfinder cannot find becomes a straight walk, which stops
+    // at the first obstacle.
+    route(entity, point)
+    {
+        const path = Pathfinder.find(this.zone, entity.position, point, entity.radius);
+
+        if(path && path.length > 0) { entity.follow(path); }
+        else { entity.moveTo(point); }
     }
 
     talk()

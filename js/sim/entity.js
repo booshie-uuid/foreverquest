@@ -1,6 +1,8 @@
 const ARRIVE_DISTANCE = 0.15;
+const PASS_DISTANCE = 0.3;
 const TURN_RATE = 10;
 const CLIMB_RATE = 14;
+const GRAVITY = 20;
 const MOVING_SPEED = 0.05;
 
 export class Entity
@@ -15,6 +17,8 @@ export class Entity
         this.speed = 0;
         this.isRunning = false;
         this.target = null;
+        this.route = [];
+        this.fallSpeed = 0;
         this.direction = { x: 0, z: 0 };
         this.brain = null;
     }
@@ -60,7 +64,15 @@ export class Entity
 
     moveTo(point)
     {
-        this.target = { x: point.x, z: point.z };
+        this.follow([point]);
+    }
+
+    follow(points)
+    {
+        const [first, ...rest] = points;
+
+        this.target = { x: first.x, z: first.z };
+        this.route = rest.map((point) => ({ x: point.x, z: point.z }));
         this.direction = { x: 0, z: 0 };
     }
 
@@ -68,13 +80,19 @@ export class Entity
     {
         this.direction = { x, z };
 
-        if(x !== 0 || z !== 0) { this.target = null; }
+        if(x !== 0 || z !== 0) { this.clearTarget(); }
     }
 
     stop()
     {
-        this.target = null;
+        this.clearTarget();
         this.direction = { x: 0, z: 0 };
+    }
+
+    clearTarget()
+    {
+        this.target = null;
+        this.route = [];
     }
 
     face(point)
@@ -99,15 +117,18 @@ export class Entity
         const velocity = this.desiredVelocity();
         const isMoving = velocity.x !== 0 || velocity.z !== 0;
         const length = Math.hypot(velocity.x, velocity.z);
-        const from = { x: this.position.x, z: this.position.z };
+
+        this.position = { ...this.position, y: zone.liftOut(this.position.x, this.position.z, this.position.y) };
+
+        const from = this.position;
         const to = { x: from.x + velocity.x * delta, z: from.z + velocity.z * delta };
-        const resolved = isMoving ? zone.resolveStep(from, to, this.radius) : from;
+        const resolved = isMoving ? zone.resolveMove(from, to, this.radius) : { x: from.x, z: from.z, floor: zone.standAt(from.x, from.z, from.y, this.radius).floor };
         const moved = Math.hypot(resolved.x - from.x, resolved.z - from.z);
 
-        if(isMoving && moved < length * delta * 0.1) { this.target = null; }
+        if(isMoving && moved < length * delta * 0.1) { this.clearTarget(); }
 
         this.speed = delta > 0 ? moved / delta : 0;
-        this.position = { x: resolved.x, y: this.climb(zone.heightAt(resolved.x, resolved.z), delta), z: resolved.z };
+        this.position = { x: resolved.x, y: this.settle(resolved.floor, delta), z: resolved.z };
 
         if(isMoving) { this.desiredHeading = Math.atan2(velocity.x, velocity.z); }
 
@@ -128,11 +149,11 @@ export class Entity
         const offset = { x: this.target.x - this.position.x, z: this.target.z - this.position.z };
         const distance = Math.hypot(offset.x, offset.z);
 
-        if(distance < ARRIVE_DISTANCE)
+        if(distance < (this.route.length > 0 ? PASS_DISTANCE : ARRIVE_DISTANCE))
         {
-            this.target = null;
+            this.target = this.route.shift() ?? null;
 
-            return { x: 0, z: 0 };
+            return this.desiredVelocity();
         }
 
         const speed = Math.min(this.moveSpeed, distance * 8);
@@ -140,14 +161,26 @@ export class Entity
         return { x: (offset.x / distance) * speed, z: (offset.z / distance) * speed };
     }
 
-    // The ground rises in quarter-metre steps.
-    climb(ground, delta)
+    settle(floor, delta)
     {
-        const difference = ground - this.position.y;
+        const y = this.position.y;
 
-        if(Math.abs(difference) < 0.01) { return ground; }
+        if(floor >= y)
+        {
+            this.fallSpeed = 0;
 
-        return this.position.y + difference * Math.min(1, delta * CLIMB_RATE);
+            return floor - y < 0.01 ? floor : y + (floor - y) * Math.min(1, delta * CLIMB_RATE);
+        }
+
+        this.fallSpeed += GRAVITY * delta;
+
+        const fallen = y - this.fallSpeed * delta;
+
+        if(fallen > floor) { return fallen; }
+
+        this.fallSpeed = 0;
+
+        return floor;
     }
 
     turn(delta)

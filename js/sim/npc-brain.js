@@ -68,9 +68,9 @@ export class NpcBrain
             const distance = this.random.range(1, this.resident.roam);
             const x = this.home.x + Math.cos(angle) * distance;
             const z = this.home.z + Math.sin(angle) * distance;
-            const resolved = zone.resolveStep({ x, z }, { x, z }, this.actor.radius);
+            const radius = this.actor.radius;
 
-            if(Math.hypot(resolved.x - x, resolved.z - z) < 0.01 && zone.isWalkable(x, z)) { return { x, z }; }
+            if(zone.footingAt(x, z, zone.heightAt(x, z), radius) && zone.isClearOfColliders(x, z, radius)) { return { x, z }; }
         }
 
         return null;

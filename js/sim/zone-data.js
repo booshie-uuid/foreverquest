@@ -1,8 +1,10 @@
 import * as RegionCodec from "./region-codec.js";
 import { BlockSet } from "./block-set.js";
 
-const MAX_STEP_UP = 0.5;
 const EDGE_MARGIN = 2;
+const STEP_CELLS = 1;
+const CLEARANCE_CELLS = 6;
+const EPSILON = 1e-6;
 const CELL = 4;
 const CUBES_PER_METRE = 3;
 const { CHUNK, REGION } = RegionCodec;
@@ -33,7 +35,7 @@ function extentOf(collider)
 
 export class ZoneData
 {
-    static MAX_STEP_UP = MAX_STEP_UP;
+    static STEP_CELLS = STEP_CELLS;
     static CUBES_PER_METRE = CUBES_PER_METRE;
 
     // A placement turns its prefab about y by its angle and scales it about
@@ -264,22 +266,132 @@ export class ZoneData
 
     /* MOVEMENT ***************************************************************/
 
-    isWalkable(x, z)
+    cellY(metres)
     {
-        return this.isInside(x, z, EDGE_MARGIN) && this.isLoaded(x, z) && !this.isWater(x, z);
+        return metres * CUBES_PER_METRE + this.base;
     }
 
-    canStep(from, to)
+    metresY(cells)
     {
-        return this.isWalkable(to.x, to.z) && this.heightAt(to.x, to.z) - this.heightAt(from.x, from.z) <= MAX_STEP_UP;
+        return (cells - this.base) / CUBES_PER_METRE;
+    }
+
+    isWalkable(x, z)
+    {
+        return this.isInside(x, z, EDGE_MARGIN) && this.isLoaded(x, z);
+    }
+
+    // A cylinder stands on the highest solid cell under it that is no more
+    // than a step above its feet, and is blocked when a solid cell reaches
+    // into the CLEARANCE cells above that floor.
+    standAt(x, z, feet, radius)
+    {
+        const reach = Math.floor(this.cellY(feet) + STEP_CELLS + EPSILON);
+        const [left, back] = this.columnOf(x - radius, z - radius);
+        const [right, front] = this.columnOf(x + radius, z + radius);
+        const touched = [];
+        let floor = 0;
+
+        for(let row = back; row <= front; row++)
+        {
+            for(let column = left; column <= right; column++)
+            {
+                if(!this.touches(column, row, x, z, radius)) { continue; }
+
+                touched.push([column, row]);
+                floor = Math.max(floor, this.topBelow(column, row, reach));
+            }
+        }
+
+        const isBlocked = touched.some(([column, row]) =>
+        {
+            for(let y = floor; y < floor + CLEARANCE_CELLS; y++) { if(this.isSolid(column, y, row)) { return true; } }
+
+            return false;
+        });
+        const [column, row] = this.columnOf(x, z);
+
+        return { floor: this.metresY(floor), isBlocked, isWet: this.blocks.isLiquid(this.blockAt(column, floor, row)) };
+    }
+
+    // An entity placed before its ground loaded can end up inside it; this
+    // returns the top of the solid cells around its feet, or its feet.
+    liftOut(x, z, feet)
+    {
+        const [column, row] = this.columnOf(x, z);
+        let y = Math.floor(this.cellY(feet) + EPSILON);
+
+        if(!this.isSolid(column, y, row)) { return feet; }
+
+        while(this.isSolid(column, y, row)) { y++; }
+
+        return this.metresY(y);
+    }
+
+    // Whether a circle overlaps a column's square.
+    touches(column, row, x, z, radius)
+    {
+        const left = column / CUBES_PER_METRE - this.half;
+        const back = row / CUBES_PER_METRE - this.half;
+        const nearestX = Math.max(left, Math.min(x, left + 1 / CUBES_PER_METRE));
+        const nearestZ = Math.max(back, Math.min(z, back + 1 / CUBES_PER_METRE));
+
+        return Math.hypot(x - nearestX, z - nearestZ) < radius;
+    }
+
+    // The top of the highest solid cell in a column whose top is at or below
+    // `limit`, or 0.
+    topBelow(column, row, limit)
+    {
+        const surface = this.surface(column, row);
+
+        if(surface <= limit) { return surface; }
+
+        for(let y = limit - 1; y >= 0; y--) { if(this.isSolid(column, y, row)) { return y + 1; } }
+
+        return 0;
+    }
+
+    // Null where a cylinder whose feet are at `feet` cannot stand.
+    footingAt(x, z, feet, radius)
+    {
+        if(!this.isWalkable(x, z)) { return null; }
+
+        const stand = this.standAt(x, z, feet, radius);
+
+        return stand.isBlocked || stand.isWet ? null : stand;
+    }
+
+    isClearOfColliders(x, z, radius)
+    {
+        const pushed = this.pushOut({ x, z }, radius);
+
+        return Math.hypot(pushed.x - x, pushed.z - z) < 1e-9;
+    }
+
+    resolveMove(from, to, radius)
+    {
+        const pushed = this.pushOut(to, radius);
+        const candidates = [pushed, { x: pushed.x, z: from.z }, { x: from.x, z: pushed.z }];
+
+        for(const [i, candidate] of candidates.entries())
+        {
+            if(i > 0 && !this.isClearOfColliders(candidate.x, candidate.z, radius)) { continue; }
+
+            const footing = this.footingAt(candidate.x, candidate.z, from.y, radius);
+
+            if(footing) { return { x: candidate.x, z: candidate.z, floor: footing.floor }; }
+        }
+
+        return { x: from.x, z: from.z, floor: this.standAt(from.x, from.z, from.y, radius).floor };
     }
 
     // Pushes the circle out of each nearby collider in turn, twice over, as
     // if it had tested every collider in the zone.
-    resolveStep(from, to, radius)
+    pushOut(point, radius)
     {
-        const result = { x: to.x, z: to.z };
-        const nearby = this.collidersNear(to.x, to.z, 2 * this.maxExtent + 2 * radius);
+        const result = { x: point.x, z: point.z };
+        const nearby = this.collidersNear(point.x, point.z, 2 * this.maxExtent + 2 * radius);
 
         for(let pass = 0; pass < 2; pass++)
         {
@@ -289,8 +401,6 @@ export class ZoneData
                 else { ZoneData.pushOutOfBox(result, collider, radius); }
             }
         }
-
-        if(!this.canStep(from, result)) { return { x: from.x, z: from.z }; }
 
         return result;
     }
