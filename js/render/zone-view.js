@@ -372,6 +372,14 @@ export class ZoneView
         return geometry;
     }
 
+    // `size` is the object's cells in metres.
+    static objectMatrix(entry, [width, , depth])
+    {
+        return new THREE.Matrix4().makeTranslation(entry.x, entry.y, entry.z)
+            .multiply(new THREE.Matrix4().makeRotationY(entry.turns * Math.PI / 2))
+            .multiply(new THREE.Matrix4().makeTranslation(-width / 2, 0, -depth / 2));
+    }
+
     addObjects(name)
     {
         const placed = this.zone.objects.filter((entry) => entry.object && this.zone.regionOfColumn(entry.box[0], entry.box[2]) === name);
@@ -385,18 +393,9 @@ export class ZoneView
 
             const geometry = shared.clone();
             const mesh = new THREE.InstancedMesh(geometry, this.materials.objects, entries.length);
-            const [width, , depth] = shared.userData.size;
-
             geometry.setAttribute("light", new THREE.InstancedBufferAttribute(new Float32Array(entries.length * 2), 2));
 
-            entries.forEach((entry, i) =>
-            {
-                const matrix = new THREE.Matrix4().makeTranslation(entry.x, entry.y, entry.z)
-                    .multiply(new THREE.Matrix4().makeRotationY(entry.turns * Math.PI / 2))
-                    .multiply(new THREE.Matrix4().makeTranslation(-width / 2, 0, -depth / 2));
-
-                mesh.setMatrixAt(i, matrix);
-            });
+            entries.forEach((entry, i) => mesh.setMatrixAt(i, ZoneView.objectMatrix(entry, shared.userData.size)));
 
             mesh.name = "objects";
             mesh.castShadow = true;

@@ -60,6 +60,7 @@ export function bakeObject(id, object, blocks, where, problems)
     object.build(grid);
 
     if(grid.count === 0) { problems.push(where + " has no fine cubes"); }
+    if(object.light !== undefined && !isCellOf(object.light, cells)) { problems.push(where + " needs its light to be one of its cells, as [x, y, z]"); }
     if(problems.length > before) { return null; }
 
     const mesh = FineMesher.mesh(grid, (block) => blocks.get(block).faces, WorldTextures.TEXELS_PER_METRE / WorldTextures.SIZE);
@@ -67,7 +68,16 @@ export function bakeObject(id, object, blocks, where, problems)
 
     if(triangles > MAX_TRIANGLES) { problems.push(where + " has " + triangles + " triangles, more than " + MAX_TRIANGLES); }
 
-    return { cells, isSolid: object.isSolid !== false, palette: grid.palette, runs: FineMesher.encode(grid.data) };
+    const baked = { cells, isSolid: object.isSolid !== false, palette: grid.palette, runs: FineMesher.encode(grid.data) };
+
+    if(object.light) { baked.light = object.light; }
+
+    return baked;
+}
+
+function isCellOf(cell, cells)
+{
+    return Array.isArray(cell) && cell.length === 3 && cell.every((value, axis) => Number.isInteger(value) && value >= 0 && value < cells[axis]);
 }
 
 

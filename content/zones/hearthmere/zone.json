@@ -142,37 +142,37 @@
     },
     "props": [
         {
-            "prefab": "well",
+            "object": "well",
             "x": 0,
             "z": 0,
             "angle": 0
         },
         {
-            "prefab": "stocks",
+            "object": "stocks",
             "x": 3.6,
             "z": -3.4,
             "angle": 0.5
         },
         {
-            "prefab": "lampPost",
+            "object": "lampPost",
             "x": 6.079003,
             "z": 2.570161,
             "angle": -0.4
         },
         {
-            "prefab": "lampPost",
+            "object": "lampPost",
             "x": -2.443193,
             "z": 6.131134,
             "angle": -1.95
         },
         {
-            "prefab": "lampPost",
+            "object": "lampPost",
             "x": -6.05718,
             "z": -2.621178,
             "angle": -3.55
         },
         {
-            "prefab": "lampPost",
+            "object": "lampPost",
             "x": 2.494653,
             "z": -6.110377,
             "angle": -5.1
@@ -184,7 +184,7 @@
             "angle": -0.780796
         },
         {
-            "prefab": "barrel",
+            "object": "barrel",
             "x": 5.107329,
             "z": -7.882119,
             "angle": 0.217838
@@ -196,7 +196,7 @@
             "angle": 0.869204
         },
         {
-            "prefab": "barrel",
+            "object": "barrel",
             "x": -8.261505,
             "z": -4.467678,
             "angle": 0.613124
@@ -208,7 +208,7 @@
             "angle": 2.532389
         },
         {
-            "prefab": "barrel",
+            "object": "barrel",
             "x": -3.686437,
             "z": 8.638449,
             "angle": 0.888306
@@ -220,7 +220,7 @@
             "angle": -2.530796
         },
         {
-            "prefab": "barrel",
+            "object": "barrel",
             "x": 6.845533,
             "z": 6.430497,
             "angle": 0.149675
@@ -244,37 +244,37 @@
             "angle": 0.7
         },
         {
-            "prefab": "sacks",
+            "object": "sacks",
             "x": -6.2,
             "z": 3.2,
             "angle": 0.4
         },
         {
-            "prefab": "crate70",
+            "object": "crateLarge",
             "x": 5.2,
             "z": -6.8,
             "angle": 0.54647
         },
         {
-            "prefab": "crate55",
+            "object": "crateSmall",
             "x": 5.9,
             "z": -6.2,
             "angle": 0.954752
         },
         {
-            "prefab": "crate65",
+            "object": "crate",
             "x": -7.2,
             "z": -3.2,
             "angle": 0.375243
         },
         {
-            "prefab": "crate50",
+            "object": "crateSmall",
             "x": -7.6,
             "z": -2.5,
             "angle": 0.009588
         },
         {
-            "prefab": "signpost",
+            "object": "signpost",
             "x": -14.5,
             "z": 3.6,
             "angle": 0.3

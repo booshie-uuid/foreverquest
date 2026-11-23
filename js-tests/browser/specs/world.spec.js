@@ -134,7 +134,7 @@ export const tests =
                 return [...document.querySelectorAll(".chat-line.system")].at(-1)?.textContent ?? "";
             });
 
-            assert.match(line, /prop 0: well/);
+            assert.match(line, /prop 0: object well/);
         },
     },
     {

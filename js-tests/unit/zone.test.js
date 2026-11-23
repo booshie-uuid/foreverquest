@@ -150,7 +150,7 @@ describe("Zone movement", () =>
         const well = hearthmere.objectAt(wellColumn, hearthmere.cellY(hearthmere.groundAt(0.85, 0)) + 1, wellRow);
 
         assert.deepEqual([inn?.prop, inn?.name, inn?.turns], [6, "house.inn", 0]);
-        assert.deepEqual([well?.prop, well?.name], [0, "well"]);
+        assert.deepEqual([well?.prop, well?.name], [0, "object well"]);
         assert.equal(hearthmere.objectAt(0, 0, 0), null);
     });
 

@@ -1,3 +1,4 @@
+import * as FineMesher from "../../js/render/fine-mesher.js";
 import * as PropBlocks from "../../content/props/blocks.js";
 import { ZoneData } from "../../js/sim/zone-data.js";
 
@@ -163,10 +164,12 @@ class Box
     }
 }
 
-// An object's `x` and `z` give the middle of its footprint.
-export function placeObjects(cells, zone, placements, objects, objectBlock)
+// An object's `x` and `z` give the middle of its footprint. `numbers` maps
+// block ids to block numbers.
+export function placeObjects(cells, zone, placements, objects, numbers)
 {
     const half = zone.columns / CUBES / 2;
+    const occupied = new Map();
 
     return placements.map((placement) =>
     {
@@ -178,15 +181,15 @@ export function placeObjects(cells, zone, placements, objects, objectBlock)
         const row = Math.round((placement.z + half) * CUBES - along / 2);
         const floor = Math.round(placement.y * CUBES + zone.base);
 
-        if(object.isSolid)
+        if(!occupied.has(placement.object)) { occupied.set(placement.object, occupiedCells(object)); }
+
+        for(const local of object.isSolid ? occupied.get(placement.object) : [])
         {
-            for(let y = floor; y < floor + height; y++)
-            {
-                for(let z = row; z < row + along; z++)
-                {
-                    for(let x = column; x < column + across; x++) { cells.set((y * zone.columns + z) * zone.columns + x, objectBlock); }
-                }
-            }
+            const [x, z] = turnedCell(local, object.cells, turns);
+            const isLight = object.light?.every((value, axis) => value === local[axis]);
+            const index = ((floor + local[1]) * zone.columns + row + z) * zone.columns + column + x;
+
+            cells.set(index, isLight ? numbers.objectLight : numbers.object);
         }
 
         return {
@@ -200,6 +203,38 @@ export function placeObjects(cells, zone, placements, objects, objectBlock)
             box: [column, floor, row, column + across - 1, floor + height - 1, row + along - 1],
         };
     });
+}
+
+function occupiedCells(object)
+{
+    const { size, data } = FineMesher.decode(object);
+    const [width, , depth] = object.cells;
+    const found = new Map();
+
+    for(let i = 0; i < data.length; i++)
+    {
+        if(data[i] === 0) { continue; }
+
+        const x = Math.floor((i % size[0]) / FineMesher.FINE);
+        const z = Math.floor((Math.floor(i / size[0]) % size[2]) / FineMesher.FINE);
+        const y = Math.floor(Math.floor(i / (size[0] * size[2])) / FineMesher.FINE);
+
+        found.set((y * depth + z) * width + x, [x, y, z]);
+    }
+
+    return [...found.values()];
+}
+
+// Counted from the turned footprint's corner. It must turn the way
+// ZoneView.objectMatrix turns the mesh.
+export function turnedCell([x, , z], [width, , depth], turns)
+{
+    const u = x + 0.5 - width / 2;
+    const v = z + 0.5 - depth / 2;
+    const [across, along] = turns % 2 === 0 ? [width, depth] : [depth, width];
+    const [tu, tv] = [[u, v], [v, -u], [-u, -v], [-v, u]][turns];
+
+    return [Math.floor(across / 2 + tu), Math.floor(along / 2 + tv)];
 }
 
 export function carve(cells, zone, box, carved = null)
