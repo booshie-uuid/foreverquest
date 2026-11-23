@@ -23,11 +23,10 @@ async function main()
     {
         characters,
         parts: Capture.partSweep(library),
-        zone: Capture.zoneRecord(await TestAssets.zone("hearthmere")),
     };
 
     fs.writeFileSync(OUTPUT, JSON.stringify(reference) + "\n");
-    Log.info("Recorded " + characters.length + " characters, " + Object.keys(reference.parts).length + " part cases and the zone to " + OUTPUT);
+    Log.info("Recorded " + characters.length + " characters, " + Object.keys(reference.parts).length + " part cases to " + OUTPUT);
 }
 
 await main();

@@ -70,7 +70,7 @@ export class NpcBrain
             const z = this.home.z + Math.sin(angle) * distance;
             const radius = this.actor.radius;
 
-            if(zone.footingAt(x, z, zone.heightAt(x, z), radius) && zone.isClearOfColliders(x, z, radius)) { return { x, z }; }
+            if(zone.footingAt(x, z, zone.heightAt(x, z), radius)) { return { x, z }; }
         }
 
         return null;

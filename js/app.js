@@ -73,7 +73,7 @@ export class App
 
     async loadZone(id)
     {
-        return RegionStreamer.open(this.assets, id, this.content.prefabs, this.content.blocks);
+        return RegionStreamer.open(this.assets, id, this.content.blocks);
     }
 
     async travel(id)

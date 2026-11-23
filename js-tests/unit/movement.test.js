@@ -16,10 +16,11 @@ const RADIUS = 0.35;
 
 // A 32 by 32 cell zone with its ground's top at cell 4, height 0 metres.
 // `build(set)` adds cells; x and z run from 0 to 31.
-function cellZone(build, props = [], prefabs = {})
+function cellZone(build)
 {
     const cells = new Uint8Array(RegionCodec.CELLS);
     const surfaces = new Uint16Array(32 * 32);
+    const grounds = new Uint16Array(32 * 32).fill(BASE);
     const set = (x, y, z, block = STONE) => { cells[(y * 32 + z) * 32 + x] = block; };
 
     for(let z = 0; z < 32; z++) { for(let x = 0; x < 32; x++) { for(let y = 0; y < BASE; y++) { set(x, y, z); } } }
@@ -38,9 +39,9 @@ function cellZone(build, props = [], prefabs = {})
         }
     }
 
-    const index = { id: "cells", name: "cells", columns: 32, height: 32, base: BASE, water: 0, lighting: {}, spawn: { x: 0, z: 0 }, people: { seed: 1, residents: [] }, runs: [], props, regions: ["0-0"] };
+    const index = { id: "cells", name: "cells", columns: 32, height: 32, base: BASE, water: 0, lighting: {}, spawn: { x: 0, z: 0 }, people: { seed: 1, residents: [] }, lights: [], regions: ["0-0"] };
 
-    return new ZoneData(index, [{ name: "0-0", width: 32, depth: 32, height: 32, surfaces, chunks: [{ x: 0, y: 0, z: 0, uniform: null, cells }] }], prefabs, blocks);
+    return new ZoneData(index, [{ name: "0-0", width: 32, depth: 32, height: 32, surfaces, grounds, chunks: [{ x: 0, y: 0, z: 0, uniform: null, cells }] }], blocks);
 }
 
 function metres(cell)
@@ -186,27 +187,6 @@ describe("Pathfinder", () =>
         run(actor, zone, 12);
 
         assert.ok(Math.hypot(actor.position.x - metres(22), actor.position.z - metres(8)) < 0.2, JSON.stringify(actor.position));
-    });
-
-    it("goes around a prop's collider", () =>
-    {
-        const zone = cellZone(() => {}, [{ prefab: "pillar", x: 0, y: 0, z: 0 }], { pillar: { colliders: [{ x: 0, z: 0, radius: 1 }], lights: [] } });
-        const from = { x: -2, y: 0, z: 0 };
-        const path = Pathfinder.find(zone, from, { x: 2, z: 0 }, RADIUS);
-        const points = [from, ...path];
-
-        assert.ok(path.length >= 2, JSON.stringify(path));
-
-        for(let i = 1; i < points.length; i++)
-        {
-            for(let t = 0; t <= 1; t += 0.05)
-            {
-                const x = points[i - 1].x + (points[i].x - points[i - 1].x) * t;
-                const z = points[i - 1].z + (points[i].z - points[i - 1].z) * t;
-
-                assert.ok(Math.hypot(x, z) >= 1 + RADIUS - 1e-6, "The path passes through the pillar at " + x + ", " + z);
-            }
-        }
     });
 
     it("walks as near as it can to a place it cannot reach", () =>

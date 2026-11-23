@@ -57,7 +57,7 @@ export class Entity
 
     placeAt(x, z, zone, heading = this.heading)
     {
-        this.position = { x, y: zone.heightAt(x, z), z };
+        this.position = zone.openGround(x, z, this.radius);
         this.heading = heading;
         this.desiredHeading = heading;
     }

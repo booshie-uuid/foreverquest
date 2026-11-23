@@ -122,7 +122,7 @@ function footing(zone, feet, x, z, radius)
 {
     const stand = zone.footingAt(x, z, feet, radius);
 
-    if(!stand || feet - stand.floor > MAX_DROP || !zone.isClearOfColliders(x, z, radius)) { return null; }
+    if(!stand || feet - stand.floor > MAX_DROP) { return null; }
 
     return stand.floor;
 }

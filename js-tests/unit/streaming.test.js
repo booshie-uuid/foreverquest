@@ -8,7 +8,6 @@ import { Simulation } from "../../js/sim/simulation.js";
 import { ZoneView } from "../../js/render/zone-view.js";
 
 const source = await TestAssets.open();
-const prefabs = await TestAssets.prefabs();
 const blocks = await BlockSet.load(source);
 const materials = await TestAssets.materials();
 const FAR = { x: 400, z: 380 };
@@ -17,7 +16,7 @@ describe("Region streaming", () =>
 {
     it("loads only the regions near the spawn point of a large zone", async () =>
     {
-        const streamer = await RegionStreamer.open(source, "expanse", prefabs, blocks);
+        const streamer = await RegionStreamer.open(source, "expanse", blocks);
         const zone = streamer.zone;
         const spawnRegion = zone.regionOfColumn(...zone.columnOf(zone.spawn.x, zone.spawn.z));
 
@@ -30,9 +29,9 @@ describe("Region streaming", () =>
 
     it("loads the regions ahead of a moving point and frees those left behind", async () =>
     {
-        const streamer = await RegionStreamer.open(source, "expanse", prefabs, blocks);
+        const streamer = await RegionStreamer.open(source, "expanse", blocks);
         const zone = streamer.zone;
-        const view = new ZoneView(zone, prefabs, materials);
+        const view = new ZoneView(zone, materials);
         const spawnRegion = zone.regionOfColumn(...zone.columnOf(0, 0));
         const meshesNearSpawn = view.terrainMeshes.length;
 
@@ -55,7 +54,7 @@ describe("Region streaming", () =>
     it("leaves an entity asleep while the region under it is not loaded, and stops a step into it", async () =>
     {
         const library = await TestAssets.library();
-        const streamer = await RegionStreamer.open(source, "expanse", prefabs, blocks);
+        const streamer = await RegionStreamer.open(source, "expanse", blocks);
         const zone = streamer.zone;
         const sim = new Simulation(library, { npcs: {}, lines: {} });
 

@@ -38,7 +38,7 @@ export async function zone(id)
 {
     const source = await open();
 
-    return ZoneData.load(source, id, await source.json("props/prefabs.json"), await BlockSet.load(source));
+    return ZoneData.load(source, id, await BlockSet.load(source));
 }
 
 export async function materials()

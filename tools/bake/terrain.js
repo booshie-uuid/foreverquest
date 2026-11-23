@@ -114,19 +114,34 @@ export function heightsOf(zone, surfaces)
 /* REGIONS                                                                    */
 /******************************************************************************/
 
-// `ground` holds the { top, under } block numbers of each ground index.
-export function bakeRegions(zone, terrain, ground, blocks)
+// `ground` holds the { top, under } block numbers of each ground index, and
+// `placed` the cells of the zone's props, which replace the ground's.
+export function bakeRegions(zone, terrain, ground, blocks, placed = { cells: new Map(), solid: new Set() })
 {
+    const byRegion = new Map();
+
+    for(const [index, block] of placed.cells)
+    {
+        const x = index % zone.columns;
+        const z = Math.floor(index / zone.columns) % zone.columns;
+        const name = Math.floor(x / REGION) + "-" + Math.floor(z / REGION);
+
+        if(!byRegion.has(name)) { byRegion.set(name, []); }
+
+        byRegion.get(name).push([x, Math.floor(index / (zone.columns * zone.columns)), z, block]);
+    }
+
     return regionNames(zone.columns).map((name) =>
     {
         const [rx, rz] = name.split("-").map(Number);
-        const region = composeRegion(zone, terrain, ground, blocks, rx, rz);
+        const region = composeRegion(zone, terrain, ground, blocks, rx, rz, { cells: byRegion.get(name) ?? [], solid: placed.solid });
 
         return { name, bytes: zlib.deflateSync(RegionCodec.encode(region), { level: 9 }) };
     });
 }
 
-export function composeRegion(zone, terrain, ground, blocks, rx, rz)
+// `placed.cells` holds [x, y, z, block] in zone cells.
+export function composeRegion(zone, terrain, ground, blocks, rx, rz, placed = { cells: [], solid: new Set() })
 {
     const columns = zone.columns;
     const width = Math.min(REGION, columns - rx * REGION);
@@ -177,6 +192,18 @@ export function composeRegion(zone, terrain, ground, blocks, rx, rz)
         }
     }
 
+    const grounds = surfaces.slice();
+
+    for(const [zoneX, y, zoneZ, block] of placed.cells)
+    {
+        const x = zoneX - rx * REGION;
+        const z = zoneZ - rz * REGION;
+
+        cellsOf(Math.floor(x / CHUNK), Math.floor(y / CHUNK), Math.floor(z / CHUNK))[((y % CHUNK) * CHUNK + (z % CHUNK)) * CHUNK + (x % CHUNK)] = block;
+
+        if(placed.solid.has(block)) { surfaces[z * width + x] = Math.max(surfaces[z * width + x], y + 1); }
+    }
+
     const chunks = [];
 
     grid.forEach((cells, index) =>
@@ -184,7 +211,7 @@ export function composeRegion(zone, terrain, ground, blocks, rx, rz)
         if(cells) { chunks.push({ x: index % wide, y: Math.floor(index / (wide * deep)), z: Math.floor(index / wide) % deep, cells }); }
     });
 
-    return { width, depth, height: zone.height, surfaces, chunks };
+    return { width, depth, height: zone.height, surfaces, grounds, chunks };
 }
 
 function isRocky(zone, surfaces, column, row)

@@ -1,34 +1,15 @@
 import * as RegionCodec from "../../js/sim/region-codec.js";
 import * as Terrain from "../../tools/bake/terrain.js";
 import * as TestAssets from "../helpers/assets.js";
+import * as Voxelise from "../../tools/bake/voxelise.js";
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { BlockSet } from "../../js/sim/block-set.js";
-import { Random } from "../../js/util/random.js";
-import { ZoneData } from "../../js/sim/zone-data.js";
 import { ZoneView } from "../../js/render/zone-view.js";
 
 const hearthmere = await TestAssets.zone("hearthmere");
 const testfield = await TestAssets.zone("testfield");
 const materials = await TestAssets.materials();
-const prefabs = await TestAssets.prefabs();
-
-// The prototype's collision: every collider, twice over, in the zone's order.
-function fullScan(zone, to, radius)
-{
-    const result = { x: to.x, z: to.z };
-
-    for(let pass = 0; pass < 2; pass++)
-    {
-        for(const collider of zone.colliders)
-        {
-            if(collider.radius !== undefined) { ZoneData.pushOutOfCircle(result, collider, radius); }
-            else { ZoneData.pushOutOfBox(result, collider, radius); }
-        }
-    }
-
-    return result;
-}
 
 describe("Zone cells", () =>
 {
@@ -49,11 +30,15 @@ describe("Zone cells", () =>
         }
     });
 
-    it("keeps the village square flat and dry and floods the lake", () =>
+    it("keeps the village square flat and dry, builds the well on it and floods the lake", () =>
     {
-        for(const [x, z] of [[0, 0], [5, 3], [-4, -5], [10, 2]]) { assert.equal(hearthmere.heightAt(x, z), 2 / 3, x + ", " + z); }
+        for(const [x, z] of [[0, 0], [5, 3], [-4, -5], [10, 2]]) { assert.equal(hearthmere.groundAt(x, z), 2 / 3, x + ", " + z); }
 
-        assert.equal(hearthmere.typeAt(0, 0), "cobble");
+        const [column, row] = hearthmere.columnOf(0.85, 0);
+        const wellFoot = hearthmere.blockAt(column, hearthmere.cellY(hearthmere.groundAt(0.85, 0)), row);
+
+        assert.ok(hearthmere.blocks.isSolid(wellFoot), "The well has no cube on the ground");
+        assert.ok(hearthmere.heightAt(0.85, 0) > hearthmere.groundAt(0.85, 0));
         assert.equal(hearthmere.isWater(0, 0), false);
         assert.ok(hearthmere.isWater(22, 16));
         assert.equal(hearthmere.blockAt(-1, 20, 0), BlockSet.AIR);
@@ -72,6 +57,7 @@ describe("Region files", () =>
             depth: 32,
             height: 64,
             surfaces: Uint16Array.from({ length: 40 * 32 }, (value, i) => i % 65),
+            grounds: Uint16Array.from({ length: 40 * 32 }, (value, i) => i % 13),
             chunks:
             [
                 { x: 0, y: 0, z: 0, cells: new Uint8Array(RegionCodec.CELLS).fill(3) },
@@ -84,11 +70,11 @@ describe("Region files", () =>
         const decoded = RegionCodec.decode(encoded);
 
         assert.deepEqual([decoded.width, decoded.depth, decoded.height], [40, 32, 64]);
-        assert.deepEqual(decoded.surfaces, region.surfaces);
+        assert.deepEqual([decoded.surfaces, decoded.grounds], [region.surfaces, region.grounds]);
         assert.deepEqual(decoded.chunks.map((chunk) => [chunk.x, chunk.y, chunk.z, chunk.uniform]), [[0, 0, 0, 3], [1, 0, 0, null], [1, 1, 0, null]]);
         assert.deepEqual(decoded.chunks[1].cells, dense);
         assert.deepEqual(decoded.chunks[2].cells, layered);
-        assert.ok(encoded.length < 12 + 40 * 32 * 2 + 2 + 4 + 1 + 4 + RegionCodec.CELLS + 4 + 100, "A layered chunk is stored as runs");
+        assert.ok(encoded.length < 12 + 40 * 32 * 4 + 2 + 4 + 1 + 4 + RegionCodec.CELLS + 4 + 100, "A layered chunk is stored as runs");
     });
 
     it("tops each column with its ground, then subsoil, then rock, and fills water to the water line", () =>
@@ -111,24 +97,15 @@ describe("Region files", () =>
     });
 });
 
-describe("Zone collision", () =>
+describe("Zone movement", () =>
 {
-    it("pushes a circle out of a rotated box", () =>
-    {
-        const point = { x: 0.2, z: 1.5 };
-
-        ZoneData.pushOutOfBox(point, { x: 0, z: 0, halfWidth: 2, halfDepth: 1, angle: Math.PI / 2 }, 0.5);
-
-        assert.ok(Math.abs(point.z) >= 2.5 - 1e-9 || Math.abs(point.x) >= 1.5 - 1e-9, JSON.stringify(point));
-    });
-
     it("stops a move into the well, into the lake, and up two cubes", () =>
     {
-        const intoWell = hearthmere.resolveMove({ x: 0, y: hearthmere.heightAt(0, 2), z: 2 }, { x: 0, z: 0.5 }, 0.35);
+        const intoWell = hearthmere.resolveMove({ x: 0, y: hearthmere.groundAt(0, 2), z: 2 }, { x: 0, z: 1 }, 0.35);
         const shore = { x: 21, y: hearthmere.heightAt(21, 16), z: 16 };
         const intoLake = hearthmere.resolveMove(shore, { x: 22, z: 16 }, 0.35);
 
-        assert.ok(Math.hypot(intoWell.x, intoWell.z) >= 1.2 + 0.35 - 1e-6);
+        assert.deepEqual([intoWell.x, intoWell.z], [0, 2]);
         assert.deepEqual([intoLake.x, intoLake.z], [21, 16]);
 
         for(let x = -40; x < 40; x++)
@@ -138,7 +115,7 @@ describe("Zone collision", () =>
                 const from = { x: x + 0.5, y: hearthmere.heightAt(x + 0.5, z + 0.5), z: z + 0.5 };
                 const step = hearthmere.heightAt(x + 1.5, z + 0.5) - from.y;
 
-                if(step > 0.5 && hearthmere.isWalkable(x + 1.5, z + 0.5) && hearthmere.isClearOfColliders(x + 1.5, z + 0.5, 0.35))
+                if(step > 0.5 && hearthmere.isWalkable(x + 1.5, z + 0.5))
                 {
                     assert.equal(hearthmere.footingAt(x + 1.5, z + 0.5, from.y, 0.35), null);
 
@@ -150,51 +127,65 @@ describe("Zone collision", () =>
         assert.fail("The zone has no rise of two cubes to test");
     });
 
-    it("pushes out of the colliders as a scan of every collider would, deep inside props included", () =>
+    it("places entities on open ground beside the props", () =>
     {
-        const random = new Random(11);
+        const spot = hearthmere.openGround(0, 0, 0.35);
 
-        for(let i = 0; i < 3000; i++)
-        {
-            const from = { x: random.range(-44, 44), z: random.range(-44, 44) };
-            const isLong = i % 3 === 0;
-            const to = isLong ? { x: random.range(-44, 44), z: random.range(-44, 44) } : { x: from.x + random.range(-0.2, 0.2), z: from.z + random.range(-0.2, 0.2) };
-
-            assert.deepEqual(hearthmere.pushOut(to, 0.35), fullScan(hearthmere, to, 0.35), JSON.stringify({ from, to }));
-        }
+        assert.ok(Math.hypot(spot.x, spot.z) > 1, JSON.stringify(spot));
+        assert.equal(spot.y, hearthmere.groundAt(spot.x, spot.z));
     });
 });
 
-describe("Zone placement", () =>
+describe("Zone props", () =>
 {
-    it("turns, scales and lifts a prefab's colliders and lights onto the ground", () =>
-    {
-        const pine = testfield.placements.find((placement) => placement.prefab === "pine.0");
-        const collider = testfield.colliders.find((entry) => entry.x === -8 && entry.z === -8);
-        const lamp = testfield.placements.find((placement) => placement.prefab === "lampPost");
-        const [local] = prefabs.lampPost.lights;
-        const [x, y, z] = testfield.lightSpots[0];
+    const zone = { columns: 96, height: 64, base: 16 };
+    const count = (cells) => [...cells.values()].filter((block) => block === 1).length;
 
-        assert.equal(pine.y, testfield.heightAt(-8, -8));
-        assert.ok(Math.abs(collider.radius - prefabs["pine.0"].colliders[0].radius * 1.1) < 1e-12);
-        assert.ok(Math.abs(y - (lamp.y + local[1])) < 1e-12);
-        assert.ok(Math.abs(Math.hypot(x - lamp.x, z - lamp.z) - Math.hypot(local[0], local[2])) < 1e-12);
+    it("fills the cells whose centres a block covers, and at least one cell across a thin block", () =>
+    {
+        const box = new Map();
+        const post = new Map();
+
+        Voxelise.rasterise(box, zone, { size: [1, 1, 1], at: [0.5, 0.5, 0.5] }, 1);
+        Voxelise.rasterise(post, zone, { size: [0.05, 1, 0.05], at: [0.1, 0.5, 0.1] }, 1);
+
+        assert.equal(count(box), 27);
+        assert.equal(count(post), 3);
     });
 
-    it("bakes fence runs into colliders that follow the line", () =>
+    it("turns a block with its prefab and snaps placements to quarter turns", () =>
     {
-        const run = testfield.runs[0];
+        const along = new Map();
+        const turned = new Map();
 
-        assert.ok(run.colliders.length >= 6);
-        assert.ok(run.colliders.every((collider) => collider.radius === 0.3));
+        Voxelise.rasterise(along, zone, { size: [2, 1 / 3, 1 / 3], at: [0, 1 / 6, 1 / 6] }, 1);
+        Voxelise.rasterise(turned, zone, { size: [2, 1 / 3, 1 / 3], at: [1 / 6, 1 / 6, 0], rotation: [0, Math.PI / 2, 0] }, 1);
+
+        assert.equal(count(along), 6);
+        assert.equal(count(turned), 6);
+        assert.ok([...turned.keys()].every((index) => index % 96 === 48), "The turned block does not run along z");
+        assert.equal(Voxelise.quarterTurn(0.8), Math.PI / 2);
+        assert.equal(Voxelise.quarterTurn(0.3), 0);
+    });
+
+    it("builds the test field's props as cubes and keeps the lamp's light", () =>
+    {
+        const lamp = testfield.lightSpots[0];
+        const [poleColumn, poleRow] = testfield.columnOf(3, -3);
+
+        assert.equal(testfield.lightSpots.length, 1);
+        assert.ok(lamp[1] > testfield.groundAt(3, -3) + 1.5, JSON.stringify(lamp));
+        assert.ok(testfield.heightAt(-8, -8) > testfield.groundAt(-8, -8) + 3, "The pine is missing");
+        assert.ok(testfield.isSolid(poleColumn, testfield.surface(poleColumn, poleRow) - 1, poleRow));
+        assert.ok(testfield.heightAt(-2, 11) > testfield.groundAt(-2, 11), "The fence post is missing");
     });
 });
 
 describe("Zone view", () =>
 {
-    it("covers every column with top faces, in tiles of two by two chunks", () =>
+    it("draws a top face over every column, in tiles of two by two chunks", () =>
     {
-        const view = new ZoneView(hearthmere, prefabs, materials);
+        const view = new ZoneView(hearthmere, materials);
         const area = view.terrainMeshes.reduce((total, mesh) =>
         {
             const normal = mesh.geometry.getAttribute("normal");
@@ -210,14 +201,13 @@ describe("Zone view", () =>
         }, 0);
 
         assert.equal(view.terrainMeshes.length, 5 * 5);
-        assert.ok(Math.abs(area - 96 * 96) < 1e-6, "The tops cover " + area + " square metres");
-        assert.ok(view.propMeshes.length > 10);
+        assert.ok(area >= 96 * 96 - 1e-6, "The tops cover only " + area + " square metres");
         view.dispose();
     });
 
     it("lights only the lamps nearest the focus, with a fixed number of lights", () =>
     {
-        const view = new ZoneView(hearthmere, prefabs, materials);
+        const view = new ZoneView(hearthmere, materials);
 
         view.update(0.016, { position: view.sky.position.clone().set(0, 5, 10) }, { x: 0, y: 0.5, z: 0 });
 
@@ -231,8 +221,8 @@ describe("Zone view", () =>
 
     it("frees its geometry when disposed, and leaves the shared materials alone", () =>
     {
-        const view = new ZoneView(testfield, prefabs, materials);
-        const geometries = [...view.terrainMeshes, ...view.propMeshes].map((mesh) => mesh.geometry);
+        const view = new ZoneView(testfield, materials);
+        const geometries = view.terrainMeshes.map((mesh) => mesh.geometry);
         const disposed = new Set();
         let isWorldDisposed = false;
 

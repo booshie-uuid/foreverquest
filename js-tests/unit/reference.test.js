@@ -7,7 +7,6 @@ import { describe, it } from "node:test";
 
 const REFERENCE = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "..", "reference", "prototype.json"), "utf8"));
 const library = await TestAssets.library();
-const hearthmere = await TestAssets.zone("hearthmere");
 
 describe("Prototype reference", () =>
 {
@@ -44,27 +43,5 @@ describe("Prototype reference", () =>
         assert.deepEqual(Object.keys(sweep).sort(), Object.keys(REFERENCE.parts).sort());
 
         for(const [label, blocks] of Object.entries(REFERENCE.parts)) { assert.deepEqual(sweep[label], Capture.sorted(blocks), label); }
-    });
-
-    // The zone file stores scales to six places, so a scaled radius can
-    // differ from the reference in its sixth place. The ground moved to whole
-    // cubes, so light spots keep only their places on the ground.
-    it("bakes Hearthmere with the same colliders and light spots", () =>
-    {
-        const actual = Capture.zoneRecord(hearthmere);
-        const expected = REFERENCE.zone;
-        const near = (a, b, label) => assert.ok(Math.abs(a - b) <= 1e-5, label + ": " + a + " is not " + b);
-
-        assert.equal(actual.colliders.length, expected.colliders.length);
-        assert.equal(actual.lightSpots.length, expected.lightSpots.length);
-
-        expected.colliders.forEach((collider, i) =>
-        {
-            assert.deepEqual(Object.keys(actual.colliders[i]).sort(), Object.keys(collider).sort(), "collider " + i);
-
-            for(const [key, value] of Object.entries(collider)) { near(actual.colliders[i][key], value, "collider " + i + " " + key); }
-        });
-
-        expected.lightSpots.forEach((spot, i) => [0, 2].forEach((axis) => near(actual.lightSpots[i][axis], spot[axis], "light " + i)));
     });
 });

@@ -1,12 +1,9 @@
 import * as CubeMesher from "./cube-mesher.js";
-import * as PropMesher from "./prop-mesher.js";
 import * as RegionCodec from "../sim/region-codec.js";
 import * as THREE from "three";
-import { BlockBuilder } from "../geometry/block-builder.js";
 import { Water } from "./water.js";
 import { ZoneData } from "../sim/zone-data.js";
 
-const PROP_CHUNK = 16;
 const { CHUNK, REGION } = RegionCodec;
 const CHUNK_METRES = CHUNK / ZoneData.CUBES_PER_METRE;
 const TILE = 2;
@@ -25,7 +22,7 @@ export class ZoneView
     static LIGHT_BUDGET = LIGHT_BUDGET;
 
     // Without workers, the view meshes every waiting chunk at once.
-    constructor(zone, prefabs, materials, workers = null)
+    constructor(zone, materials, workers = null)
     {
         const lighting = zone.lighting;
 
@@ -42,7 +39,6 @@ export class ZoneView
         this.waiting = new Set();
         this.versions = new Map();
         this.inFlight = 0;
-        this.propMeshes = [];
         this.lamps = [];
         this.isDisposed = false;
 
@@ -57,7 +53,6 @@ export class ZoneView
 
         this.meshWaiting();
         this.buildTiles();
-        this.addProps(prefabs);
         this.addSky(lighting.sky);
         this.addLights(lighting);
     }
@@ -238,6 +233,7 @@ export class ZoneView
         const mesh = new THREE.Mesh(geometry, this.materials.terrain);
 
         mesh.name = "terrain";
+        mesh.castShadow = true;
         mesh.receiveShadow = true;
         this.tileMeshes.set(tile, mesh);
         this.scene.add(mesh);
@@ -304,44 +300,6 @@ export class ZoneView
         geometry.computeBoundingSphere();
 
         return geometry;
-    }
-
-    // Each placement joins the chunk under its origin, and each block of a
-    // run joins the chunk under the block.
-    addProps(prefabs)
-    {
-        const atlas = this.materials.atlas;
-        const chunks = new Map();
-        const chunkAt = (x, z) =>
-        {
-            const key = Math.floor((x + this.zone.half) / PROP_CHUNK) + "," + Math.floor((z + this.zone.half) / PROP_CHUNK);
-
-            if(!chunks.has(key)) { chunks.set(key, new BlockBuilder()); }
-
-            return chunks.get(key);
-        };
-
-        for(const placement of this.zone.placements)
-        {
-            if(placement.run === undefined)
-            {
-                PropMesher.addPrefab(chunkAt(placement.x, placement.z), atlas, prefabs[placement.prefab], placement);
-                continue;
-            }
-
-            for(const block of this.zone.runs[placement.run].blocks) { PropMesher.addBlocks(chunkAt(block.at[0], block.at[2]), atlas, [block]); }
-        }
-
-        for(const builder of chunks.values())
-        {
-            const mesh = new THREE.Mesh(builder.build(), this.materials.world);
-
-            mesh.name = "props";
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            this.propMeshes.push(mesh);
-            this.scene.add(mesh);
-        }
     }
 
     addSky(sky)

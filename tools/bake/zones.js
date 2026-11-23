@@ -2,6 +2,7 @@ import * as Archetypes from "../../content/archetypes.js";
 import * as Prefabs from "../../content/props/prefabs.js";
 import * as PropBaker from "./props.js";
 import * as Terrain from "./terrain.js";
+import * as Voxelise from "./voxelise.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as url from "node:url";
@@ -102,7 +103,6 @@ export async function bakeZone(zone, folder, people, context, where, problems)
             const run = PropBaker.record(Prefabs.RUNS[prop.run], prop.points, heightAt);
 
             PropBaker.checkFaces(run.blocks, context.worldTextures, where + " run " + i, problems);
-            props.push({ run: runs.length });
             runs.push(run);
             continue;
         }
@@ -116,9 +116,14 @@ export async function bakeZone(zone, folder, people, context, where, problems)
     if(problems.length > before) { return null; }
 
     const numbers = Object.fromEntries(context.blocks.map((block, i) => [block.id, i + 1]));
-    const regions = Terrain.bakeRegions(zone, terrain, ground, numbers);
+    const placed = Voxelise.zoneCells(zone, props, runs, context.prefabs, numbers, where, problems);
+
+    if(problems.length > before) { return null; }
+
+    const solid = new Set(context.blocks.flatMap((block, i) => (block.kind === "liquid" ? [] : [i + 1])));
+    const regions = Terrain.bakeRegions(zone, terrain, ground, numbers, { cells: placed.cells, solid });
     const { id, name, welcome, columns, height, base, water, lighting, spawn } = zone;
-    const index = { id, name, welcome, columns, height, base, water, lighting, spawn, people: zone.people, props, runs, regions: regions.map((region) => region.name) };
+    const index = { id, name, welcome, columns, height, base, water, lighting, spawn, people: zone.people, lights: placed.lights, regions: regions.map((region) => region.name) };
 
     return { index, regions };
 }

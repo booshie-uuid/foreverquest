@@ -10,6 +10,7 @@ const library = await TestAssets.library();
 const OPEN_FIELD =
 {
     heightAt: () => 1,
+    openGround: (x, z) => ({ x, y: 1, z }),
     liftOut: (x, z, y) => y,
     standAt: () => ({ floor: 1 }),
     resolveMove: (from, to) => ({ x: to.x, z: to.z, floor: 1 }),
@@ -18,6 +19,7 @@ const OPEN_FIELD =
 const WALL =
 {
     heightAt: () => 0,
+    openGround: (x, z) => ({ x, y: 0, z }),
     liftOut: (x, z, y) => y,
     standAt: () => ({ floor: 0 }),
     resolveMove: (from) => ({ x: from.x, z: from.z, floor: 0 }),

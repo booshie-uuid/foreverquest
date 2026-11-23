@@ -22,9 +22,9 @@ export class RegionStreamer
         this.isDisposed = false;
     }
 
-    static async open(source, id, prefabs, blocks)
+    static async open(source, id, blocks)
     {
-        const zone = new ZoneData(await source.json("zones/" + id + "/index.json"), [], prefabs, blocks);
+        const zone = new ZoneData(await source.json("zones/" + id + "/index.json"), [], blocks);
         const streamer = new RegionStreamer(source, zone, zone.lighting.fog.far + VIEW_MARGIN);
 
         await streamer.settle(zone.spawn.x, zone.spawn.z);

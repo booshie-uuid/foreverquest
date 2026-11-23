@@ -178,12 +178,3 @@ export function worldTexturesRecord(atlas)
 {
     return { layers: [...atlas.names], upload: hash(atlas.upload) };
 }
-
-// Meshes are left out: the zone draws in chunks.
-export function zoneRecord(zone)
-{
-    return {
-        colliders: zone.colliders.map((collider) => Object.fromEntries(Object.entries(collider).map(([key, value]) => [key, round(value)]))),
-        lightSpots: zone.lightSpots.map(round),
-    };
-}

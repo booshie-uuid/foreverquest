@@ -24,14 +24,13 @@ const { BlockSet } = await import("../../js/sim/block-set.js");
 const ASSETS = path.resolve(import.meta.dirname, "..", "..", "assets");
 const source = await AssetSource.open((file) => fs.promises.readFile(path.join(ASSETS, file)));
 const library = await Library.load(source);
-const prefabs = await source.json("props/prefabs.json");
 const sim = new Simulation(library, await source.json("npcs.json"));
 const events = [];
 const round = (value) => Math.round(value * 1e6) / 1e6;
 
 sim.onEvent((event) => events.push({ tick: sim.ticks, type: event.type, id: event.id ?? null, line: event.line ?? null }));
 sim.setPlayer(new Appearance(library, { name: "Tester" }));
-sim.enter(await ZoneData.load(source, "hearthmere", prefabs, await BlockSet.load(source)));
+sim.enter(await ZoneData.load(source, "hearthmere", await BlockSet.load(source)));
 
 const run = (ticks) =>
 {

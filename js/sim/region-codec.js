@@ -1,13 +1,14 @@
 // A region file, before compression, is little-endian:
 //   "FQRG", version, chunk size, width, depth and height in cells (u16 each),
-//   one u16 surface per column (the top solid cell + 1, or 0), a u16 chunk
+//   one u16 surface per column (the top solid cell + 1, or 0), one u16 ground
+//   per column (the surface of the terrain under any props), a u16 chunk
 //   count, then per chunk its x, y and z within the region, a mode byte and
 //   its cells in (y * size + z) * size + x order: one block (uniform), every
 //   cell (dense), or a u16 run count and runs of u16 length and one block
 //   (runs). Chunks of air are left out.
 
 const MAGIC = "FQRG";
-const VERSION = 2;
+const VERSION = 3;
 const UNIFORM = 0;
 const DENSE = 1;
 const RUNS = 2;
@@ -23,10 +24,10 @@ export const CELLS = CHUNK * CHUNK * CHUNK;
 /******************************************************************************/
 
 // `chunks` holds { x, y, z, cells } with a Uint8Array of CELLS blocks.
-export function encode({ width, depth, height, surfaces, chunks })
+export function encode({ width, depth, height, surfaces, grounds, chunks })
 {
     const payloads = chunks.map((chunk) => ({ chunk, payload: payloadOf(chunk.cells) })).filter(({ payload }) => payload !== null);
-    const size = HEADER + surfaces.length * 2 + 2 + payloads.reduce((total, { payload }) => total + 4 + payload.bytes.length, 0);
+    const size = HEADER + surfaces.length * 4 + 2 + payloads.reduce((total, { payload }) => total + 4 + payload.bytes.length, 0);
     const bytes = new Uint8Array(size);
     const view = new DataView(bytes.buffer);
     let at = 0;
@@ -40,9 +41,9 @@ export function encode({ width, depth, height, surfaces, chunks })
     view.setUint16(at + 4, height, true);
     at += 6;
 
-    for(const surface of surfaces)
+    for(const column of [...surfaces, ...grounds])
     {
-        view.setUint16(at, surface, true);
+        view.setUint16(at, column, true);
         at += 2;
     }
 
@@ -115,12 +116,16 @@ export function decode(bytes)
     const depth = view.getUint16(8, true);
     const height = view.getUint16(10, true);
     const surfaces = new Uint16Array(width * depth);
+    const grounds = new Uint16Array(width * depth);
     let at = HEADER;
 
-    for(let i = 0; i < surfaces.length; i++)
+    for(const columns of [surfaces, grounds])
     {
-        surfaces[i] = view.getUint16(at, true);
-        at += 2;
+        for(let i = 0; i < columns.length; i++)
+        {
+            columns[i] = view.getUint16(at, true);
+            at += 2;
+        }
     }
 
     const count = view.getUint16(at, true);
@@ -164,5 +169,5 @@ export function decode(bytes)
         }
     }
 
-    return { width, depth, height, surfaces, chunks };
+    return { width, depth, height, surfaces, grounds, chunks };
 }
