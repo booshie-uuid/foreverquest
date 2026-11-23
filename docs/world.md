@@ -29,7 +29,7 @@ A zone folder holds `zone.json` and a `terrain` folder with one image per region
 | `base` | The cell whose bottom is at height 0 in metres |
 | `water` | The cell below which every empty cell of a column fills with water |
 | `ground` | The ground layers `{ top, under }`, two solid block types each, that the terrain images refer to by index |
-| `lighting` | The sky, fog, hemisphere and moon colours and strengths, and optionally the stepped light ramps (`steps`) and daylight (`day`) |
+| `lighting` | The sky, fog, hemisphere and moon colours and strengths, and optionally height fog (`fog.height`), the stepped light ramps (`steps`) and daylight (`day`) |
 | `spawn` | Where the player arrives, in metres, and the heading they face |
 | `people` | The residents and the crowd; see [People](#people) |
 | `props` | Prefab placements `{ prefab, x, z, angle, scale }` and runs `{ run, points }`, in metres |
@@ -101,7 +101,9 @@ The [camera](../js/game/camera-rig.js) starts in first person, at the player's e
 | Directional moonlight | Casts shadows in a 52-metre square around the player, which stepped light reads |
 | Hemisphere | Cold sky from above and warm earth from below, for the water |
 | Glow texels | Window panes, lamps and lanterns light themselves |
-| Fog | Fades the zone into the horizon colour between the fog's `near` and `far` |
+| Fog | Fades the zone into the horizon colour between the fog's `near` and `far`, and adds height fog that thickens in low ground; see below |
+
+A zone's `lighting.fog.height` adds height fog, as `{ base, falloff, density }`: the fog has `density` per metre at the height `base` and below, and thins by a factor of e for every `falloff` metres above it. Each pixel takes the fog along the ray from the camera to it, so mist fills a hollow, a view down into the hollow passes through more of it than a view across a hilltop, and the player walking down into the hollow walks into the mist. The height fog adds to the fog by distance, in the horizon colour. [MaterialLibrary](../js/engine/materials.js) replaces Three.js's fog in the terrain, object, water and character materials, so the fog draws nothing extra. A zone without `height` has none. The Expanse sets a mist at 3 metres that fills its low ground and leaves the hilltops clear; Hearthmere sets a faint one at the village's ground.
 
 ## Fine-Cube Objects
 

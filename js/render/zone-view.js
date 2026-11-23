@@ -63,6 +63,7 @@ export class ZoneView
 
         this.unsubscribe = zone.onRegion((event) => this.onRegion(event));
         materials.setSteps(lighting.steps);
+        materials.setHeightFog(lighting.fog.height);
 
         for(const name of zone.regions.keys())
         {

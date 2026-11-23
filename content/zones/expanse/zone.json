@@ -37,7 +37,12 @@
         },
         "fog": {
             "near": 40,
-            "far": 160
+            "far": 160,
+            "height": {
+                "base": 3,
+                "falloff": 4,
+                "density": 0.06
+            }
         },
         "hemisphere": {
             "sky": "#6a7488",

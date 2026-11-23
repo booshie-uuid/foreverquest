@@ -94,6 +94,48 @@ float faceShade = worldNormal.y >= 0.0 ? mix(0.8, 1.0, worldNormal.y) : mix(0.8,
 outgoingLight = diffuseColor.rgb * min(cellSky * skyShade + cellLamp, vec3(1.0)) * faceShade + totalEmissiveRadiance;
 `;
 
+const FOG_VERTEX_PARS = `
+#ifdef USE_FOG
+    varying vec3 vFogWorld;
+#endif
+`;
+
+const FOG_VERTEX = `
+#ifdef USE_FOG
+    #ifdef USE_INSTANCING
+        vFogWorld = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+    #else
+        vFogWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;
+    #endif
+#endif
+`;
+
+const FOG_FRAGMENT_PARS = `
+#ifdef USE_FOG
+    uniform vec4 heightFog;
+    varying vec3 vFogWorld;
+#endif
+`;
+
+// Height fog has a density of heightFog.z per metre at heightFog.x and below,
+// thinning by e every heightFog.y metres above it. The fog along the ray from
+// the camera is the integral of that density, from Inigo Quilez's "better
+// fog" (iquilezles.org/articles/fog), and it adds to the distance fog.
+const FOG_FRAGMENT = `
+#ifdef USE_FOG
+    float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
+    float fogFrom = max(cameraPosition.y - heightFog.x, 0.0) / heightFog.y;
+    float fogTo = max(vFogWorld.y - heightFog.x, 0.0) / heightFog.y;
+    float fogRise = fogTo - fogFrom;
+    float fogShare = abs(fogRise) > 0.001 ? (exp(-fogFrom) - exp(-fogTo)) / fogRise : exp(-fogFrom);
+    float fogHeight = 1.0 - exp(-heightFog.z * distance(vFogWorld, cameraPosition) * fogShare);
+
+    fogFactor = 1.0 - (1.0 - fogFactor) * (1.0 - fogHeight);
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);
+#endif
+`;
+
+const NO_HEIGHT_FOG = { base: 0, falloff: 1, density: 0 };
 const LEVELS = 16;
 const PLAYER_LIGHT = 7;
 const DEFAULT_STEPS =
@@ -109,10 +151,30 @@ export class MaterialLibrary
         this.atlas = atlas;
         this.atlasTexture = atlas.createTexture();
         this.world = this.worldMaterial();
+        this.fog = { heightFog: { value: new THREE.Vector4(NO_HEIGHT_FOG.base, NO_HEIGHT_FOG.falloff, NO_HEIGHT_FOG.density, 0) } };
         this.stepped = { skyRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.sky) }, lampRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.lamp) }, playerLight: { value: new THREE.Vector4(0, 0, 0, PLAYER_LIGHT) } };
         this.terrain = this.worldMaterial({ vertexColors: true }, this.stepped);
         this.objects = this.worldMaterial({}, this.stepped);
         this.water = new THREE.MeshPhongMaterial({ color: "#1e2a30", specular: 0x5a6a78, shininess: 80, transparent: true, opacity: 0.82 });
+        this.water.onBeforeCompile = (shader) => this.addHeightFog(shader);
+    }
+
+    addHeightFog(shader)
+    {
+        Object.assign(shader.uniforms, this.fog);
+
+        shader.vertexShader = shader.vertexShader
+            .replace("#include <fog_pars_vertex>", "#include <fog_pars_vertex>\n" + FOG_VERTEX_PARS)
+            .replace("#include <fog_vertex>", "#include <fog_vertex>\n" + FOG_VERTEX);
+
+        shader.fragmentShader = shader.fragmentShader
+            .replace("#include <fog_pars_fragment>", "#include <fog_pars_fragment>\n" + FOG_FRAGMENT_PARS)
+            .replace("#include <fog_fragment>", FOG_FRAGMENT);
+    }
+
+    setHeightFog({ base, falloff, density } = NO_HEIGHT_FOG)
+    {
+        this.fog.heightFog.value.set(base, falloff, density, 0);
     }
 
     // `stepped` adds the uniforms and code of stepped light.
@@ -135,6 +197,8 @@ export class MaterialLibrary
                 .replace("#include <color_fragment>", "#include <color_fragment>\n" + FRAGMENT)
                 .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n" + emissive)
                 .replace("#include <opaque_fragment>", (stepped ? STEPPED_FRAGMENT : "") + "#include <opaque_fragment>");
+
+            this.addHeightFog(shader);
         };
 
         material.customProgramCacheKey = () => "world-atlas:" + this.atlas.glowLayers.join(",") + (material.vertexColors ? ":shaded" : "") + (stepped ? ":stepped" : "");
@@ -166,6 +230,8 @@ export class MaterialLibrary
             shader.fragmentShader = shader.fragmentShader
                 .replace("#include <common>", "#include <common>\n" + CHARACTER_FRAGMENT_PARS)
                 .replace("#include <opaque_fragment>", CHARACTER_FRAGMENT + "#include <opaque_fragment>");
+
+            this.addHeightFog(shader);
         };
 
         material.customProgramCacheKey = () => "character-stepped";

@@ -1,5 +1,6 @@
 import * as Pathfinder from "../../js/sim/pathfinder.js";
 import * as RegionCodec from "../../js/sim/region-codec.js";
+import * as THREE from "three";
 import * as Terrain from "../../tools/bake/terrain.js";
 import * as TestAssets from "../helpers/assets.js";
 import * as Voxelise from "../../tools/bake/voxelise.js";
@@ -301,6 +302,36 @@ describe("Zone view", () =>
         assert.ok(room.lamp > 0, "The inn's lit window does not reach its room");
         assert.deepEqual(view.lightAt({ x: 0, y: 40, z: 0 }), { sky: 15, lamp: 0 });
         view.dispose();
+    });
+
+    it("sets the zone's height fog, and adds it to the fog of every material that draws the world", () =>
+    {
+        const view = new ZoneView(hearthmere, materials);
+        const character = new THREE.MeshLambertMaterial();
+        const patched = (material, library) =>
+        {
+            const shader = { uniforms: {}, vertexShader: THREE.ShaderLib[library].vertexShader, fragmentShader: THREE.ShaderLib[library].fragmentShader };
+
+            material.onBeforeCompile(shader);
+
+            return shader;
+        };
+
+        materials.shadeCharacter(character, { cellSky: { value: new THREE.Color() }, cellLamp: { value: new THREE.Color() } });
+
+        for(const [material, library] of [[materials.terrain, "lambert"], [materials.objects, "lambert"], [character, "lambert"], [materials.water, "phong"]])
+        {
+            const shader = patched(material, library);
+
+            assert.ok(shader.fragmentShader.includes("fogHeight") && !shader.fragmentShader.includes("#include <fog_fragment>"), library + " fog was not replaced");
+            assert.ok(shader.vertexShader.includes("vFogWorld ="));
+            assert.equal(shader.uniforms.heightFog, materials.fog.heightFog);
+        }
+
+        assert.deepEqual(materials.fog.heightFog.value.toArray().slice(0, 3), [0.5, 1.5, 0.03]);
+        view.dispose();
+        new ZoneView(testfield, materials).dispose();
+        assert.equal(materials.fog.heightFog.value.z, 0, "A zone without height fog kept the last zone's");
     });
 
     it("frees its geometry when disposed, and leaves the shared materials alone", () =>

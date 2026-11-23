@@ -72,6 +72,30 @@ export const tests =
         },
     },
     {
+        name: "height fog compiles into the terrain's shader, with the zone's settings",
+        run: async ({ page, baseUrl }) =>
+        {
+            await enterWorld(page, baseUrl);
+
+            const fog = await page.evaluate(() =>
+            {
+                const { renderer, materials, game } = window.foreverQuest;
+                const gl = renderer.webgl.getContext();
+                const program = renderer.webgl.properties.get(materials.terrain).currentProgram.program;
+                const sources = gl.getAttachedShaders(program).map((shader) => gl.getShaderSource(shader)).join("\n");
+
+                return {
+                    isCompiled: gl.getProgramParameter(program, gl.LINK_STATUS),
+                    hasHeightFog: sources.includes("fogHeight"),
+                    height: materials.fog.heightFog.value.toArray().slice(0, 3),
+                    zone: game.zone.lighting.fog.height,
+                };
+            });
+
+            assert.deepEqual(fog, { isCompiled: true, hasHeightFog: true, height: [0.5, 1.5, 0.03], zone: { base: 0.5, falloff: 1.5, density: 0.03 } });
+        },
+    },
+    {
         name: "the moonlight casts shadows in the world",
         run: async ({ page, baseUrl }) =>
         {

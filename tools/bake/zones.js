@@ -173,12 +173,18 @@ function groundOf(zone, context, where, problems)
     });
 }
 
+function isHeightFog({ base, falloff, density })
+{
+    return Number.isFinite(base) && falloff > 0 && density >= 0 && density <= 1;
+}
+
 function checkLighting(lighting, where, problems)
 {
     const colours = [lighting?.sky?.top, lighting?.sky?.horizon, lighting?.hemisphere?.sky, lighting?.hemisphere?.ground, lighting?.moon?.colour];
 
     if(!colours.every((colour) => COLOUR_PATTERN.test(colour ?? ""))) { problems.push(where + " needs lower-case #rrggbb lighting colours"); }
     if(!(lighting?.fog?.far > lighting?.fog?.near)) { problems.push(where + " needs a fog that ends after it starts"); }
+    if(lighting?.fog?.height !== undefined && !isHeightFog(lighting.fog.height)) { problems.push(where + " needs a height fog of { base, falloff, density }, with a falloff above 0 and a density from 0 to 1"); }
 
     for(const [name, steps] of Object.entries(lighting?.steps ?? {}))
     {
