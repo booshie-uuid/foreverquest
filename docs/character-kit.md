@@ -118,7 +118,7 @@ A body file in [content/bodies/](../content/bodies/) exports a `BODY`. Other mod
 | `features` | The feature parts the body always wears, such as `earsLong` or `tusks` |
 | `random` | Optional rules for random characters, such as the dwarf's beard odds |
 
-Every head of an outfit body is 16 texels on a side, because the face and hair painters assume it. The humanoid bodies keep the legs at half the torso's width and its full depth, so every variant and build step changes the legs with the torso. A human male is 88 texels, or 1.8 metres, tall.
+Every head of an outfit body is 16 texels on a side, because the face and hair painters assume it. The humanoid bodies keep the legs at half the torso's width and its full depth, so every variant and build step changes the legs with the torso. A human male is 88 texels, or 1.83 metres, tall.
 
 The bake checks every rig and body. It reports an unknown box or bone, a bone that is its own ancestor, a missing box size, a variant or build step that shrinks a box to nothing, a body that runs no faster than it walks, and an invalid colour.
 
@@ -143,7 +143,7 @@ Weapons such as swords hang from the `grip.R` socket, which points them forwards
 
 `Sheet` packs faces left to right in rows, 256 texels wide, and grows downwards as needed. It insets each face's UVs by a hundredth of a texel, so nearest sampling never reads a neighbouring face. A second raster of the same size holds the glow that the material's emissive map reads.
 
-A painter is a function `(raster, area, random, glow)`. It draws inside `area` only, and draws into `glow` only when the texels should light themselves. In the game, every painter draws baked stamps through the compositor. The authoring painters that make the stamps are in [content/art/](../content/art/): [pixels.js](../content/art/pixels.js) holds the material painters, such as `cloth`, `leather`, `chain`, `plate`, `planks` and `stone`, and the drawing helpers, and [face.js](../content/art/face.js) paints hair on the faces of the head.
+A painter is a function `(raster, area, random, glow)`. It draws inside `area` only, and draws into `glow` only when the texels should light themselves. In the game, every painter draws baked stamps through the compositor. The authoring painters that make the stamps are in [content/art/](../content/art/): [pixels.js](../content/art/pixels.js) holds the material painters, such as `cloth`, `leather`, `chain`, `plate` and `planks`, and the drawing helpers, and [face.js](../content/art/face.js) paints hair on the faces of the head.
 
 Each character paints with a random generator seeded from its name and body id, so the same character always gets the same texels.
 

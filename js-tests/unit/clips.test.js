@@ -1,3 +1,4 @@
+import * as Capture from "../reference/capture.js";
 import * as ClipModule from "../../js/kit/clip-player.js";
 import * as Motion from "../reference/motion.js";
 import * as TestAssets from "../helpers/assets.js";
@@ -17,6 +18,22 @@ const REFERENCE = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, ".."
 const ANGLE_TOLERANCE = 0.025;
 const LIFT_TOLERANCE = 0.003;
 
+// The prototype's speeds, grown with its legs.
+function grownLibrary()
+{
+    const grown = Object.create(library);
+
+    grown.clips = (rig) =>
+    {
+        const clips = library.clips(rig);
+        const { walk, run } = clips.locomotion;
+
+        return { ...clips, locomotion: { ...clips.locomotion, walk: walk * Capture.GROWTH, run: run * Capture.GROWTH } };
+    };
+
+    return grown;
+}
+
 describe("Clip player", () =>
 {
     it("moves every joint as the prototype's animator did, within a small tolerance", () =>
@@ -24,7 +41,7 @@ describe("Clip player", () =>
         for(const entry of Motion.CASES)
         {
             const expected = REFERENCE.find((recorded) => recorded.label === entry.label).samples;
-            const actual = Motion.sample(library, entry, (model) => new ClipPlayer(model));
+            const actual = Motion.sample(grownLibrary(), { ...entry, speed: entry.speed * Capture.GROWTH }, (model) => new ClipPlayer(model));
 
             expected.forEach((reference, i) =>
             {
@@ -40,7 +57,7 @@ describe("Clip player", () =>
                     });
                 }
 
-                assert.ok(Math.abs(actual[i].lift - reference.lift) < LIFT_TOLERANCE, label + ": the torso lifts " + actual[i].lift + ", not " + reference.lift);
+                assert.ok(Math.abs(actual[i].lift - reference.lift * Capture.GROWTH) < LIFT_TOLERANCE, label + ": the torso lifts " + actual[i].lift + ", not " + reference.lift);
             });
         }
     });

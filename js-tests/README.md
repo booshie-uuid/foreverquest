@@ -6,7 +6,7 @@ The project has two test suites. The unit suite runs plain modules in Node. The 
 
 Run `npm test`. It bakes the assets, then runs the `node:test` files that match `js-tests/unit/**/*.test.js`, and the lint tests in `lint/tests/`. A unit test imports `node:test` and `node:assert/strict`. Three.js runs in Node without WebGL, so the unit suite builds real character models, sheets and the world, and checks their geometry and texels. A test that needs baked assets opens them from disk with [helpers/assets.js](helpers/assets.js). A test never runs the bake itself, because the test files run in parallel and a bake rewrites `assets/`.
 
-The asset lock test fails when `assets/` differs from `assets.lock.json`; [Assets and the Bake](../docs/assets.md#the-lock-file) describes how to accept a change. The reference test compares the game with data recorded from the prototype in [reference/prototype.json](reference/prototype.json), so the restructure can prove that it reproduces the prototype. [reference/capture.js](reference/capture.js) holds the capture functions; update them when an interface they call changes, and never re-record the reference. [reference/prototype-motion.json](reference/prototype-motion.json) holds the prototype animator's joint angles for the cases in [reference/motion.js](reference/motion.js), which the clip test compares the clip player with.
+The asset lock test fails when `assets/` differs from `assets.lock.json`; [Assets and the Bake](../docs/assets.md#the-lock-file) describes how to accept a change. The reference test compares the game with data recorded from the prototype in [reference/prototype.json](reference/prototype.json), so the restructure can prove that it reproduces the prototype. The texel grew from the prototype's 1.8/88 metre to 1/48 metre, so the tests multiply the recorded lengths and speeds by `Capture.GROWTH`. The world textures were repainted at the new density, so the reference no longer holds them. [reference/capture.js](reference/capture.js) holds the capture functions; update them when an interface they call changes, and never re-record the reference. [reference/prototype-motion.json](reference/prototype-motion.json) holds the prototype animator's joint angles for the cases in [reference/motion.js](reference/motion.js), which the clip test compares the clip player with.
 
 ## Browser Suite
 
@@ -79,7 +79,7 @@ Each tag names one capability of the game. A spec lists its tags in `covers`.
 
 | Tag | Covers | Specs |
 |---|---|---|
-| `assets` | The browser decodes the baked world textures to the prototype's texels, and the loading state clears | [assets.spec.js](browser/specs/assets.spec.js) |
+| `assets` | The browser decodes the baked world textures to the same texels as Node, and the loading state clears | [assets.spec.js](browser/specs/assets.spec.js) |
 | `boot` | The game page loads without errors, sets `window.foreverQuest.isReady`, and shows a canvas with a non-zero size | [smoke.spec.js](browser/specs/smoke.spec.js) |
 | `creator` | The creator draws the preview, rebuilds the character when an option changes, keeps the skin within the race's palette, repaints the character sheet for a marking, equips and tints items, randomises the look, and blocks an invalid name | [creator.spec.js](browser/specs/creator.spec.js) |
 | `graphics` | The Retro toggle renders 640 pixels wide with pixelated scaling, and the moonlight casts shadows from the player in the world | [graphics.spec.js](browser/specs/graphics.spec.js) |

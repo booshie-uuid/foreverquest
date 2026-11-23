@@ -121,11 +121,11 @@ The player's `Appearance` lives in `App`. The creator edits a separate draft cop
 | Space | Unit | Axes |
 |---|---|---|
 | World | Metres | +y is up. A character facing a heading of 0 faces +z, and its left is +x |
-| Character kit | Texels, where `Fitter.TEXEL` is 1.8 / 88 metres (about 2 cm) | Each block's size and centre are in texels, relative to its joint |
+| Character kit | Texels, where `Fitter.TEXEL` is 1/48 metre (about 2 cm), so a 16-texel head is one world cube | Each block's size and centre are in texels, relative to its joint |
 | Block faces | Texels on the face | u runs left to right and v bottom to top as seen from outside the block (see [block-builder.js](../js/geometry/block-builder.js)) |
 | Painter areas | Texels in a raster | `{ x, y, w, h }` with y counting down from the top row. Drawing wraps inside the area |
 | Zone tiles | One-metre tiles | Tile heights rise in steps of the zone's `step`, 0.25 metres in every zone today |
-| World textures | 16 texels a metre | Each layer is 32 by 32 texels and tiles every 2 metres |
+| World textures | 48 texels a metre, 16 to a world cube face | Each layer is 64 by 64 texels and tiles every 1 1/3 metres |
 
 Rasters are painted top-down and uploaded to the GPU bottom-up, so `Sheet.texture()` and `WorldAtlas` flip the rows.
 

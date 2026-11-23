@@ -1,18 +1,16 @@
+import * as Capture from "../../reference/capture.js";
+import * as TestAssets from "../../helpers/assets.js";
 import * as assert from "node:assert/strict";
-import * as fs from "node:fs";
-import * as path from "node:path";
 
 export const covers = ["assets"];
-
-const REFERENCE = path.resolve(import.meta.dirname, "..", "..", "reference", "prototype.json");
 
 export const tests =
 [
     {
-        name: "the browser decodes the baked world textures to the prototype's texels",
+        name: "the browser decodes the baked world textures to the same texels as Node",
         run: async ({ page, baseUrl }) =>
         {
-            const expected = JSON.parse(fs.readFileSync(REFERENCE, "utf8")).worldTextures;
+            const expected = Capture.worldTexturesRecord(await TestAssets.atlas());
 
             await page.goto(baseUrl + "/index.html");
             await page.waitFor(() => window.foreverQuest?.isReady === true, { timeout: 20000 });

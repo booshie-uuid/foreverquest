@@ -112,7 +112,7 @@ A hair style, an item or a face is a part: one file, or one entry in a family fi
 
 To add a race, add a body file to [content/bodies/](content/bodies/) with its box sizes in texels, its ears and its skin tones, then bake. Add name syllables to [names.js](js/character/names.js), or the race's random names use the human syllables. A creature with a new shape is a rig in [content/rigs/](content/rigs/) and a body on it; the wolf is an example. [docs/character-kit.md](docs/character-kit.md) describes rigs and bodies.
 
-To add a world texture, add a name, a seed and a painter to `TEXTURES` in [content/world-textures.js](content/world-textures.js), then bake. A world texture is 32 by 32 texels and covers 2 metres. [docs/assets.md](docs/assets.md) describes the bake.
+To add a world texture, add a name, a seed and a painter to `TEXTURES` in [content/world-textures.js](content/world-textures.js), then bake. A world texture is 64 by 64 texels and covers four world cubes each way, 1 1/3 metres; its painters are in [content/art/surfaces.js](content/art/surfaces.js). [docs/assets.md](docs/assets.md) describes the bake.
 
 ## The World
 

@@ -72,7 +72,7 @@ export const IDS =
 | File | Holds |
 |---|---|
 | `manifest.json` | Each file's SHA-256 hash and size, and the ids by kind |
-| `textures/world.png` | Every world texture, 32 by 32 texels, stacked top to bottom in atlas order |
+| `textures/world.png` | Every world texture, 64 by 64 texels, stacked top to bottom in atlas order |
 | `textures/world.json` | The texture size, the texels per metre, and each layer's name and glow flag |
 | `models/index.json` | The rig ids, and the body ids in display order |
 | `models/rigs/<id>.json` | A rig, with each pivot and centre compiled into a linear form of box sizes |
@@ -103,7 +103,7 @@ The game decodes PNG itself in [png.js](../js/engine/png.js), with the `Decompre
 
 ## Adding a World Texture
 
-1. Add an entry to `TEXTURES` in [content/world-textures.js](../content/world-textures.js) with a `name`, a whole-number `seed` that no other texture uses, a `paint` function, and `glow: true` if the texture lights itself.
+1. Add an entry to `TEXTURES` in [content/world-textures.js](../content/world-textures.js) with a `name`, a whole-number `seed` that no other texture uses, a `paint` function from [content/art/surfaces.js](../content/art/surfaces.js), and `glow: true` if the texture lights itself.
 2. Run `npm run bake`, check the new layer in `assets/textures/world.png`, then run `npm run bake -- --accept`.
 
 Each texture has its own seed, so adding or moving a texture leaves the texels of the others unchanged. The bake fails on an invalid or repeated name, a missing seed or a texel that is not opaque.

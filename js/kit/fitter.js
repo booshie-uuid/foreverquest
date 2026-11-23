@@ -1,4 +1,5 @@
-export const TEXEL = 1.8 / 88;
+// A head is 16 texels, the size of one world cube: 1/3 metre.
+export const TEXEL = 1 / 48;
 
 const AXES = 3;
 

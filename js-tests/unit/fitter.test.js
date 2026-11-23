@@ -29,12 +29,12 @@ describe("Fitter boxes", () =>
         for(const body of library.playableBodies) { assert.deepEqual(fit(body.id).boxes.head, [16, 16, 16], body.id); }
     });
 
-    it("makes a human 1.8 metres tall with a head about a fifth and a half of that", () =>
+    it("makes a human 88 texels tall with a head about a fifth and a half of that", () =>
     {
         const human = fit("human");
         const ratio = metres(human) / (human.boxes.head[1] * Fitter.TEXEL);
 
-        assert.ok(Math.abs(metres(human) - 1.8) < 1e-9);
+        assert.ok(Math.abs(metres(human) - 88 / 48) < 1e-9);
         assert.ok(ratio > 5.2 && ratio < 5.8, "The head is 1/" + ratio.toFixed(2));
     });
 

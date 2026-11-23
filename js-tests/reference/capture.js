@@ -8,6 +8,10 @@ import { Random } from "../../js/util/random.js";
 
 const RANDOM_SEEDS = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233];
 const PLACES = 6;
+const PROTOTYPE_TEXEL = 1.8 / 88;
+
+// Every length in metres grew by this factor from the prototype.
+export const GROWTH = Fitter.TEXEL / PROTOTYPE_TEXEL;
 
 
 /******************************************************************************/
