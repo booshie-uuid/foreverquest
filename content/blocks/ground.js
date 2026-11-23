@@ -6,6 +6,6 @@ export const BLOCKS =
     mud: { faces: { top: "mud", side: "earth", bottom: "earth" } },
     sand: { faces: { all: "sand" } },
     cobble: { faces: { top: "cobble", side: "rubble", bottom: "earth" } },
-    rock: { faces: { all: "darkStone" } },
+    rock: { faces: { all: "darkStone" }, weathers: ["moss", "grime", "cracks", "chips"] },
     water: { faces: { all: "water" }, kind: "liquid" },
 };

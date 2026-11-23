@@ -62,6 +62,7 @@ export class ZoneData
         this.chunks = new Map();
         this.surfaces = new Uint16Array(zone.columns * zone.columns);
         this.grounds = new Uint16Array(zone.columns * zone.columns);
+        this.ages = new Uint8Array(zone.columns * zone.columns);
         this.listeners = [];
 
         for(const region of regions) { this.addRegion(region); }
@@ -104,6 +105,7 @@ export class ZoneData
         {
             this.surfaces.set(region.surfaces.subarray(z * region.width, (z + 1) * region.width), (top + z) * this.columns + left);
             this.grounds.set(region.grounds.subarray(z * region.width, (z + 1) * region.width), (top + z) * this.columns + left);
+            this.ages.set((region.ages ?? new Uint8Array(region.width * region.depth)).subarray(z * region.width, (z + 1) * region.width), (top + z) * this.columns + left);
         }
 
         for(const chunk of region.chunks)
@@ -131,6 +133,7 @@ export class ZoneData
         {
             this.surfaces.fill(0, (top + z) * this.columns + left, (top + z) * this.columns + left + region.width);
             this.grounds.fill(0, (top + z) * this.columns + left, (top + z) * this.columns + left + region.width);
+            this.ages.fill(0, (top + z) * this.columns + left, (top + z) * this.columns + left + region.width);
         }
 
         this.regions.delete(name);
@@ -202,6 +205,15 @@ export class ZoneData
         const z = Math.max(0, Math.min(this.columns - 1, row));
 
         return this.surfaces[z * this.columns + x];
+    }
+
+    // The weathering age of a column, from 0 (new) to 100.
+    age(column, row)
+    {
+        const x = Math.max(0, Math.min(this.columns - 1, column));
+        const z = Math.max(0, Math.min(this.columns - 1, row));
+
+        return this.ages[z * this.columns + x];
     }
 
     /* METRES *****************************************************************/

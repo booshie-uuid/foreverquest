@@ -1,9 +1,11 @@
 import * as Surfaces from "./art/surfaces.js";
+import * as Weathering from "./art/weathering.js";
 
 export const SIZE = 64;
 export const TEXELS_PER_METRE = 48;
 
-// The layer order is the order in the baked atlas.
+// The layer order is the order in the baked atlas. An overlay's alpha is the
+// weathering level at which each texel appears; every other texture is opaque.
 export const TEXTURES =
 [
     { name: "grass", seed: 400, paint: (r, a, random) => Surfaces.grass(r, a, random) },
@@ -32,4 +34,12 @@ export const TEXTURES =
     { name: "mossSide", seed: 699, paint: (r, a, random) => Surfaces.edged(r, a, random, Surfaces.earth, "#33381f") },
     { name: "rubble", seed: 712, paint: (r, a, random) => Surfaces.rubble(r, a, random, "#5e5a52") },
     { name: "water", seed: 725, paint: (r, a, random) => Surfaces.water(r, a, random) },
+    { name: "plasterWorn", seed: 738, paint: (r, a, random) => Weathering.plasterWorn(r, a, random) },
+    { name: "timberWorn", seed: 751, paint: (r, a, random) => Surfaces.timber(r, a, random, "#4a4238") },
+    { name: "thatchWorn", seed: 764, paint: (r, a, random) => Surfaces.thatch(r, a, random, "#4e4a30") },
+    { name: "mossTop", seed: 777, overlay: true, paint: (r, a, random) => Weathering.mossTop(r, a, random) },
+    { name: "mossEdge", seed: 790, overlay: true, paint: (r, a, random) => Weathering.mossEdge(r, a, random, true) },
+    { name: "mossFoot", seed: 803, overlay: true, paint: (r, a, random) => Weathering.mossEdge(r, a, random, false) },
+    { name: "grime", seed: 816, overlay: true, paint: (r, a, random) => Weathering.grime(r, a, random) },
+    { name: "cracks", seed: 829, overlay: true, paint: (r, a, random) => Weathering.cracks(r, a, random) },
 ];

@@ -17,20 +17,26 @@ varying float vLayer;
 varying vec2 vTileUv;
 `;
 
-const FRAGMENT = `
+const TILE_FRAGMENT = `
 vec4 tileTexel = texture(worldAtlas, vec3(vTileUv, floor(vLayer + 0.5)));
+`;
+
+const FRAGMENT = `
 diffuseColor *= tileTexel;
 `;
 
 const STEPPED_VERTEX_PARS = `
 attribute vec2 light;
+attribute vec2 weather;
 varying vec2 vLight;
+varying vec2 vWeather;
 varying vec3 vStepPosition;
 varying vec3 vStepNormal;
 `;
 
 const STEPPED_VERTEX = `
 vLight = light;
+vWeather = weather;
 
 #ifdef USE_INSTANCING
     vStepPosition = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
@@ -46,8 +52,28 @@ uniform vec3 skyRamp[16];
 uniform vec3 lampRamp[16];
 uniform vec4 playerLight;
 varying vec2 vLight;
+varying vec2 vWeather;
 varying vec3 vStepPosition;
 varying vec3 vStepNormal;
+`;
+
+// Each of vWeather's two overlays is layer * 4 + level, or 0 for none. An
+// overlay texel shows at a level of at least its alpha * 3. Moss replaces the
+// texel; grime and cracks darken it.
+const WEATHER_FRAGMENT = `
+for(int overlay = 0; overlay < 2; overlay++)
+{
+    float code = floor((overlay == 0 ? vWeather.x : vWeather.y) + 0.5);
+
+    if(code < 1.0) { continue; }
+
+    float overlayLayer = floor(code / 4.0);
+    vec4 overlayTexel = texture(worldAtlas, vec3(vTileUv, overlayLayer));
+
+    if(overlayTexel.a <= 0.0 || overlayTexel.a * 3.0 > code - overlayLayer * 4.0 + 0.01) { continue; }
+
+    tileTexel.rgb = overlay == 0 ? overlayTexel.rgb : tileTexel.rgb * overlayTexel.rgb * 2.2;
+}
 `;
 
 // 1 where the moon (or the sun) reaches a fragment, 0 where the fragment faces
@@ -194,7 +220,7 @@ export class MaterialLibrary
 
             shader.fragmentShader = shader.fragmentShader
                 .replace("#include <common>", "#include <common>\n" + FRAGMENT_PARS + (stepped ? STEPPED_FRAGMENT_PARS : ""))
-                .replace("#include <color_fragment>", "#include <color_fragment>\n" + FRAGMENT)
+                .replace("#include <color_fragment>", "#include <color_fragment>\n" + TILE_FRAGMENT + (stepped ? WEATHER_FRAGMENT : "") + FRAGMENT)
                 .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n" + emissive)
                 .replace("#include <opaque_fragment>", (stepped ? STEPPED_FRAGMENT : "") + "#include <opaque_fragment>");
 

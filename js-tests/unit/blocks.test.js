@@ -21,7 +21,7 @@ describe("Block bake", () =>
     {
         const baked = Blocks.bakeBlock("sample", { faces: { all: "earth", top: "grass" } }, TEXTURES, "Block sample", []);
 
-        assert.deepEqual(baked, { id: "sample", kind: "solid", light: 0, faces: { top: "grass", side: "earth", bottom: "earth" } });
+        assert.deepEqual(baked, { id: "sample", kind: "solid", light: 0, faces: { top: "grass", side: "earth", bottom: "earth" }, weathers: [] });
     });
 
     it("rejects unknown textures, faces and kinds, a missing face and a light out of range", () =>
@@ -32,6 +32,16 @@ describe("Block bake", () =>
         assert.match(problemsOf({ faces: { top: "grass" } })[0], /top, sides and bottom/);
         assert.match(problemsOf({ faces: { all: "earth" }, light: 16 })[0], /light from 0 to 15/);
         assert.deepEqual(problemsOf({ faces: { all: "water" }, kind: "liquid", light: 15 }), []);
+    });
+
+    it("keeps the ways a solid block weathers and the texture it wears to, and rejects others", () =>
+    {
+        const baked = Blocks.bakeBlock("sample", { faces: { all: "earth" }, weathers: ["moss", "chips"], worn: "grass" }, TEXTURES, "Block sample", []);
+
+        assert.deepEqual([baked.weathers, baked.worn], [["moss", "chips"], "grass"]);
+        assert.match(problemsOf({ faces: { all: "earth" }, weathers: ["rust"] })[0], /weathers in an unknown way/);
+        assert.match(problemsOf({ faces: { all: "water" }, kind: "liquid", weathers: ["moss"] })[0], /or is not solid/);
+        assert.match(problemsOf({ faces: { all: "earth" }, worn: "lava" })[0], /wears to an unknown world texture: lava/);
     });
 });
 

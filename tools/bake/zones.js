@@ -84,6 +84,7 @@ export async function bakeZone(zone, folder, people, context, where, problems)
 
     if(!(Math.abs(zone.spawn?.x) < half && Math.abs(zone.spawn?.z) < half)) { problems.push(where + " needs a spawn point inside the zone"); }
     if(zone.welcome !== undefined && !(Array.isArray(zone.welcome) && zone.welcome.every((line) => typeof line === "string"))) { problems.push(where + " needs its welcome to be a list of lines"); }
+    if(zone.weathering !== undefined && !isAge(zone.weathering.age)) { problems.push(where + " needs its weathering age to be a whole number from 0 to 100"); }
     if(problems.length > before) { return null; }
 
     const terrain = await Terrain.readColumns(folder, zone, where, problems);
@@ -120,6 +121,7 @@ export async function bakeZone(zone, folder, people, context, where, problems)
 
         if(!context.prefabs[prop.prefab]) { problems.push(where + " prop " + i + " is an unknown prefab: " + prop.prefab); continue; }
         if(!(Math.abs(prop.x) < half && Math.abs(prop.z) < half)) { problems.push(where + " prop " + i + " is outside the zone"); }
+        if(prop.age !== undefined && !isAge(prop.age)) { problems.push(where + " prop " + i + " needs an age that is a whole number from 0 to 100"); }
 
         props.push({ ...prop, index: i, y: Voxelise.standingHeight(prop, context.prefabs[prop.prefab], heightAt) });
     }
@@ -135,7 +137,7 @@ export async function bakeZone(zone, folder, people, context, where, problems)
     if(problems.length > before) { return null; }
 
     const solid = new Set(context.blocks.flatMap((block, i) => (block.kind === "liquid" ? [] : [i + 1])));
-    const regions = Terrain.bakeRegions(zone, terrain, ground, numbers, { cells: placed.cells, solid });
+    const regions = Terrain.bakeRegions(zone, terrain, ground, numbers, { cells: placed.cells, solid }, agesOf(zone, props, placed.objects));
     const { id, name, welcome, columns, height, base, water, lighting, spawn } = zone;
     const index = { id, name, welcome, columns, height, base, water, lighting, spawn, people: zone.people, objects: placed.objects, regions: regions.map((region) => region.name) };
 
@@ -171,6 +173,27 @@ function groundOf(zone, context, where, problems)
 
         return { top: numbers[layers.top], under: numbers[layers.under] };
     });
+}
+
+function isAge(age)
+{
+    return Number.isInteger(age) && age >= 0 && age <= 100;
+}
+
+// Each column takes the zone's age, or the age of a prefab placed over it.
+function agesOf(zone, props, placed)
+{
+    const ages = new Uint8Array(zone.columns * zone.columns).fill(zone.weathering?.age ?? 0);
+    const aged = new Map(props.filter((prop) => prop.age !== undefined).map((prop) => [prop.index, prop.age]));
+
+    for(const { prop, box } of placed)
+    {
+        if(!aged.has(prop) || !box) { continue; }
+
+        for(let row = box[2]; row <= box[5]; row++) { ages.fill(aged.get(prop), row * zone.columns + box[0], row * zone.columns + box[3] + 1); }
+    }
+
+    return ages;
 }
 
 function isHeightFog({ base, falloff, density })

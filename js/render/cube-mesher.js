@@ -8,6 +8,11 @@ const BEDROCK = 255;
 const MAX_LIGHT = 15;
 const SHADES = [1, 0.84, 0.72, 0.6];
 const CORNERS = [[0, 0], [1, 0], [1, 1], [0, 1]];
+const WEATHERS = { moss: 1, grime: 2, cracks: 4, chips: 8 };
+const OVERLAYS = ["mossTop", "mossEdge", "mossFoot", "grime", "cracks"];
+const OVERLAY_STRENGTH = 1.3;
+const LEVELS = 3;
+const UP = PADDED * PADDED;
 
 // The step through the padded cells along x, y and z.
 const STRIDES = [1, PADDED * PADDED, PADDED];
@@ -36,6 +41,10 @@ export function faceTable(blocks, atlas)
     const flags = () => new Uint8Array(256);
     const table = { top: new Int16Array(count), side: new Int16Array(count), bottom: new Int16Array(count), opaque: flags(), clear: flags(), liquid: flags(), hidden: flags(), standable: flags(), lights: flags() };
 
+    table.weathers = flags();
+    table.worn = new Int16Array(256).fill(-1);
+    table.overlays = Object.fromEntries(OVERLAYS.map((name) => [name, atlas.names.indexOf(name)]));
+
     for(let number = 1; number < count; number++)
     {
         const block = blocks.block(number);
@@ -48,6 +57,8 @@ export function faceTable(blocks, atlas)
         table.hidden[number] = block.kind === "liquid" || block.kind === "object" ? 1 : 0;
         table.standable[number] = block.kind === "solid" || block.kind === "clear" || block.kind === "object" ? 1 : 0;
         table.lights[number] = block.light;
+        table.weathers[number] = (block.weathers ?? []).reduce((bits, weather) => bits | WEATHERS[weather], 0);
+        table.worn[number] = block.worn ? atlas.layer(block.worn) : -1;
     }
 
     table.opaque[BEDROCK] = 1;
@@ -61,12 +72,14 @@ export function faceTable(blocks, atlas)
 /******************************************************************************/
 
 // The chunk's cells with a border of MARGIN cells from its neighbours, in
-// (y * PADDED + z) * PADDED + x order, and the surface of each padded column.
+// (y * PADDED + z) * PADDED + x order, and the surface and the weathering age
+// of each padded column.
 // Cells below the zone, and in regions not loaded, count as solid.
 export function paddedCells(zone, cx, cy, cz)
 {
     const cells = new Uint8Array(PADDED * PADDED * PADDED);
     const surfaces = new Uint16Array(PADDED * PADDED);
+    const ages = new Uint8Array(PADDED * PADDED);
     const left = cx * CHUNK - MARGIN;
     const bottom = cy * CHUNK - MARGIN;
     const back = cz * CHUNK - MARGIN;
@@ -81,10 +94,14 @@ export function paddedCells(zone, cx, cy, cz)
 
     for(let z = 0; z < PADDED; z++)
     {
-        for(let x = 0; x < PADDED; x++) { surfaces[z * PADDED + x] = zone.surface(left + x, back + z); }
+        for(let x = 0; x < PADDED; x++)
+        {
+            surfaces[z * PADDED + x] = zone.surface(left + x, back + z);
+            ages[z * PADDED + x] = zone.age(left + x, back + z);
+        }
     }
 
-    return { cells, surfaces, bottom };
+    return { cells, surfaces, ages, bottom };
 }
 
 function copyChunk(zone, cells, [cx, cy, cz], [left, bottom, back])
@@ -237,16 +254,17 @@ export function buildChunk(zone, table, atlas, cx, cy, cz)
 
 export function meshCells(volume, table, origin, frame)
 {
-    const out = { positions: [], normals: [], uvs: [], layers: [], colours: [], lights: [], indices: [] };
-    const mask = new Int32Array(CHUNK * CHUNK);
+    const out = { positions: [], normals: [], uvs: [], layers: [], colours: [], lights: [], weathers: [], indices: [] };
+    const masks = { faces: new Int32Array(CHUNK * CHUNK), weathers: new Int32Array(CHUNK * CHUNK) };
     const light = lightCells(volume, table);
     const floors = floorLights(volume.cells, light, table);
+    const context = { cells: volume.cells, ages: volume.ages ?? new Uint8Array(PADDED * PADDED), light, table, origin };
 
     for(const direction of DIRECTIONS)
     {
         for(let slice = 0; slice < CHUNK; slice++)
         {
-            if(fillMask(mask, volume.cells, light, table, direction, slice)) { mergeMask(out, mask, direction, slice, origin, frame); }
+            if(fillMask(masks, context, direction, slice)) { mergeMask(out, masks, direction, slice, origin, frame); }
         }
     }
 
@@ -260,6 +278,7 @@ export function meshCells(volume, table, origin, frame)
         layers: new Float32Array(out.layers),
         colours: new Float32Array(out.colours),
         lights: new Float32Array(out.lights),
+        weathers: new Float32Array(out.weathers),
         indices: new Uint32Array(out.indices),
     };
 }
@@ -294,10 +313,13 @@ function floorLights(cells, light, table)
 
 /* MASK ***********************************************************************/
 
-// A mask entry is 0 for no face, or the face's layer + 1, then the light of
-// the cell in front of it, then its four corner shades of two bits each.
-function fillMask(mask, cells, light, table, direction, slice)
+// A face mask entry is 0 for no face, or the face's layer + 1, then the light
+// of the cell in front of it, then its four corner shades of two bits each.
+// Its weather mask entry holds its two overlays; see weatherOf.
+function fillMask(masks, context, direction, slice)
 {
+    const { cells, ages, light, table } = context;
+    const { faces: mask, weathers } = masks;
     const { axis, sign, u, v, side } = direction;
     const [stepU, stepV, stepAxis] = [STRIDES[u], STRIDES[v], STRIDES[axis]];
     const layers = table[side];
@@ -320,12 +342,87 @@ function fillMask(mask, cells, light, table, direction, slice)
                 continue;
             }
 
-            mask[j * CHUNK + i] = ((layers[block] + 1) << 16) | (light[front] << 8) | shadesOf(cells, table.opaque, front, stepU, stepV);
+            const age = ages[Math.floor(index / PADDED) % PADDED * PADDED + index % PADDED];
+            const layer = age > 0 ? wornLayer(context, block, index, age, layers[block]) : layers[block];
+
+            mask[j * CHUNK + i] = ((layer + 1) << 16) | (light[front] << 8) | shadesOf(cells, table.opaque, front, stepU, stepV);
+            weathers[j * CHUNK + i] = age > 0 && table.weathers[block] !== 0 ? weatherOf(context, block, index, front, direction, age / 100) : 0;
             hasFace = true;
         }
     }
 
     return hasFace;
+}
+
+/* WEATHER ********************************************************************/
+
+// From 0 to 1, the same for a cell wherever it is meshed.
+function hash(context, index, salt)
+{
+    const { origin } = context;
+    const x = origin[0] - MARGIN + (index % PADDED);
+    const z = origin[2] - MARGIN + (Math.floor(index / PADDED) % PADDED);
+    const y = origin[1] - MARGIN + Math.floor(index / UP);
+    let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(z, 1274126177) ^ Math.imul(salt, 2246822519);
+
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    h ^= h >>> 16;
+
+    return (h >>> 0) / 4294967296;
+}
+
+function levelOf(amount)
+{
+    return Math.max(0, Math.min(LEVELS, Math.round(amount * OVERLAY_STRENGTH * LEVELS)));
+}
+
+// A block with a worn texture takes it, on every face, in more cells the
+// older it is.
+function wornLayer(context, block, index, age, layer)
+{
+    const worn = context.table.worn[block];
+
+    return worn >= 0 && hash(context, index, 7) < (age / 100 - 0.35) * 1.2 ? worn : layer;
+}
+
+// Two overlays, each as layer * 4 + level, or 0 for none: moss in the high 16
+// bits, and grime or a crack in the low 16. Moss grows on a top face open to
+// the sky, hangs from the top of a side face under open sky, and climbs a side
+// face from the floor in front of it. Grime streaks down a side face below an
+// overhang, up to three cells down.
+function weatherOf(context, block, index, front, direction, age)
+{
+    const { cells, light, table } = context;
+    const { opaque, overlays } = table;
+    const bits = table.weathers[block];
+    const isSide = direction.axis !== 1;
+    const isOpenSky = light[front] >> 4 === MAX_LIGHT;
+    let moss = 0;
+    let streak = 0;
+
+    if(bits & WEATHERS.moss)
+    {
+        const growth = age * (0.5 + hash(context, front, 1) * 0.8);
+
+        if(!isSide && direction.sign > 0 && isOpenSky) { moss = overlays.mossTop * 4 + levelOf(growth); }
+        else if(isSide && isOpenSky && opaque[cells[index + UP]] === 0) { moss = overlays.mossEdge * 4 + levelOf(growth * 0.9); }
+        else if(isSide && opaque[cells[front - UP]] === 1) { moss = overlays.mossFoot * 4 + levelOf(growth * 0.8); }
+    }
+
+    if(isSide && bits & WEATHERS.grime)
+    {
+        for(let k = 1; k <= 3 && streak === 0; k++)
+        {
+            if(opaque[cells[front + k * UP]] === 1) { streak = overlays.grime * 4 + levelOf(age * (1.15 - k * 0.25) * (0.7 + hash(context, front, 2) * 0.6)); }
+        }
+    }
+
+    if(isSide && streak % 4 === 0 && bits & WEATHERS.cracks && hash(context, index, 3) < (age - 0.3) * 0.5)
+    {
+        streak = overlays.cracks * 4 + Math.max(1, levelOf(age - 0.2));
+    }
+
+    return ((moss % 4 === 0 ? 0 : moss) << 16) | (streak % 4 === 0 ? 0 : streak);
 }
 
 // Vertex ambient occlusion, after
@@ -350,13 +447,16 @@ function shadesOf(cells, opaque, front, stepU, stepV)
 
 /* QUADS **********************************************************************/
 
-function mergeMask(out, mask, direction, slice, origin, frame)
+function mergeMask(out, masks, direction, slice, origin, frame)
 {
+    const { faces: mask, weathers } = masks;
+
     for(let j = 0; j < CHUNK; j++)
     {
         for(let i = 0; i < CHUNK;)
         {
             const key = mask[j * CHUNK + i];
+            const weather = weathers[j * CHUNK + i];
 
             if(key === 0)
             {
@@ -367,25 +467,25 @@ function mergeMask(out, mask, direction, slice, origin, frame)
             let width = 1;
             let height = 1;
 
-            while(i + width < CHUNK && mask[j * CHUNK + i + width] === key) { width++; }
-            while(j + height < CHUNK && rowMatches(mask, key, i, j + height, width)) { height++; }
+            while(i + width < CHUNK && mask[j * CHUNK + i + width] === key && weathers[j * CHUNK + i + width] === weather) { width++; }
+            while(j + height < CHUNK && rowMatches(masks, key, weather, i, j + height, width)) { height++; }
 
             for(let row = j; row < j + height; row++) { mask.fill(0, row * CHUNK + i, row * CHUNK + i + width); }
 
-            addQuad(out, direction, key, [slice, i, j, width, height], origin, frame);
+            addQuad(out, direction, key, weather, [slice, i, j, width, height], origin, frame);
             i += width;
         }
     }
 }
 
-function rowMatches(mask, key, i, j, width)
+function rowMatches({ faces, weathers }, key, weather, i, j, width)
 {
-    for(let k = i; k < i + width; k++) { if(mask[j * CHUNK + k] !== key) { return false; } }
+    for(let k = i; k < i + width; k++) { if(faces[j * CHUNK + k] !== key || weathers[j * CHUNK + k] !== weather) { return false; } }
 
     return true;
 }
 
-function addQuad(out, direction, key, [slice, i, j, width, height], origin, frame)
+function addQuad(out, direction, key, weather, [slice, i, j, width, height], origin, frame)
 {
     const { axis, sign, u, v } = direction;
     const first = out.positions.length / 3;
@@ -413,6 +513,7 @@ function addQuad(out, direction, key, [slice, i, j, width, height], origin, fram
         out.layers.push(layer);
         out.colours.push(shade, shade, shade);
         out.lights.push((light >> 4) / MAX_LIGHT, (light & 0xf) / MAX_LIGHT);
+        out.weathers.push(weather >>> 16, weather & 0xffff);
     });
 
     out.indices.push(...triangles(shades, (v === (u + 1) % 3) === (sign > 0)).map((index) => first + index));

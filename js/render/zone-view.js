@@ -332,7 +332,7 @@ export class ZoneView
         const joined = {};
         let vertices = 0;
 
-        for(const name of ["positions", "normals", "uvs", "layers", "colours", "lights"])
+        for(const name of ["positions", "normals", "uvs", "layers", "colours", "lights", "weathers"])
         {
             joined[name] = new Float32Array(parts.reduce((total, part) => total + part[name].length, 0));
 
@@ -482,6 +482,7 @@ export class ZoneView
         geometry.setAttribute("layer", new THREE.BufferAttribute(arrays.layers, 1));
         geometry.setAttribute("color", new THREE.BufferAttribute(arrays.colours, 3));
         geometry.setAttribute("light", new THREE.BufferAttribute(arrays.lights, 2));
+        geometry.setAttribute("weather", new THREE.BufferAttribute(arrays.weathers, 2));
         geometry.setIndex(new THREE.BufferAttribute(arrays.indices, 1));
         geometry.computeBoundingSphere();
 

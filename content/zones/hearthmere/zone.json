@@ -63,6 +63,9 @@
             "intensity": 1.7
         }
     },
+    "weathering": {
+        "age": 30
+    },
     "spawn": {
         "x": 1.6,
         "z": 9.5,
@@ -315,7 +318,8 @@
             "prefab": "chapel",
             "x": -9,
             "z": -22,
-            "angle": 0
+            "angle": 0,
+            "age": 60
         },
         {
             "prefab": "grave.0",

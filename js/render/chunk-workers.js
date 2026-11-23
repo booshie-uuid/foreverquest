@@ -49,7 +49,7 @@ export class ChunkWorkers
         {
             this.requests.set(id, { worker, resolve, reject });
             this.outstanding.set(worker, this.outstanding.get(worker) + 1);
-            worker.postMessage({ type: "mesh", id, volume, origin, frame }, [volume.cells.buffer, volume.surfaces.buffer]);
+            worker.postMessage({ type: "mesh", id, volume, origin, frame }, [volume.cells.buffer, volume.surfaces.buffer, volume.ages.buffer]);
         });
     }
 

@@ -60,6 +60,7 @@ describe("Region files", () =>
             height: 64,
             surfaces: Uint16Array.from({ length: 40 * 32 }, (value, i) => i % 65),
             grounds: Uint16Array.from({ length: 40 * 32 }, (value, i) => i % 13),
+            ages: Uint8Array.from({ length: 40 * 32 }, (value, i) => i % 101),
             chunks:
             [
                 { x: 0, y: 0, z: 0, cells: new Uint8Array(RegionCodec.CELLS).fill(3) },
@@ -72,11 +73,11 @@ describe("Region files", () =>
         const decoded = RegionCodec.decode(encoded);
 
         assert.deepEqual([decoded.width, decoded.depth, decoded.height], [40, 32, 64]);
-        assert.deepEqual([decoded.surfaces, decoded.grounds], [region.surfaces, region.grounds]);
+        assert.deepEqual([decoded.surfaces, decoded.grounds, decoded.ages], [region.surfaces, region.grounds, region.ages]);
         assert.deepEqual(decoded.chunks.map((chunk) => [chunk.x, chunk.y, chunk.z, chunk.uniform]), [[0, 0, 0, 3], [1, 0, 0, null], [1, 1, 0, null]]);
         assert.deepEqual(decoded.chunks[1].cells, dense);
         assert.deepEqual(decoded.chunks[2].cells, layered);
-        assert.ok(encoded.length < 12 + 40 * 32 * 4 + 2 + 4 + 1 + 4 + RegionCodec.CELLS + 4 + 100, "A layered chunk is stored as runs");
+        assert.ok(encoded.length < 12 + 40 * 32 * 5 + 2 + 4 + 1 + 4 + RegionCodec.CELLS + 4 + 100, "A layered chunk is stored as runs");
     });
 
     it("tops each column with its ground, then subsoil, then rock, and fills water to the water line", () =>

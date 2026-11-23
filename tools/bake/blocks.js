@@ -7,6 +7,7 @@ const ID_PATTERN = /^[a-z][A-Za-z0-9]*$/;
 const KINDS = ["solid", "clear", "liquid", "object"];
 const FACES = ["all", "top", "side", "bottom"];
 const MAX_LIGHT = 15;
+const WEATHERS = ["moss", "grime", "cracks", "chips"];
 
 
 /******************************************************************************/
@@ -47,6 +48,7 @@ export function bakeBlock(id, block, textures, where, problems)
     const kind = block.kind ?? "solid";
     const light = block.light ?? 0;
     const faces = block.faces ?? {};
+    const weathers = block.weathers ?? [];
 
     if(!ID_PATTERN.test(id)) { problems.push(where + " has an invalid id"); }
     if(!KINDS.includes(kind)) { problems.push(where + " has an unknown kind: " + kind); }
@@ -63,7 +65,11 @@ export function bakeBlock(id, block, textures, where, problems)
     const bottom = faces.bottom ?? faces.all;
 
     if(kind !== "object" && !(top && side && bottom)) { problems.push(where + " needs a texture for its top, sides and bottom"); }
+    if(!(weathers.every((weather) => WEATHERS.includes(weather)) && (kind === "solid" || weathers.length === 0))) { problems.push(where + " weathers in an unknown way, or is not solid: " + weathers.join(", ")); }
+    if(block.worn !== undefined && !textures.includes(block.worn)) { problems.push(where + " wears to an unknown world texture: " + block.worn); }
     if(problems.length > before) { return null; }
 
-    return kind === "object" ? { id, kind, light, faces: {} } : { id, kind, light, faces: { top, side, bottom } };
+    if(kind === "object") { return { id, kind, light, faces: {} }; }
+
+    return { id, kind, light, faces: { top, side, bottom }, weathers, ...(block.worn ? { worn: block.worn } : {}) };
 }
