@@ -57,17 +57,32 @@ export class ZoneView
 
         for(const key of this.zone.chunks.keys())
         {
-            const geometry = CubeMesher.buildChunk(this.zone, table, atlas, key % wide, Math.floor(key / (wide * wide)), Math.floor(key / wide) % wide);
+            const arrays = CubeMesher.buildChunk(this.zone, table, atlas, key % wide, Math.floor(key / (wide * wide)), Math.floor(key / wide) % wide);
 
-            if(!geometry) { continue; }
+            if(!arrays) { continue; }
 
-            const mesh = new THREE.Mesh(geometry, this.materials.world);
+            const mesh = new THREE.Mesh(ZoneView.geometryOf(arrays), this.materials.terrain);
 
             mesh.name = "terrain";
             mesh.receiveShadow = true;
             this.terrainMeshes.push(mesh);
             this.scene.add(mesh);
         }
+    }
+
+    static geometryOf(arrays)
+    {
+        const geometry = new THREE.BufferGeometry();
+
+        geometry.setAttribute("position", new THREE.BufferAttribute(arrays.positions, 3));
+        geometry.setAttribute("normal", new THREE.BufferAttribute(arrays.normals, 3));
+        geometry.setAttribute("uv", new THREE.BufferAttribute(arrays.uvs, 2));
+        geometry.setAttribute("layer", new THREE.BufferAttribute(arrays.layers, 1));
+        geometry.setAttribute("color", new THREE.BufferAttribute(arrays.colours, 3));
+        geometry.setIndex(new THREE.BufferAttribute(arrays.indices, 1));
+        geometry.computeBoundingSphere();
+
+        return geometry;
     }
 
     // Each placement joins the chunk under its origin, and each block of a
@@ -202,7 +217,7 @@ export class ZoneView
         {
             node.geometry?.dispose();
 
-            if(node.material && node.material !== this.materials.world && node.material !== this.materials.water) { node.material.dispose(); }
+            if(node.material && node.material !== this.materials.world && node.material !== this.materials.terrain && node.material !== this.materials.water) { node.material.dispose(); }
         });
 
         this.moon.shadow.map?.dispose();

@@ -1,21 +1,21 @@
 import * as RegionCodec from "../sim/region-codec.js";
-import * as THREE from "three";
 import { ZoneData } from "../sim/zone-data.js";
 
 const { CHUNK } = RegionCodec;
 const PADDED = CHUNK + 2;
 const BEDROCK = 255;
+const SHADES = [1, 0.84, 0.72, 0.6];
+const CORNERS = [[0, 0], [1, 0], [1, 1], [0, 1]];
 
-// Corners run counter-clockwise seen from outside, and UVs are in world
-// cells.
-const FACES =
+// Texture coordinates come from a corner's cell position.
+const DIRECTIONS =
 [
-    { normal: [1, 0, 0], corners: [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]], uv: (x, y, z) => [-(z + 1), y, -z, y + 1], side: "side" },
-    { normal: [-1, 0, 0], corners: [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]], uv: (x, y, z) => [z, y, z + 1, y + 1], side: "side" },
-    { normal: [0, 0, 1], corners: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]], uv: (x, y) => [x, y, x + 1, y + 1], side: "side" },
-    { normal: [0, 0, -1], corners: [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]], uv: (x, y) => [-(x + 1), y, -x, y + 1], side: "side" },
-    { normal: [0, 1, 0], corners: [[0, 1, 1], [1, 1, 1], [1, 1, 0], [0, 1, 0]], uv: (x, y, z) => [x, -(z + 1), x + 1, -z], side: "top" },
-    { normal: [0, -1, 0], corners: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]], uv: (x, y, z) => [x, z, x + 1, z + 1], side: "bottom" },
+    { axis: 0, sign: 1, u: 2, v: 1, side: "side", uv: ([, y, z]) => [-z, y] },
+    { axis: 0, sign: -1, u: 2, v: 1, side: "side", uv: ([, y, z]) => [z, y] },
+    { axis: 1, sign: 1, u: 0, v: 2, side: "top", uv: ([x, , z]) => [x, -z] },
+    { axis: 1, sign: -1, u: 0, v: 2, side: "bottom", uv: ([x, , z]) => [x, z] },
+    { axis: 2, sign: 1, u: 0, v: 1, side: "side", uv: ([x, y]) => [x, y] },
+    { axis: 2, sign: -1, u: 0, v: 1, side: "side", uv: ([x, y]) => [-x, y] },
 ];
 
 
@@ -26,7 +26,7 @@ const FACES =
 export function faceTable(blocks, atlas)
 {
     const count = blocks.count + 1;
-    const table = { top: new Int16Array(count), side: new Int16Array(count), bottom: new Int16Array(count), opaque: new Uint8Array(256), kind: [] };
+    const table = { top: new Int16Array(count), side: new Int16Array(count), bottom: new Int16Array(count), opaque: new Uint8Array(256), clear: new Uint8Array(256), liquid: new Uint8Array(256) };
 
     for(let number = 1; number < count; number++)
     {
@@ -34,8 +34,9 @@ export function faceTable(blocks, atlas)
 
         for(const side of ["top", "side", "bottom"]) { table[side][number] = atlas.layer(block.faces[side]); }
 
-        table.opaque[number] = blocks.isOpaque(number) ? 1 : 0;
-        table.kind[number] = block.kind;
+        table.opaque[number] = block.kind === "solid" ? 1 : 0;
+        table.clear[number] = block.kind === "clear" ? 1 : 0;
+        table.liquid[number] = block.kind === "liquid" ? 1 : 0;
     }
 
     table.opaque[BEDROCK] = 1;
@@ -52,64 +53,62 @@ export function faceTable(blocks, atlas)
 // water view.
 export function buildChunk(zone, table, atlas, cx, cy, cz)
 {
-    const cells = padded(zone, cx, cy, cz);
-    const out = { positions: [], normals: [], uvs: [], layers: [], indices: [] };
-    const perCell = atlas.uvPerMetre / ZoneData.CUBES_PER_METRE;
-    const origin = [cx * CHUNK, cy * CHUNK, cz * CHUNK];
+    const frame = { half: zone.half, base: zone.base, perCell: atlas.uvPerMetre / ZoneData.CUBES_PER_METRE };
 
-    for(let y = 1; y <= CHUNK; y++)
+    return meshCells(padded(zone, cx, cy, cz), table, [cx * CHUNK, cy * CHUNK, cz * CHUNK], frame);
+}
+
+// `cells` is a chunk with a one-cell border of its neighbours, in
+// (y * 34 + z) * 34 + x order.
+export function meshCells(cells, table, origin, frame)
+{
+    const out = { positions: [], normals: [], uvs: [], layers: [], colours: [], indices: [] };
+    const mask = new Int32Array(CHUNK * CHUNK);
+
+    for(const direction of DIRECTIONS)
     {
-        for(let z = 1; z <= CHUNK; z++)
+        for(let slice = 1; slice <= CHUNK; slice++)
         {
-            for(let x = 1; x <= CHUNK; x++)
-            {
-                const block = cells[(y * PADDED + z) * PADDED + x];
-
-                if(block === 0 || table.kind[block] === "liquid") { continue; }
-
-                FACES.forEach((face) =>
-                {
-                    const [dx, dy, dz] = face.normal;
-                    const neighbour = cells[((y + dy) * PADDED + z + dz) * PADDED + x + dx];
-
-                    if(table.opaque[neighbour] === 1) { return; }
-                    if(table.kind[block] === "clear" && neighbour === block) { return; }
-
-                    addFace(out, zone, face, origin[0] + x - 1, origin[1] + y - 1, origin[2] + z - 1, table[face.side][block], perCell);
-                });
-            }
+            if(fillMask(mask, cells, table, direction, slice)) { mergeMask(out, mask, direction, slice, origin, frame); }
         }
     }
 
     if(out.indices.length === 0) { return null; }
 
-    const geometry = new THREE.BufferGeometry();
-
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute(out.positions, 3));
-    geometry.setAttribute("normal", new THREE.Float32BufferAttribute(out.normals, 3));
-    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(out.uvs, 2));
-    geometry.setAttribute("layer", new THREE.Float32BufferAttribute(out.layers, 1));
-    geometry.setIndex(out.indices);
-    geometry.computeBoundingSphere();
-
-    return geometry;
+    return {
+        positions: new Float32Array(out.positions),
+        normals: new Float32Array(out.normals),
+        uvs: new Float32Array(out.uvs),
+        layers: new Float32Array(out.layers),
+        colours: new Float32Array(out.colours),
+        indices: new Uint32Array(out.indices),
+    };
 }
+
+/* CELLS **********************************************************************/
 
 // Cells below the zone count as solid.
 function padded(zone, cx, cy, cz)
 {
     const cells = new Uint8Array(PADDED * PADDED * PADDED);
     const [left, bottom, back] = [cx * CHUNK - 1, cy * CHUNK - 1, cz * CHUNK - 1];
+    const chunk = zone.chunkAt(cx, cy, cz);
 
     for(let y = 0; y < PADDED; y++)
     {
         for(let z = 0; z < PADDED; z++)
         {
+            const isInnerRow = y > 0 && y <= CHUNK && z > 0 && z <= CHUNK;
+
             for(let x = 0; x < PADDED; x++)
             {
                 const cellY = bottom + y;
+                let block = BEDROCK;
 
-                cells[(y * PADDED + z) * PADDED + x] = cellY < 0 ? BEDROCK : zone.blockAt(left + x, cellY, back + z);
+                if(cellY >= 0 && isInnerRow && x > 0 && x <= CHUNK) { block = chunkCell(chunk, x - 1, y - 1, z - 1); }
+                else if(cellY >= 0) { block = zone.blockAt(left + x, cellY, back + z); }
+
+                cells[(y * PADDED + z) * PADDED + x] = block;
             }
         }
     }
@@ -117,19 +116,155 @@ function padded(zone, cx, cy, cz)
     return cells;
 }
 
-function addFace(out, zone, face, x, y, z, layer, perCell)
+function chunkCell(chunk, x, y, z)
 {
-    const first = out.positions.length / 3;
-    const [u0, v0, u1, v1] = face.uv(x, y, z);
-    const cornerUvs = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
+    if(!chunk) { return 0; }
+    if(chunk.cells === null) { return chunk.uniform; }
 
-    face.corners.forEach(([ox, oy, oz], i) =>
+    return chunk.cells[(y * CHUNK + z) * CHUNK + x];
+}
+
+function cellAt(cells, x, y, z)
+{
+    return cells[(y * PADDED + z) * PADDED + x];
+}
+
+/* MASK ***********************************************************************/
+
+// A mask entry is 0 for no face, or the face's layer + 1 shifted above its
+// four corner shades, two bits each.
+function fillMask(mask, cells, table, direction, slice)
+{
+    const { axis, sign, u, v, side } = direction;
+    const position = [0, 0, 0];
+    let hasFace = false;
+
+    for(let j = 0; j < CHUNK; j++)
     {
-        out.positions.push((x + ox) / ZoneData.CUBES_PER_METRE - zone.half, (y + oy - zone.base) / ZoneData.CUBES_PER_METRE, (z + oz) / ZoneData.CUBES_PER_METRE - zone.half);
-        out.normals.push(...face.normal);
-        out.uvs.push(cornerUvs[i][0] * perCell, cornerUvs[i][1] * perCell);
-        out.layers.push(layer);
+        for(let i = 0; i < CHUNK; i++)
+        {
+            position[axis] = slice;
+            position[u] = i + 1;
+            position[v] = j + 1;
+
+            const block = cellAt(cells, ...position);
+
+            position[axis] = slice + sign;
+
+            const neighbour = cellAt(cells, ...position);
+            const isHidden = block === 0 || table.liquid[block] === 1 || table.opaque[neighbour] === 1 || (table.clear[block] === 1 && neighbour === block);
+
+            mask[j * CHUNK + i] = isHidden ? 0 : ((table[side][block] + 1) << 8) | shadesOf(cells, table, position, u, v);
+            hasFace ||= !isHidden;
+        }
+    }
+
+    return hasFace;
+}
+
+// Vertex ambient occlusion, after
+// https://0fps.net/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/
+function shadesOf(cells, table, front, u, v)
+{
+    let packed = 0;
+
+    CORNERS.forEach(([cornerU, cornerV], corner) =>
+    {
+        const du = cornerU * 2 - 1;
+        const dv = cornerV * 2 - 1;
+        const side = [...front];
+        const other = [...front];
+        const diagonal = [...front];
+
+        side[u] += du;
+        other[v] += dv;
+        diagonal[u] += du;
+        diagonal[v] += dv;
+
+        const a = table.opaque[cellAt(cells, ...side)];
+        const b = table.opaque[cellAt(cells, ...other)];
+        const shade = a && b ? 3 : a + b + table.opaque[cellAt(cells, ...diagonal)];
+
+        packed |= shade << (corner * 2);
     });
 
-    out.indices.push(first, first + 1, first + 2, first, first + 2, first + 3);
+    return packed;
+}
+
+/* QUADS **********************************************************************/
+
+function mergeMask(out, mask, direction, slice, origin, frame)
+{
+    for(let j = 0; j < CHUNK; j++)
+    {
+        for(let i = 0; i < CHUNK;)
+        {
+            const key = mask[j * CHUNK + i];
+
+            if(key === 0)
+            {
+                i++;
+                continue;
+            }
+
+            let width = 1;
+            let height = 1;
+
+            while(i + width < CHUNK && mask[j * CHUNK + i + width] === key) { width++; }
+            while(j + height < CHUNK && rowMatches(mask, key, i, j + height, width)) { height++; }
+
+            for(let row = j; row < j + height; row++) { mask.fill(0, row * CHUNK + i, row * CHUNK + i + width); }
+
+            addQuad(out, direction, key, [slice, i, j, width, height], origin, frame);
+            i += width;
+        }
+    }
+}
+
+function rowMatches(mask, key, i, j, width)
+{
+    for(let k = i; k < i + width; k++) { if(mask[j * CHUNK + k] !== key) { return false; } }
+
+    return true;
+}
+
+function addQuad(out, direction, key, [slice, i, j, width, height], origin, frame)
+{
+    const { axis, sign, u, v } = direction;
+    const first = out.positions.length / 3;
+    const layer = (key >> 8) - 1;
+    const shades = CORNERS.map((corner, index) => (key >> (index * 2)) & 3);
+    const normal = [0, 0, 0];
+
+    normal[axis] = sign;
+
+    CORNERS.forEach(([cornerU, cornerV], index) =>
+    {
+        const cell = [0, 0, 0];
+
+        cell[axis] = origin[axis] + slice - 1 + (sign > 0 ? 1 : 0);
+        cell[u] = origin[u] + i + cornerU * width;
+        cell[v] = origin[v] + j + cornerV * height;
+
+        const [tu, tv] = direction.uv(cell);
+        const shade = SHADES[shades[index]];
+
+        out.positions.push(cell[0] / ZoneData.CUBES_PER_METRE - frame.half, (cell[1] - frame.base) / ZoneData.CUBES_PER_METRE, cell[2] / ZoneData.CUBES_PER_METRE - frame.half);
+        out.normals.push(...normal);
+        out.uvs.push(tu * frame.perCell, tv * frame.perCell);
+        out.layers.push(layer);
+        out.colours.push(shade, shade, shade);
+    });
+
+    out.indices.push(...triangles(shades, (v === (u + 1) % 3) === (sign > 0)).map((index) => first + index));
+}
+
+// The corners run anticlockwise seen from the side the face points to when
+// u x v points along the face's normal. The quad splits along the diagonal
+// between its darker corners.
+function triangles(shades, isAnticlockwise)
+{
+    const order = shades[0] + shades[2] < shades[1] + shades[3] ? [1, 2, 3, 1, 3, 0] : [0, 1, 2, 0, 2, 3];
+
+    return isAnticlockwise ? order : [order[0], order[2], order[1], order[3], order[5], order[4]];
 }

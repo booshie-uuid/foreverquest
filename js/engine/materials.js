@@ -29,12 +29,13 @@ export class MaterialLibrary
         this.atlas = atlas;
         this.atlasTexture = atlas.createTexture();
         this.world = this.worldMaterial();
+        this.terrain = this.worldMaterial({ vertexColors: true });
         this.water = new THREE.MeshPhongMaterial({ color: "#1e2a30", specular: 0x5a6a78, shininess: 80, transparent: true, opacity: 0.82 });
     }
 
-    worldMaterial()
+    worldMaterial(options = {})
     {
-        const material = new THREE.MeshLambertMaterial();
+        const material = new THREE.MeshLambertMaterial(options);
         const uniforms = { worldAtlas: { value: this.atlasTexture } };
         const emissive = MaterialLibrary.emissiveShader(this.atlas.glowLayers);
 
@@ -52,7 +53,7 @@ export class MaterialLibrary
                 .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n" + emissive);
         };
 
-        material.customProgramCacheKey = () => "world-atlas:" + this.atlas.glowLayers.join(",");
+        material.customProgramCacheKey = () => "world-atlas:" + this.atlas.glowLayers.join(",") + (material.vertexColors ? ":shaded" : "");
 
         return material;
     }

@@ -65,7 +65,7 @@ The zone keeps its colliders in a grid of 4-metre cells. A step tests only the c
 
 ## Drawing a Zone
 
-`ZoneView` builds one terrain mesh per chunk, with [CubeMesher](../js/render/cube-mesher.js), and the props in squares of 16 metres, so Three.js leaves out the meshes outside the camera. The mesher draws a cube face only where the cell beside it is not opaque, and lays each texture across the faces in world cells, so a texture continues from one cube to the next. Water is one plane at the water line. Every terrain cube and prop shares one material, which reads its textures from the world texture array. `dispose()` frees every mesh and the shadow map the view made, and leaves the shared materials alone.
+`ZoneView` builds one terrain mesh per chunk, with [CubeMesher](../js/render/cube-mesher.js), and the props in squares of 16 metres, so Three.js leaves out the meshes outside the camera. The mesher draws a cube face only where the cell beside it is not opaque, and lays each texture across the faces in world cells, so a texture continues from one cube to the next. It merges neighbouring faces of one texture and one shading into a single rectangle, so a flat floor of a chunk is two triangles. Each corner of a face darkens a step for each opaque cube that touches it in front of the face, which shades the foot of every step and wall. The mesher returns plain arrays and uses no Three.js. Water is one plane at the water line. The props share one material and the terrain another, which also takes the corner shading as vertex colours; both read their textures from the world texture array. `dispose()` frees every mesh and the shadow map the view made, and leaves the shared materials alone.
 
 | Light | Purpose |
 |---|---|

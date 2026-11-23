@@ -184,21 +184,25 @@ describe("Zone placement", () =>
 
 describe("Zone view", () =>
 {
-    it("draws one top face for every column, in chunks of 32 cubes", () =>
+    it("covers every column with top faces, in chunks of 32 cubes", () =>
     {
         const view = new ZoneView(hearthmere, prefabs, materials);
-        const tops = view.terrainMeshes.reduce((total, mesh) =>
+        const area = view.terrainMeshes.reduce((total, mesh) =>
         {
             const normal = mesh.geometry.getAttribute("normal");
-            let count = 0;
+            const position = mesh.geometry.getAttribute("position");
+            let sum = 0;
 
-            for(let i = 0; i < normal.count; i += 4) { if(normal.getY(i) === 1) { count++; } }
+            for(let i = 0; i < normal.count; i += 4)
+            {
+                if(normal.getY(i) === 1) { sum += Math.abs((position.getX(i + 1) - position.getX(i)) * (position.getZ(i + 3) - position.getZ(i))); }
+            }
 
-            return total + count;
+            return total + sum;
         }, 0);
 
         assert.ok(view.terrainMeshes.length >= 9 * 9 && view.terrainMeshes.length <= 9 * 9 * 2, view.terrainMeshes.length + " meshes");
-        assert.equal(tops, 288 * 288);
+        assert.ok(Math.abs(area - 96 * 96) < 1e-6, "The tops cover " + area + " square metres");
         assert.ok(view.propMeshes.length > 10);
         view.dispose();
     });
