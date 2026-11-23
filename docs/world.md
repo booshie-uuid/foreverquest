@@ -103,6 +103,12 @@ The [camera](../js/game/camera-rig.js) starts in first person, at the player's e
 | Glow texels | Window panes, lamps and lanterns light themselves |
 | Fog | Fades the zone into the horizon colour between the fog's `near` and `far` |
 
+## Fine-Cube Objects
+
+A zone's `props` also place fine-cube objects, as `{ object, x, z, angle }`; [Adding an Object](assets.md#adding-an-object) describes how to build one. `x` and `z` give the middle of the object's footprint. The bake turns the object by the nearest quarter turn, moves its corner to the nearest cube corner, and stands it on the terrain. A solid object fills its cells with the `object` block type, whose kind `object` blocks movement and can be stood on, but is never drawn and lets light through, so the ground under the object still draws and is still lit. The zone's index lists each placed object with its position, its quarter turns and its cells.
+
+`ZoneView` draws every object of one kind in one region with a single instanced mesh, which loads and frees with its region. Each object takes the stepped light of the cell above its top, as characters do, and the moon's shadow.
+
 ## Inspecting Props
 
 The zone's index lists each placed prop as an object: its number in the zone file's `props`, its prefab or run, its position, its quarter turns and the box of cells its blocks reach. Right-clicking without dragging casts a ray through the cells, and the chat names what it meets: a villager, the prop whose box holds the cell, choosing the smallest box where boxes overlap, or the ground. Each line gives the prop's number, so a broken prop can be reported and found in the zone file.

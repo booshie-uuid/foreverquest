@@ -31,8 +31,14 @@ varying vec3 vStepNormal;
 
 const STEPPED_VERTEX = `
 vLight = light;
-vStepPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;
-vStepNormal = objectNormal;
+
+#ifdef USE_INSTANCING
+    vStepPosition = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+    vStepNormal = mat3(instanceMatrix) * objectNormal;
+#else
+    vStepPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;
+    vStepNormal = objectNormal;
+#endif
 `;
 
 const STEPPED_FRAGMENT_PARS = `
@@ -105,6 +111,7 @@ export class MaterialLibrary
         this.world = this.worldMaterial();
         this.stepped = { skyRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.sky) }, lampRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.lamp) }, playerLight: { value: new THREE.Vector4(0, 0, 0, PLAYER_LIGHT) } };
         this.terrain = this.worldMaterial({ vertexColors: true }, this.stepped);
+        this.objects = this.worldMaterial({}, this.stepped);
         this.water = new THREE.MeshPhongMaterial({ color: "#1e2a30", specular: 0x5a6a78, shininess: 80, transparent: true, opacity: 0.82 });
     }
 

@@ -4,7 +4,7 @@ import * as url from "node:url";
 
 const CONTENT = path.resolve(import.meta.dirname, "..", "..", "content", "blocks");
 const ID_PATTERN = /^[a-z][A-Za-z0-9]*$/;
-const KINDS = ["solid", "clear", "liquid"];
+const KINDS = ["solid", "clear", "liquid", "object"];
 const FACES = ["all", "top", "side", "bottom"];
 const MAX_LIGHT = 15;
 
@@ -62,8 +62,8 @@ export function bakeBlock(id, block, textures, where, problems)
     const side = faces.side ?? faces.all;
     const bottom = faces.bottom ?? faces.all;
 
-    if(!top || !side || !bottom) { problems.push(where + " needs a texture for its top, sides and bottom"); }
+    if(kind !== "object" && !(top && side && bottom)) { problems.push(where + " needs a texture for its top, sides and bottom"); }
     if(problems.length > before) { return null; }
 
-    return { id, kind, light, faces: { top, side, bottom } };
+    return kind === "object" ? { id, kind, light, faces: {} } : { id, kind, light, faces: { top, side, bottom } };
 }

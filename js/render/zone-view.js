@@ -30,7 +30,8 @@ const DAY =
 export class ZoneView
 {
     // Without workers, the view meshes every waiting chunk at once.
-    constructor(zone, materials, workers = null)
+    // `objects` holds the baked fine-cube objects by id.
+    constructor(zone, materials, workers = null, objects = {})
     {
         const lighting = zone.lighting;
 
@@ -40,6 +41,8 @@ export class ZoneView
         this.table = CubeMesher.faceTable(zone.blocks, materials.atlas);
         this.frame = { half: zone.half, base: zone.base, perCell: materials.atlas.uvPerMetre / ZoneData.CUBES_PER_METRE };
         this.scene = new THREE.Scene();
+        this.objectMeshes = new Map();
+        this.objectGeometries = new Map(Object.entries(objects).map(([id, object]) => [id, ZoneView.objectGeometry(object, materials.atlas)]));
         this.chunkArrays = new Map();
         this.floors = new Map();
         this.tileMeshes = new Map();
@@ -59,7 +62,11 @@ export class ZoneView
         this.unsubscribe = zone.onRegion((event) => this.onRegion(event));
         materials.setSteps(lighting.steps);
 
-        for(const name of zone.regions.keys()) { this.queueRegion(name); }
+        for(const name of zone.regions.keys())
+        {
+            this.queueRegion(name);
+            this.addObjects(name);
+        }
 
         this.meshWaiting();
         this.buildTiles();
@@ -86,8 +93,17 @@ export class ZoneView
 
     onRegion({ type, name })
     {
-        if(type === "added") { this.queueRegion(name); }
-        if(type === "removed") { this.dropRegion(name); }
+        if(type === "added")
+        {
+            this.queueRegion(name);
+            this.addObjects(name);
+        }
+
+        if(type === "removed")
+        {
+            this.dropRegion(name);
+            this.removeObjects(name);
+        }
     }
 
     // The loaded chunks on the region's border join it, because their faces
@@ -337,6 +353,95 @@ export class ZoneView
         return joined;
     }
 
+    /* OBJECTS ****************************************************************/
+
+    static objectGeometry(object, atlas)
+    {
+        const geometry = new THREE.BufferGeometry();
+
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(object.positions, 3));
+        geometry.setAttribute("normal", new THREE.Float32BufferAttribute(object.normals, 3));
+        geometry.setAttribute("uv", new THREE.Float32BufferAttribute(object.uvs, 2));
+        geometry.setAttribute("layer", new THREE.Float32BufferAttribute(object.layers.map((texture) => atlas.layer(object.textures[texture])), 1));
+        geometry.setIndex(object.indices);
+        geometry.computeBoundingSphere();
+        geometry.userData.size = object.cells.map((count) => count / ZoneData.CUBES_PER_METRE);
+
+        return geometry;
+    }
+
+    addObjects(name)
+    {
+        const placed = this.zone.objects.filter((entry) => entry.object && this.zone.regionOfColumn(entry.box[0], entry.box[2]) === name);
+        const byKind = Map.groupBy(placed, (entry) => entry.object);
+
+        for(const [kind, entries] of byKind)
+        {
+            const shared = this.objectGeometries.get(kind);
+
+            if(!shared) { continue; }
+
+            const geometry = shared.clone();
+            const mesh = new THREE.InstancedMesh(geometry, this.materials.objects, entries.length);
+            const [width, , depth] = shared.userData.size;
+
+            geometry.setAttribute("light", new THREE.InstancedBufferAttribute(new Float32Array(entries.length * 2), 2));
+
+            entries.forEach((entry, i) =>
+            {
+                const matrix = new THREE.Matrix4().makeTranslation(entry.x, entry.y, entry.z)
+                    .multiply(new THREE.Matrix4().makeRotationY(entry.turns * Math.PI / 2))
+                    .multiply(new THREE.Matrix4().makeTranslation(-width / 2, 0, -depth / 2));
+
+                mesh.setMatrixAt(i, matrix);
+            });
+
+            mesh.name = "objects";
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.userData.entries = entries;
+            mesh.computeBoundingSphere();
+            this.objectMeshes.set(name + "/" + kind, mesh);
+            this.scene.add(mesh);
+        }
+    }
+
+    removeObjects(name)
+    {
+        for(const [key, mesh] of this.objectMeshes)
+        {
+            if(!key.startsWith(name + "/")) { continue; }
+
+            mesh.geometry.dispose();
+            mesh.dispose();
+            this.scene.remove(mesh);
+            this.objectMeshes.delete(key);
+        }
+    }
+
+    // Each object takes the light of the cell above its top.
+    lightObjects()
+    {
+        for(const mesh of this.objectMeshes.values())
+        {
+            const light = mesh.geometry.getAttribute("light");
+            let isChanged = false;
+
+            mesh.userData.entries.forEach((entry, i) =>
+            {
+                const level = this.lightAt({ x: entry.x, y: this.zone.metresY(entry.box[4] + 1), z: entry.z });
+                const [sky, lamp] = [level.sky / 15, level.lamp / 15];
+
+                if(light.getX(i) === sky && light.getY(i) === lamp) { return; }
+
+                light.setXY(i, sky, lamp);
+                isChanged = true;
+            });
+
+            if(isChanged) { light.needsUpdate = true; }
+        }
+    }
+
     /* PROPS ******************************************************************/
 
     static geometryOf(arrays)
@@ -444,6 +549,7 @@ export class ZoneView
         this.materials.setPlayerLight(focus);
         this.meshWaiting();
         this.buildTiles();
+        this.lightObjects();
         this.water.update(delta);
         this.sky.position.copy(camera.position);
         this.moon.position.set(focus.x + (this.isDay ? 18 : -20), focus.y + 40, focus.z + (this.isDay ? -10 : 14));
@@ -457,7 +563,7 @@ export class ZoneView
         {
             node.geometry?.dispose();
 
-            if(node.material && node.material !== this.materials.world && node.material !== this.materials.terrain && node.material !== this.materials.water) { node.material.dispose(); }
+            if(node.material && node.material !== this.materials.world && node.material !== this.materials.terrain && node.material !== this.materials.objects && node.material !== this.materials.water) { node.material.dispose(); }
         });
 
         this.moon.shadow.map?.dispose();

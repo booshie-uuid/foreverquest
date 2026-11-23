@@ -13,4 +13,5 @@ export const BLOCKS =
     sacking: { faces: { all: "sacking" } },
     banner: { faces: { all: "banner" } },
     window: { faces: { all: "glow" }, light: 12 },
+    object: { kind: "object" },
 };

@@ -93,6 +93,7 @@ export async function bakeZone(zone, folder, people, context, where, problems)
     const heightAt = Terrain.heightsOf(zone, terrain.surfaces);
     const runs = [];
     const props = [];
+    const objects = [];
 
     for(const [i, prop] of (zone.props ?? []).entries())
     {
@@ -107,6 +108,15 @@ export async function bakeZone(zone, folder, people, context, where, problems)
             continue;
         }
 
+        if(prop.object)
+        {
+            if(!context.objects[prop.object]) { problems.push(where + " prop " + i + " is an unknown object: " + prop.object); continue; }
+            if(!(Math.abs(prop.x) < half && Math.abs(prop.z) < half)) { problems.push(where + " prop " + i + " is outside the zone"); }
+
+            objects.push({ ...prop, index: i, y: heightAt(prop.x, prop.z) });
+            continue;
+        }
+
         if(!context.prefabs[prop.prefab]) { problems.push(where + " prop " + i + " is an unknown prefab: " + prop.prefab); continue; }
         if(!(Math.abs(prop.x) < half && Math.abs(prop.z) < half)) { problems.push(where + " prop " + i + " is outside the zone"); }
 
@@ -118,6 +128,8 @@ export async function bakeZone(zone, folder, people, context, where, problems)
     const numbers = Object.fromEntries(context.blocks.map((block, i) => [block.id, i + 1]));
     const terrainTop = (column, row) => terrain.surfaces[row * zone.columns + column];
     const placed = Voxelise.zoneCells(zone, props, runs, context.prefabs, numbers, where, problems, terrainTop);
+
+    placed.objects.push(...Voxelise.placeObjects(placed.cells, zone, objects, context.objects, numbers.object));
 
     if(problems.length > before) { return null; }
 

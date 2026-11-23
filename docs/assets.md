@@ -83,6 +83,7 @@ export const IDS =
 | `models/stamps.preview.png` | A viewable copy of the stamp sheet, which the game does not read |
 | `models/clips/index.json`, `models/clips/<rig>.json` | The rigs that have clips, and each rig's clips and actions |
 | `models/palettes.json`, `models/archetypes.json`, `models/appearance.json` | The colour palettes, the villager archetypes, and the appearance defaults and random rules |
+| `objects.json` | Every fine-cube object: its cells, whether it is solid, and its mesh in metres from its lower corner, with the world textures its faces use |
 | `props/prefabs.json` | Every prefab's blocks, colliders and light spots |
 | `zones/index.json`, `zones/<id>/index.json`, `zones/<id>/<x>-<z>.bin` | The zone ids, each zone's settings and props with its runs built, and its compressed region files |
 | `npcs.json` | Every villager, and the shared lines crowds say |
@@ -113,6 +114,18 @@ A block type is one world cube's material. The files in [content/blocks/](../con
 | `light` | The light the block gives, from 0 (the default) to 15 |
 
 [BlockSet](../js/sim/block-set.js) numbers the block types from 1 in the baked order, file by file in name order, and keeps 0 for air. The simulation and the views both read it. The bake fails on a repeated id, an unknown texture, face or kind, a block without a texture on every face, or a light out of range.
+
+## Adding an Object
+
+An object is a thing built from fine cubes, eight to a world cube's edge, such as the cart. The files in [content/objects/](../content/objects/) each export `OBJECTS`, a map from object id to its definition:
+
+| Field | Meaning |
+|---|---|
+| `cells` | `[width, height, depth]` in world cubes, each from 1 to 8 |
+| `build(object)` | Fills fine cubes with `object.box(from, to, block)`, from one corner up to but not including the other, or `object.set(x, y, z, block)`, counted from the object's lower corner |
+| `isSolid` | `false` lets entities walk through the object; it defaults to `true` |
+
+A fine cube takes the textures of its block type, so a timber fine cube shows end grain on top. The bake fails on a fine cube outside the object's cells, so an object never reaches beyond the cubes it claims; on an unknown block; and on a mesh of more than 6,000 triangles. It merges the faces of each texture into rectangles and writes the mesh to `objects.json`. To place an object, add `{ object, x, z, angle }` to a zone's `props`; [World](world.md#fine-cube-objects) describes placement.
 
 ## Adding a World Texture
 

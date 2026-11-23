@@ -13,11 +13,14 @@ function table()
 {
     const faces = { top: new Int16Array([0, 10, 20, 30]), side: new Int16Array([0, 11, 21, 31]), bottom: new Int16Array([0, 12, 22, 32]) };
     const flags = () => new Uint8Array(256);
-    const built = { ...faces, opaque: flags(), clear: flags(), liquid: flags(), lights: flags() };
+    const built = { ...faces, opaque: flags(), clear: flags(), liquid: flags(), hidden: flags(), standable: flags(), lights: flags() };
 
     built.opaque[STONE] = 1;
     built.opaque[LAMP] = 1;
     built.clear[LEAVES] = 1;
+    built.standable[STONE] = 1;
+    built.standable[LAMP] = 1;
+    built.standable[LEAVES] = 1;
     built.lights[LAMP] = 12;
 
     return built;

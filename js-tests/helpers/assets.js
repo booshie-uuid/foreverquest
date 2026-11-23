@@ -29,6 +29,11 @@ export async function library()
     return Library.load(await open());
 }
 
+export async function objects()
+{
+    return (await open()).json("objects.json");
+}
+
 export async function prefabs()
 {
     return (await open()).json("props/prefabs.json");

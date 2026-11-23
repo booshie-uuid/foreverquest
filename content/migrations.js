@@ -12,6 +12,7 @@ export const IDS =
     "clip": {},
     "action": {},
     "prefab": {},
+    "object": {},
     "zone": {},
     "npc": {},
 };

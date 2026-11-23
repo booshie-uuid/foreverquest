@@ -148,6 +148,45 @@ class Box
     }
 }
 
+// An object's `x` and `z` give the middle of its footprint.
+export function placeObjects(cells, zone, placements, objects, objectBlock)
+{
+    const half = zone.columns / CUBES / 2;
+
+    return placements.map((placement) =>
+    {
+        const object = objects[placement.object];
+        const turns = ((Math.round((placement.angle ?? 0) / QUARTER) % 4) + 4) % 4;
+        const [width, height, depth] = object.cells;
+        const [across, along] = turns % 2 === 0 ? [width, depth] : [depth, width];
+        const column = Math.round((placement.x + half) * CUBES - across / 2);
+        const row = Math.round((placement.z + half) * CUBES - along / 2);
+        const floor = Math.round(placement.y * CUBES + zone.base);
+
+        if(object.isSolid)
+        {
+            for(let y = floor; y < floor + height; y++)
+            {
+                for(let z = row; z < row + along; z++)
+                {
+                    for(let x = column; x < column + across; x++) { cells.set((y * zone.columns + z) * zone.columns + x, objectBlock); }
+                }
+            }
+        }
+
+        return {
+            prop: placement.index,
+            name: "object " + placement.object,
+            object: placement.object,
+            x: (column + across / 2) / CUBES - half,
+            y: (floor - zone.base) / CUBES,
+            z: (row + along / 2) / CUBES - half,
+            turns,
+            box: [column, floor, row, column + across - 1, floor + height - 1, row + along - 1],
+        };
+    });
+}
+
 export function carve(cells, zone, box, carved = null)
 {
     rasterise(cells, zone, box, 0, true, carved);

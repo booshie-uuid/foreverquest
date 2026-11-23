@@ -94,7 +94,7 @@ export class GameScreen
 
         this.streamer = streamer;
         this.sim.enter(zone);
-        this.world = new ZoneView(zone, this.materials, this.workers);
+        this.world = new ZoneView(zone, this.materials, this.workers, this.content.objects);
 
         for(const entity of this.sim.entities)
         {

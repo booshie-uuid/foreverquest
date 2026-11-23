@@ -156,7 +156,7 @@ describe("Zone movement", () =>
 
     it("stands every placed prefab on a cube corner", () =>
     {
-        const placed = hearthmere.objects.filter((object) => !object.name.startsWith("run "));
+        const placed = hearthmere.objects.filter((object) => !object.object && !object.name.startsWith("run "));
 
         assert.ok(placed.length > 100);
         assert.ok(placed.every(({ x, z }) => Math.abs(x * 3 - Math.round(x * 3)) < 1e-9 && Math.abs(z * 3 - Math.round(z * 3)) < 1e-9));

@@ -34,17 +34,19 @@ export function faceTable(blocks, atlas)
 {
     const count = blocks.count + 1;
     const flags = () => new Uint8Array(256);
-    const table = { top: new Int16Array(count), side: new Int16Array(count), bottom: new Int16Array(count), opaque: flags(), clear: flags(), liquid: flags(), lights: flags() };
+    const table = { top: new Int16Array(count), side: new Int16Array(count), bottom: new Int16Array(count), opaque: flags(), clear: flags(), liquid: flags(), hidden: flags(), standable: flags(), lights: flags() };
 
     for(let number = 1; number < count; number++)
     {
         const block = blocks.block(number);
 
-        for(const side of ["top", "side", "bottom"]) { table[side][number] = atlas.layer(block.faces[side]); }
+        for(const side of ["top", "side", "bottom"]) { table[side][number] = block.faces[side] ? atlas.layer(block.faces[side]) : 0; }
 
         table.opaque[number] = block.kind === "solid" ? 1 : 0;
         table.clear[number] = block.kind === "clear" ? 1 : 0;
         table.liquid[number] = block.kind === "liquid" ? 1 : 0;
+        table.hidden[number] = block.kind === "liquid" || block.kind === "object" ? 1 : 0;
+        table.standable[number] = block.kind === "solid" || block.kind === "clear" || block.kind === "object" ? 1 : 0;
         table.lights[number] = block.light;
     }
 
@@ -277,7 +279,7 @@ function floorLights(cells, light, table)
             for(let x = 0; x < CHUNK; x++)
             {
                 const index = ((y + MARGIN) * PADDED + z + MARGIN) * PADDED + x + MARGIN;
-                const isFloor = (table.opaque[cells[index]] || table.clear[cells[index]]) && !table.opaque[cells[index + above]] && !table.clear[cells[index + above]];
+                const isFloor = table.standable[cells[index]] && !table.standable[cells[index + above]];
 
                 if(!isFloor) { continue; }
 
@@ -310,7 +312,7 @@ function fillMask(mask, cells, light, table, direction, slice)
             const block = cells[index];
             const front = index + sign * stepAxis;
             const neighbour = cells[front];
-            const isHidden = block === 0 || table.liquid[block] === 1 || table.opaque[neighbour] === 1 || (table.clear[block] === 1 && neighbour === block);
+            const isHidden = block === 0 || table.hidden[block] === 1 || table.opaque[neighbour] === 1 || (table.clear[block] === 1 && neighbour === block);
 
             if(isHidden)
             {
