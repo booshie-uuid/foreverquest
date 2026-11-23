@@ -13,6 +13,9 @@ const OVERLAYS = ["mossTop", "mossEdge", "mossFoot", "grime", "cracks"];
 const OVERLAY_STRENGTH = 1.3;
 const LEVELS = 3;
 const UP = PADDED * PADDED;
+const FINE = 8;
+const MAX_CHIPS = 48;
+const NOTCH_SHADE = 0.8;
 
 // The step through the padded cells along x, y and z.
 const STRIDES = [1, PADDED * PADDED, PADDED];
@@ -260,6 +263,8 @@ export function meshCells(volume, table, origin, frame)
     const floors = floorLights(volume.cells, light, table);
     const context = { cells: volume.cells, ages: volume.ages ?? new Uint8Array(PADDED * PADDED), light, table, origin };
 
+    context.chips = chipsOf(context);
+
     for(const direction of DIRECTIONS)
     {
         for(let slice = 0; slice < CHUNK; slice++)
@@ -267,6 +272,8 @@ export function meshCells(volume, table, origin, frame)
             if(fillMask(masks, context, direction, slice)) { mergeMask(out, masks, direction, slice, origin, frame); }
         }
     }
+
+    for(const chip of context.chips.values()) { addChip(out, context, chip, frame); }
 
     if(out.indices.length === 0) { return { floors }; }
 
@@ -334,7 +341,9 @@ function fillMask(masks, context, direction, slice)
             const block = cells[index];
             const front = index + sign * stepAxis;
             const neighbour = cells[front];
-            const isHidden = block === 0 || table.hidden[block] === 1 || table.opaque[neighbour] === 1 || (table.clear[block] === 1 && neighbour === block);
+            const chip = context.chips.size > 0 ? context.chips.get(index) : undefined;
+            const isChipped = chip !== undefined && ((chip.a === axis && chip.signA === sign) || (chip.b === axis && chip.signB === sign));
+            const isHidden = isChipped || block === 0 || table.hidden[block] === 1 || table.opaque[neighbour] === 1 || (table.clear[block] === 1 && neighbour === block);
 
             if(isHidden)
             {
@@ -423,6 +432,169 @@ function weatherOf(context, block, index, front, direction, age)
     }
 
     return ((moss % 4 === 0 ? 0 : moss) << 16) | (streak % 4 === 0 ? 0 : streak);
+}
+
+/* CHIPS **********************************************************************/
+
+// Cubes that lose a notch from one exposed edge, by padded index. An edge is
+// exposed when the two cells beside it and the cell across it are not opaque.
+// A chip is a box of fine cubes, FINE to a cube's edge: `depthA` deep from
+// face A, `depthB` from face B, and from `from` to `to` along the edge.
+function chipsOf(context)
+{
+    const { cells, ages, table } = context;
+    const chips = new Map();
+
+    for(let y = 0; y < CHUNK && chips.size < MAX_CHIPS; y++)
+    {
+        for(let z = 0; z < CHUNK && chips.size < MAX_CHIPS; z++)
+        {
+            for(let x = 0; x < CHUNK && chips.size < MAX_CHIPS; x++)
+            {
+                const index = ((y + MARGIN) * PADDED + z + MARGIN) * PADDED + x + MARGIN;
+                const block = cells[index];
+                const age = ages[(z + MARGIN) * PADDED + x + MARGIN] / 100;
+
+                if((table.weathers[block] & WEATHERS.chips) === 0 || hash(context, index, 11) >= (age - 0.15) * 0.45) { continue; }
+
+                const edges = exposedEdges(cells, table.opaque, index);
+
+                if(edges.length === 0) { continue; }
+
+                const [a, signA, b, signB] = edges[Math.floor(hash(context, index, 12) * edges.length)];
+                const length = 2 + Math.floor(hash(context, index, 15) * 5);
+                const from = 1 + Math.floor(hash(context, index, 16) * (FINE - 1 - length));
+
+                chips.set(index, {
+                    index, block, a, signA, b, signB, from, to: from + length,
+                    depthA: 1 + Math.floor(hash(context, index, 13) * 3),
+                    depthB: 1 + Math.floor(hash(context, index, 14) * 3),
+                    cell: [context.origin[0] + x, context.origin[1] + y, context.origin[2] + z],
+                });
+            }
+        }
+    }
+
+    return chips;
+}
+
+// [axis A, its sign, axis B, its sign], leaving out the edges along the
+// cube's bottom.
+function exposedEdges(cells, opaque, index)
+{
+    const edges = [];
+
+    for(const [a, b] of [[0, 1], [0, 2], [1, 2]])
+    {
+        for(const signA of [1, -1])
+        {
+            for(const signB of [1, -1])
+            {
+                if((a === 1 && signA < 0) || (b === 1 && signB < 0)) { continue; }
+
+                const besideA = index + signA * STRIDES[a];
+                const besideB = index + signB * STRIDES[b];
+
+                if(!opaque[cells[besideA]] && !opaque[cells[besideB]] && !opaque[cells[besideA + signB * STRIDES[b]]]) { edges.push([a, signA, b, signB]); }
+            }
+        }
+    }
+
+    return edges;
+}
+
+function addChip(out, context, chip, frame)
+{
+    const { a, signA, b, signB, from, to, depthA, depthB } = chip;
+    const along = 3 - a - b;
+    const notch = [[0, FINE], [0, FINE], [0, FINE]];
+
+    notch[a] = signA > 0 ? [FINE - depthA, FINE] : [0, depthA];
+    notch[b] = signB > 0 ? [FINE - depthB, FINE] : [0, depthB];
+    notch[along] = [from, to];
+
+    for(const [axis, sign, other, otherSign] of [[a, signA, b, signB], [b, signB, a, signA]])
+    {
+        const front = chip.index + sign * STRIDES[axis];
+        const direction = DIRECTIONS.find((entry) => entry.axis === axis && entry.sign === sign);
+        const layer = wornLayer(context, chip.block, chip.index, context.ages[Math.floor(chip.index / PADDED) % PADDED * PADDED + chip.index % PADDED], context.table[direction.side][chip.block]);
+        const age = context.ages[Math.floor(chip.index / PADDED) % PADDED * PADDED + chip.index % PADDED] / 100;
+        const face = { layer, light: context.light[front], weather: weatherOf(context, chip.block, chip.index, front, direction, age) };
+        const shades = cornerShades(context, front, direction);
+        const plane = sign > 0 ? FINE : 0;
+        const rest = otherSign > 0 ? [0, FINE - notch[other][1] + notch[other][0]] : [notch[other][1], FINE];
+        const pieces = [{ [along]: [0, from], [other]: [0, FINE] }, { [along]: [to, FINE], [other]: [0, FINE] }, { [along]: [from, to], [other]: rest }];
+
+        for(const piece of pieces) { addRect(out, direction, chip.cell, plane, piece, face, shades, frame); }
+
+        addRect(out, direction, chip.cell, sign > 0 ? FINE - notch[axis][1] + notch[axis][0] : notch[axis][1], { [along]: notch[along], [other]: notch[other] }, { ...face, weather: 0 }, null, frame);
+    }
+
+    const ends = [[from, 1], [to, -1]];
+    const light = context.light[chip.index + signA * STRIDES[a]];
+
+    for(const [plane, sign] of ends)
+    {
+        const direction = DIRECTIONS.find((entry) => entry.axis === along && entry.sign === sign);
+
+        addRect(out, direction, chip.cell, plane, { [a]: notch[a], [b]: notch[b] }, { layer: context.table[direction.side][chip.block], light, weather: 0 }, null, frame);
+    }
+}
+
+// The shades of a face's four corners, in CORNERS order.
+function cornerShades(context, front, direction)
+{
+    const packed = shadesOf(context.cells, context.table.opaque, front, STRIDES[direction.u], STRIDES[direction.v]);
+
+    return CORNERS.map((corner, i) => SHADES[(packed >> (i * 2)) & 3]);
+}
+
+// A rectangle on the plane `plane` fine cubes into the cell along the
+// direction's axis, spanning `span[u]` and `span[v]` fine cubes. `shades`
+// holds the face's corner shades to blend across it, or null for an inner
+// face of a chip.
+function addRect(out, direction, cell, plane, span, face, shades, frame)
+{
+    const { axis, sign, u, v } = direction;
+    const [lowU, highU] = span[u];
+    const [lowV, highV] = span[v];
+
+    if(lowU >= highU || lowV >= highV) { return; }
+
+    const first = out.positions.length / 3;
+    const normal = [0, 0, 0];
+    const values = [];
+
+    normal[axis] = sign;
+
+    CORNERS.forEach(([cornerU, cornerV]) =>
+    {
+        const fineU = cornerU ? highU : lowU;
+        const fineV = cornerV ? highV : lowV;
+        const at = [0, 0, 0];
+
+        at[axis] = cell[axis] + plane / FINE;
+        at[u] = cell[u] + fineU / FINE;
+        at[v] = cell[v] + fineV / FINE;
+
+        const [tu, tv] = direction.uv(at);
+        const [su, sv] = [fineU / FINE, fineV / FINE];
+        const shade = shades ? (shades[0] * (1 - su) + shades[1] * su) * (1 - sv) + (shades[3] * (1 - su) + shades[2] * su) * sv : NOTCH_SHADE;
+
+        values.push(shade);
+        out.positions.push(at[0] / ZoneData.CUBES_PER_METRE - frame.half, (at[1] - frame.base) / ZoneData.CUBES_PER_METRE, at[2] / ZoneData.CUBES_PER_METRE - frame.half);
+        out.normals.push(...normal);
+        out.uvs.push(tu * frame.perCell, tv * frame.perCell);
+        out.layers.push(face.layer);
+        out.colours.push(shade, shade, shade);
+        out.lights.push((face.light >> 4) / MAX_LIGHT, (face.light & 0xf) / MAX_LIGHT);
+        out.weathers.push(face.weather >>> 16, face.weather & 0xffff);
+    });
+
+    const order = values[0] + values[2] > values[1] + values[3] ? [1, 2, 3, 1, 3, 0] : [0, 1, 2, 0, 2, 3];
+    const isAnticlockwise = (v === (u + 1) % 3) === (sign > 0);
+
+    out.indices.push(...(isAnticlockwise ? order : [order[0], order[2], order[1], order[3], order[5], order[4]]).map((index) => first + index));
 }
 
 // Vertex ambient occlusion, after

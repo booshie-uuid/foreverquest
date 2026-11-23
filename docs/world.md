@@ -30,9 +30,10 @@ A zone folder holds `zone.json` and a `terrain` folder with one image per region
 | `water` | The cell below which every empty cell of a column fills with water |
 | `ground` | The ground layers `{ top, under }`, two solid block types each, that the terrain images refer to by index |
 | `lighting` | The sky, fog, hemisphere and moon colours and strengths, and optionally height fog (`fog.height`), the stepped light ramps (`steps`) and daylight (`day`) |
+| `weathering` | Optional. `{ age }`, how weathered the zone is, from 0 (new, the default) to 100; see [Weathering](#weathering) |
 | `spawn` | Where the player arrives, in metres, and the heading they face |
 | `people` | The residents and the crowd; see [People](#people) |
-| `props` | Prefab placements `{ prefab, x, z, angle, scale }` and runs `{ run, points }`, in metres |
+| `props` | Prefab placements `{ prefab, x, z, angle, scale, age }` and runs `{ run, points }`, in metres; a placement's `age` overrides the zone's over the columns its prefab covers |
 
 A zone folder may hold `terrain.js` in place of the images: a script whose `column(zone, x, z)` returns a column's `[surface, ground]`, drawing its randomness from seeded noise in [content/art/noise.js](../content/art/noise.js). The Expanse is built this way.
 
@@ -42,7 +43,7 @@ A placement stands its prefab on the terrain under it, or a building with a door
 
 ## Baked Zones
 
-The bake writes `zones/<id>/index.json` and one file per region, `zones/<id>/<x>-<z>.bin`. A region file is compressed with deflate. It holds the surface of each column and the region's chunks. A chunk of one block type, such as buried rock, is stored as that one block; a chunk of air is left out; any other chunk is stored as runs of one block, or cell by cell when runs would take more room. It also holds each column's ground: the surface of the terrain under any props. The zone's index lists the light spots of its lamps and windows. [region-codec.js](../js/sim/region-codec.js) writes and reads the format.
+The bake writes `zones/<id>/index.json` and one file per region, `zones/<id>/<x>-<z>.bin`. A region file is compressed with deflate. It holds the surface of each column and the region's chunks. A chunk of one block type, such as buried rock, is stored as that one block; a chunk of air is left out; any other chunk is stored as runs of one block, or cell by cell when runs would take more room. It also holds each column's ground, the surface of the terrain under any props, and each column's weathering age. The zone's index lists the light spots of its lamps and windows. [region-codec.js](../js/sim/region-codec.js) writes and reads the format.
 
 `ZoneData.blockAt(x, y, z)` returns the block number in a cell, and `surface(column, row)` a column's surface. In metres, `heightAt(x, z)` returns the height of the surface under a point, `typeAt(x, z)` the block type on top, and `isWater(x, z)` whether water lies on it.
 
@@ -104,6 +105,20 @@ The [camera](../js/game/camera-rig.js) starts in first person, at the player's e
 | Fog | Fades the zone into the horizon colour between the fog's `near` and `far`, and adds height fog that thickens in low ground; see below |
 
 A zone's `lighting.fog.height` adds height fog, as `{ base, falloff, density }`: the fog has `density` per metre at the height `base` and below, and thins by a factor of e for every `falloff` metres above it. Each pixel takes the fog along the ray from the camera to it, so mist fills a hollow, a view down into the hollow passes through more of it than a view across a hilltop, and the player walking down into the hollow walks into the mist. The height fog adds to the fog by distance, in the horizon colour. [MaterialLibrary](../js/engine/materials.js) replaces Three.js's fog in the terrain, object, water and character materials, so the fog draws nothing extra. A zone without `height` has none. The Expanse sets a mist at 3 metres that fills its low ground and leaves the hilltops clear; Hearthmere sets a faint one at the village's ground.
+
+## Weathering
+
+Builders place clean blocks, and the mesher weathers them by age as it meshes each chunk. A column's age, from 0 to 100, comes from the zone's `weathering.age` or from the `age` of a prefab placed over it, and the region file stores it. Every effect is drawn from the age, the cells around a face and a hash of the face's cell position, so a chunk always meshes the same way and nothing else is stored. A block type lists the ways it weathers in its `weathers`; [Adding a Block Type](assets.md#adding-a-block-type) describes them.
+
+| Effect | Where it appears |
+|---|---|
+| Moss | On a top face open to the sky, hanging from the top of a side face under open sky, and climbing a side face from the floor in front of it |
+| Grime | Streaking down a side face below an overhang, up to three cells down, lighter further down |
+| Cracks | On side faces, in more cells the older they are |
+| Worn texture | A block with a `worn` texture takes it on every face, in more cells the older they are, such as plaster worn through to its laths |
+| Chips | A notch of fine cubes, 1 to 3 deep and 2 to 6 long, cut from an exposed edge: one whose two neighbouring cells and the cell across it are not opaque. At most 48 cubes a chunk are chipped |
+
+Moss, grime and cracks are overlays: world textures whose alpha holds the level at which each texel appears. The mesher gives each face two overlays, moss and grime or a crack, each at a level from 0 to 3 that rises with age, and the terrain's material draws them over the face's texture in the same draw call. Moss replaces the texels it covers; grime and cracks darken them. A chipped cube stays a whole cube for movement, light and paths; only its drawn faces lose the notch. Age stops at old: no cube falls, and ruins are built by hand. The Expanse has a row of four chapels at ages 0, 33, 66 and 100 south of its spawn, Hearthmere is at age 30, and its chapel at 60.
 
 ## Fine-Cube Objects
 

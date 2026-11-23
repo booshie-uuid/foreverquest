@@ -156,6 +156,16 @@ describe("Zone movement", () =>
         assert.equal(hearthmere.objectAt(0, 0, 0), null);
     });
 
+    it("ages each column by the zone, or by the prefab placed over it", () =>
+    {
+        const chapel = hearthmere.objects.find((object) => object.name === "chapel");
+        const [x0, , z0, x1, , z1] = chapel.box;
+
+        assert.equal(hearthmere.age(...hearthmere.columnOf(0, 0)), 30);
+        assert.equal(hearthmere.age((x0 + x1) >> 1, (z0 + z1) >> 1), 60);
+        assert.equal(testfield.age(0, 0), 0);
+    });
+
     it("stands every placed prefab on a cube corner", () =>
     {
         const placed = hearthmere.objects.filter((object) => !object.object && !object.name.startsWith("run "));

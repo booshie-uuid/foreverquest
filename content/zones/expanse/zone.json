@@ -63,5 +63,34 @@
         "seed": 1,
         "residents": []
     },
-    "props": []
+    "props": [
+        {
+            "prefab": "chapel",
+            "x": -24,
+            "z": -16,
+            "angle": 0,
+            "age": 0
+        },
+        {
+            "prefab": "chapel",
+            "x": -8,
+            "z": -16,
+            "angle": 0,
+            "age": 33
+        },
+        {
+            "prefab": "chapel",
+            "x": 8,
+            "z": -16,
+            "angle": 0,
+            "age": 66
+        },
+        {
+            "prefab": "chapel",
+            "x": 24,
+            "z": -16,
+            "angle": 0,
+            "age": 100
+        }
+    ]
 }

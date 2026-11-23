@@ -8,6 +8,8 @@ const FRAME = { half: 0, base: 0, perCell: 0.25 };
 const STONE = 1;
 const LEAVES = 2;
 const LAMP = 3;
+const OVERLAYS = { mossTop: 40, mossEdge: 41, mossFoot: 42, grime: 43, cracks: 44 };
+const WORN = 50;
 
 function table()
 {
@@ -22,13 +24,18 @@ function table()
     built.standable[LAMP] = 1;
     built.standable[LEAVES] = 1;
     built.lights[LAMP] = 12;
+    built.weathers = flags();
+    built.weathers[STONE] = 15;
+    built.worn = new Int16Array(256).fill(-1);
+    built.worn[STONE] = WORN;
+    built.overlays = OVERLAYS;
 
     return built;
 }
 
 // A padded volume around the chunk at the origin, with each column's
-// surface found from its cells.
-function cells(fill)
+// surface found from its cells, and every column at `age`.
+function cells(fill, age = 0)
 {
     const padded = new Uint8Array(PADDED * PADDED * PADDED);
     const surfaces = new Uint16Array(PADDED * PADDED);
@@ -43,7 +50,7 @@ function cells(fill)
         }
     }
 
-    return { cells: padded, surfaces, bottom: -MARGIN };
+    return { cells: padded, surfaces, ages: new Uint8Array(PADDED * PADDED).fill(age), bottom: -MARGIN };
 }
 
 function quads(mesh)
@@ -147,6 +154,59 @@ describe("Cube mesher", () =>
         assert.deepEqual([12, 11, 10].map((level) => skies.has(level)), [true, true, true], "The floor under cover does not dim a level a cell");
         assert.ok(!skies.has(9), "The cover's middle is five cells from open sky, so no floor should be darker than 10");
         assert.ok(floor.some(([, , , lamp]) => lamp === 11), "No floor face takes the lamp's light");
+    });
+
+    it("weathers nothing at age 0, and at age 100 grows moss on open tops, streaks grime under an overhang and wears some faces", () =>
+    {
+        const build = (set) =>
+        {
+            for(let x = 0; x < 16; x++)
+            {
+                for(let z = 0; z < 16; z++) { set(x, 0, z, STONE); }
+            }
+
+            for(let y = 1; y <= 4; y++)
+            {
+                for(let x = 2; x < 14; x++) { set(x, y, 8, STONE); }
+            }
+
+            for(let x = 2; x < 14; x++) { set(x, 5, 9, STONE); }
+        };
+        const young = CubeMesher.meshCells(cells(build, 0), table(), [0, 0, 0], FRAME);
+        const old = CubeMesher.meshCells(cells(build, 100), table(), [0, 0, 0], FRAME);
+        const codes = (mesh, channel, filter) => [...mesh.weathers].filter((value, i) => i % 2 === channel && filter(i >> 1)).map((code) => Math.floor(code / 4));
+        const isTop = (vertex) => old.normals[vertex * 3 + 1] === 1;
+        const isUnderOverhang = (vertex) => old.normals[vertex * 3 + 2] === 1 && Math.round(old.positions[vertex * 3 + 2] * 3) === 9 && old.positions[vertex * 3 + 1] * 3 <= 5;
+
+        assert.ok(young.weathers.every((code) => code === 0));
+        assert.ok(!young.layers.includes(WORN));
+        assert.ok(codes(old, 0, isTop).filter((layer) => layer === OVERLAYS.mossTop).length > 20, "No moss on the open floor");
+        assert.ok(codes(old, 1, isUnderOverhang).includes(OVERLAYS.grime), "No grime under the overhang");
+        assert.ok(old.layers.includes(WORN), "No face wore");
+    });
+
+    it("cuts a notch from an exposed edge of an old cube and keeps the cube closed", () =>
+    {
+        const build = (set) =>
+        {
+            for(let x = 1; x < 31; x += 3)
+            {
+                for(let z = 1; z < 31; z += 3) { set(x, 4, z, STONE); }
+            }
+        };
+        const mesh = CubeMesher.meshCells(cells(build, 100), table(), [0, 0, 0], FRAME);
+        const fractional = mesh.positions.filter((value) => Math.abs(value * 8 - Math.round(value * 8)) < 1e-6 && Math.abs(value - Math.round(value)) > 1e-6);
+        const balance = [0, 1, 2].map(() => 0);
+
+        for(const quad of quads(mesh))
+        {
+            const axis = quad.normal.findIndex((value) => value !== 0);
+
+            balance[axis] += quad.normal[axis] * quad.area;
+        }
+
+        assert.ok(fractional.length > 0, "No cube lost a notch");
+        assert.deepEqual(balance.map((value) => Math.round(value * 1e6) / 1e6), [0, 0, 0], "A chipped cube is not closed");
     });
 
     it("draws see-through blocks beside each other only on their outer faces", () =>
