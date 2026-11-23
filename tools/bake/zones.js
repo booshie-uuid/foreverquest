@@ -103,14 +103,14 @@ export async function bakeZone(zone, folder, people, context, where, problems)
             const run = PropBaker.record(Prefabs.RUNS[prop.run], prop.points, heightAt);
 
             PropBaker.checkFaces(run.blocks, context.worldTextures, where + " run " + i, problems);
-            runs.push(run);
+            runs.push({ ...run, index: i, name: prop.run, points: prop.points });
             continue;
         }
 
         if(!context.prefabs[prop.prefab]) { problems.push(where + " prop " + i + " is an unknown prefab: " + prop.prefab); continue; }
         if(!(Math.abs(prop.x) < half && Math.abs(prop.z) < half)) { problems.push(where + " prop " + i + " is outside the zone"); }
 
-        props.push({ ...prop, y: heightAt(prop.x, prop.z) });
+        props.push({ ...prop, index: i, y: heightAt(prop.x, prop.z) });
     }
 
     if(problems.length > before) { return null; }
@@ -124,7 +124,7 @@ export async function bakeZone(zone, folder, people, context, where, problems)
     const solid = new Set(context.blocks.flatMap((block, i) => (block.kind === "liquid" ? [] : [i + 1])));
     const regions = Terrain.bakeRegions(zone, terrain, ground, numbers, { cells: placed.cells, solid });
     const { id, name, welcome, columns, height, base, water, lighting, spawn } = zone;
-    const index = { id, name, welcome, columns, height, base, water, lighting, spawn, people: zone.people, lights: placed.lights, regions: regions.map((region) => region.name) };
+    const index = { id, name, welcome, columns, height, base, water, lighting, spawn, people: zone.people, objects: placed.objects, regions: regions.map((region) => region.name) };
 
     return { index, regions };
 }
@@ -162,7 +162,7 @@ function groundOf(zone, context, where, problems)
 
 function checkLighting(lighting, where, problems)
 {
-    const colours = [lighting?.sky?.top, lighting?.sky?.horizon, lighting?.hemisphere?.sky, lighting?.hemisphere?.ground, lighting?.moon?.colour, lighting?.lamp?.colour];
+    const colours = [lighting?.sky?.top, lighting?.sky?.horizon, lighting?.hemisphere?.sky, lighting?.hemisphere?.ground, lighting?.moon?.colour];
 
     if(!colours.every((colour) => COLOUR_PATTERN.test(colour ?? ""))) { problems.push(where + " needs lower-case #rrggbb lighting colours"); }
     if(!(lighting?.fog?.far > lighting?.fog?.near)) { problems.push(where + " needs a fog that ends after it starts"); }

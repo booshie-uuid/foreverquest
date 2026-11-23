@@ -19,18 +19,23 @@ export function quarterTurn(angle)
 
 // The cells of every placed prefab and run, as a map from cell index,
 // (y * columns + z) * columns + x, to block number, where 0 carves air out
-// of the terrain. `groundOf(column, row)` gives the terrain's surface.
+// of the terrain, and each object's prop number and box of cells.
+// `groundOf(column, row)` gives the terrain's surface.
 export function zoneCells(zone, props, runs, prefabs, numbers, where, problems, groundOf)
 {
     const cells = new Map();
-    const lights = [];
+    const objects = [];
 
     for(const prop of props)
     {
         const placement = { x: prop.x, y: prop.y, z: prop.z, angle: quarterTurn(prop.angle ?? 0), scale: prop.scale ?? 1 };
         const prefab = prefabs[prop.prefab];
+        const box = new Box();
 
-        for(const block of prefab.blocks) { rasterise(cells, zone, worldBlock(block, placement), blockOf(block, numbers, where + " prefab " + prop.prefab, problems)); }
+        for(const block of prefab.blocks) { box.add(rasterise(cells, zone, worldBlock(block, placement), blockOf(block, numbers, where + " prefab " + prop.prefab, problems))); }
+
+        objects.push({ prop: prop.index, name: prop.prefab, x: prop.x, z: prop.z, turns: Math.round(placement.angle / QUARTER), box: box.cells });
+
         const carved = new Map();
 
         for(const room of prefab.rooms ?? []) { carve(cells, zone, worldBlock(room, placement), carved); }
@@ -42,16 +47,18 @@ export function zoneCells(zone, props, runs, prefabs, numbers, where, problems, 
             carve(cells, zone, worldBlock(door, placement));
             addSteps(cells, zone, worldBlock(door, placement), placement.angle, groundOf, numbers[PropBlocks.STEP]);
         }
-
-        lights.push(...prefab.lights.map((light) => ZoneData.toWorld(light, placement)));
     }
 
     for(const run of runs)
     {
-        for(const block of run.blocks) { rasterise(cells, zone, block, blockOf(block, numbers, where + " run", problems)); }
+        const box = new Box();
+
+        for(const block of run.blocks) { box.add(rasterise(cells, zone, block, blockOf(block, numbers, where + " run", problems))); }
+
+        objects.push({ prop: run.index, name: "run " + run.name, x: run.points[0][0], z: run.points[0][1], turns: 0, box: box.cells });
     }
 
-    return { cells, lights };
+    return { cells, objects };
 }
 
 function worldBlock(block, placement)
@@ -89,7 +96,7 @@ function blockOf(block, numbers, where, problems)
 // When carving, `carved` gathers each carved cell's block before it.
 export function rasterise(cells, zone, block, number, isCarving = false, carved = null)
 {
-    if(number === 0 && !isCarving) { return; }
+    if(number === 0 && !isCarving) { return null; }
 
     const matrix = rotationOf(block.rotation ?? [0, 0, 0]);
     const halves = block.size.map((value) => (isCarving ? value / 2 : Math.max(value / 2, CELL / 2)));
@@ -117,6 +124,26 @@ export function rasterise(cells, zone, block, number, isCarving = false, carved 
                 cells.set(index, number);
             }
         }
+    }
+
+    return { low, high };
+}
+
+// The cells an object's blocks reach, as [x0, y0, z0, x1, y1, z1], inclusive.
+class Box
+{
+    constructor()
+    {
+        this.cells = null;
+    }
+
+    add(range)
+    {
+        if(!range) { return; }
+
+        const next = [...range.low, ...range.high];
+
+        this.cells = this.cells ? this.cells.map((value, i) => (i < 3 ? Math.min(value, next[i]) : Math.max(value, next[i]))) : next;
     }
 }
 

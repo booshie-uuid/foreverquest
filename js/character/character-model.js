@@ -8,9 +8,11 @@ import { Sheet } from "./sheet.js";
 
 export class CharacterModel
 {
-    constructor(appearance)
+    // `shade(material)` adjusts each material the model builds.
+    constructor(appearance, shade = null)
     {
         this.appearance = appearance;
+        this.shade = shade;
         this.root = new THREE.Group();
         this.body = new THREE.Group();
         this.joints = { root: this.body };
@@ -58,6 +60,7 @@ export class CharacterModel
         this.clear();
         this.textures = sheet.toTextures();
         this.material = new THREE.MeshLambertMaterial({ map: this.textures.map, emissiveMap: this.textures.glow, emissive: 0xffffff, emissiveIntensity: 1.4, alphaTest: 0.5 });
+        this.shade?.(this.material);
         this.layoutJoints(fitted);
 
         for(const [joint, builder] of builders)

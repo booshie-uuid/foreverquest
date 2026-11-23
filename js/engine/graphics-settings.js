@@ -2,15 +2,8 @@ export class GraphicsSettings
 {
     constructor()
     {
-        this.isStepped = true;
         this.isDay = false;
         this.listeners = [];
-    }
-
-    toggleStepped()
-    {
-        this.isStepped = !this.isStepped;
-        this.emitChange();
     }
 
     toggleDay()

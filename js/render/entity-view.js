@@ -7,10 +7,12 @@ import { ClipPlayer } from "../kit/clip-player.js";
 // entity's current state.
 export class EntityView
 {
-    constructor(entity)
+    // With `materials`, the character is lit by the cell it stands in.
+    constructor(entity, materials = null)
     {
         this.entity = entity;
-        this.model = new CharacterModel(entity.appearance);
+        this.cell = { cellSky: { value: new THREE.Color() }, cellLamp: { value: new THREE.Color() } };
+        this.model = new CharacterModel(entity.appearance, materials ? (material) => materials.shadeCharacter(material, this.cell) : null);
         this.clips = new ClipPlayer(this.model);
         this.position = new THREE.Vector3();
         this.heading = entity.heading;
@@ -19,6 +21,12 @@ export class EntityView
         this.model.root.userData.view = this;
         this.capture();
         this.sync(1, 0);
+    }
+
+    setLight({ sky, lamp })
+    {
+        this.cell.cellSky.value.copy(sky);
+        this.cell.cellLamp.value.copy(lamp);
     }
 
     get root()

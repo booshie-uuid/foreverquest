@@ -7,7 +7,6 @@ import { ZoneData } from "../sim/zone-data.js";
 const { CHUNK, REGION } = RegionCodec;
 const CHUNK_METRES = CHUNK / ZoneData.CUBES_PER_METRE;
 const TILE = 2;
-const LIGHT_BUDGET = 6;
 const SHADOW_RANGE = 26;
 const WATER_CELLS = 48;
 const SKY_RADIUS = 300;
@@ -30,8 +29,6 @@ const DAY =
 
 export class ZoneView
 {
-    static LIGHT_BUDGET = LIGHT_BUDGET;
-
     // Without workers, the view meshes every waiting chunk at once.
     constructor(zone, materials, workers = null)
     {
@@ -44,6 +41,7 @@ export class ZoneView
         this.frame = { half: zone.half, base: zone.base, perCell: materials.atlas.uvPerMetre / ZoneData.CUBES_PER_METRE };
         this.scene = new THREE.Scene();
         this.chunkArrays = new Map();
+        this.floors = new Map();
         this.tileMeshes = new Map();
         this.dirtyTiles = new Set();
         this.focus = { x: zone.spawn.x, z: zone.spawn.z };
@@ -51,7 +49,6 @@ export class ZoneView
         this.versions = new Map();
         this.inFlight = 0;
         this.isDay = false;
-        this.lamps = [];
         this.isDisposed = false;
 
         this.scene.fog = new THREE.Fog(lighting.sky.horizon, lighting.fog.near, lighting.fog.far);
@@ -123,6 +120,7 @@ export class ZoneView
         {
             this.waiting.delete(key);
             this.versions.delete(key);
+            this.floors.delete(key);
 
             if(this.chunkArrays.delete(key)) { this.dirtyTiles.add(this.tileOf(key)); }
         }
@@ -206,7 +204,9 @@ export class ZoneView
 
     placeChunk(key, arrays)
     {
-        if(arrays) { this.chunkArrays.set(key, arrays); }
+        this.floors.set(key, arrays.floors);
+
+        if(arrays.indices) { this.chunkArrays.set(key, arrays); }
         else { this.chunkArrays.delete(key); }
 
         this.dirtyTiles.add(this.tileOf(key));
@@ -261,6 +261,45 @@ export class ZoneView
         mesh.geometry.dispose();
         this.scene.remove(mesh);
         this.tileMeshes.delete(tile);
+    }
+
+    // The sky and lamp levels of the cell at a point in metres, read from the
+    // floor under it. A point in mid-air or in a chunk not yet meshed takes
+    // full sky above its column's surface and none below.
+    lightAt(position)
+    {
+        const zone = this.zone;
+        const [column, row] = zone.columnOf(position.x, position.z);
+        const y = Math.floor(zone.cellY(position.y) + 0.01);
+        const floor = y - 1;
+        const fallback = { sky: y >= zone.surface(column, row) ? 15 : 0, lamp: 0 };
+
+        if(floor < 0) { return fallback; }
+
+        const floors = this.floors.get(zone.chunkKey(Math.floor(column / CHUNK), Math.floor(floor / CHUNK), Math.floor(row / CHUNK)));
+        const index = ((floor % CHUNK) * CHUNK + (row % CHUNK)) * CHUNK + (column % CHUNK);
+        const found = floors ? ZoneView.search(floors.indices, index) : -1;
+
+        if(found < 0) { return fallback; }
+
+        return { sky: floors.levels[found] >> 4, lamp: floors.levels[found] & 0xf };
+    }
+
+    static search(sorted, value)
+    {
+        let low = 0;
+        let high = sorted.length - 1;
+
+        while(low <= high)
+        {
+            const middle = (low + high) >> 1;
+
+            if(sorted[middle] === value) { return middle; }
+            if(sorted[middle] < value) { low = middle + 1; }
+            else { high = middle - 1; }
+        }
+
+        return -1;
     }
 
     static joined(parts)
@@ -375,11 +414,9 @@ export class ZoneView
 
     /* LIGHTS *****************************************************************/
 
-    // A fixed number of point lights follows the nearest lamps, because
-    // changing the number of lights recompiles every lit shader.
     addLights(lighting)
     {
-        const { hemisphere, moon, lamp } = lighting;
+        const { hemisphere, moon } = lighting;
 
         this.hemisphere = new THREE.HemisphereLight(hemisphere.sky, hemisphere.ground, hemisphere.intensity);
         this.scene.add(this.hemisphere);
@@ -397,29 +434,6 @@ export class ZoneView
         this.moon.shadow.normalBias = 0.02;
         this.scene.add(this.moon, this.moon.target);
 
-        for(let i = 0; i < LIGHT_BUDGET; i++)
-        {
-            const light = new THREE.PointLight(lamp.colour, 0, lamp.distance, lamp.decay);
-
-            this.lamps.push(light);
-            this.scene.add(light);
-        }
-
-        this.lampIntensity = lamp.intensity;
-    }
-
-    placeLamps(focus)
-    {
-        const nearest = [...this.zone.lightSpots]
-            .sort((a, b) => Math.hypot(a[0] - focus.x, a[2] - focus.z) - Math.hypot(b[0] - focus.x, b[2] - focus.z))
-            .slice(0, LIGHT_BUDGET);
-
-        this.lamps.forEach((light, i) =>
-        {
-            light.intensity = nearest[i] && !this.isDay ? this.lampIntensity : 0;
-
-            if(nearest[i]) { light.position.set(...nearest[i]); }
-        });
     }
 
     /* FRAME ******************************************************************/
@@ -434,7 +448,6 @@ export class ZoneView
         this.sky.position.copy(camera.position);
         this.moon.position.set(focus.x + (this.isDay ? 18 : -20), focus.y + 40, focus.z + (this.isDay ? -10 : 14));
         this.moon.target.position.copy(focus);
-        this.placeLamps(focus);
     }
 
     dispose()

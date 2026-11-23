@@ -54,6 +54,7 @@ export class ZoneData
         this.lighting = zone.lighting;
         this.spawn = zone.spawn;
         this.people = zone.people;
+        this.objects = zone.objects ?? [];
         this.chunksWide = zone.columns / CHUNK;
         this.chunksHigh = zone.height / CHUNK;
         this.regionNames = zone.regions;
@@ -62,7 +63,6 @@ export class ZoneData
         this.surfaces = new Uint16Array(zone.columns * zone.columns);
         this.grounds = new Uint16Array(zone.columns * zone.columns);
         this.listeners = [];
-        this.lightSpots = zone.lights;
 
         for(const region of regions) { this.addRegion(region); }
 
@@ -179,6 +179,15 @@ export class ZoneData
         if(chunk.cells === null) { return chunk.uniform; }
 
         return chunk.cells[((y % CHUNK) * CHUNK + (z % CHUNK)) * CHUNK + (x % CHUNK)];
+    }
+
+    // The smallest placed object whose box holds the cell, or null.
+    objectAt(x, y, z)
+    {
+        const volume = ([x0, y0, z0, x1, y1, z1]) => (x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1);
+        const holding = this.objects.filter(({ box }) => box && x >= box[0] && y >= box[1] && z >= box[2] && x <= box[3] && y <= box[4] && z <= box[5]);
+
+        return holding.sort((a, b) => volume(a.box) - volume(b.box))[0] ?? null;
     }
 
     isSolid(x, y, z)

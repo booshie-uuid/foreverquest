@@ -36,7 +36,6 @@ vStepNormal = objectNormal;
 `;
 
 const STEPPED_FRAGMENT_PARS = `
-uniform float steppedLight;
 uniform vec3 skyRamp[16];
 uniform vec3 lampRamp[16];
 uniform vec4 playerLight;
@@ -45,21 +44,48 @@ varying vec3 vStepPosition;
 varying vec3 vStepNormal;
 `;
 
-// In stepped mode a face takes the sum of its sky and lamp colours from the
-// zone's ramps, in place of the scene's lights. The player's own light falls
-// off a level a cell from the cell the player stands in.
-const STEPPED_FRAGMENT = `
-if(steppedLight > 0.5)
-{
-    vec3 stepCell = floor((vStepPosition + vStepNormal * 0.05) * 3.0);
-    float nearPlayer = playerLight.w - floor(distance(stepCell, floor(playerLight.xyz * 3.0)));
-    int skyLevel = int(vLight.x * 15.0 + 0.5);
-    int lampLevel = clamp(int(max(vLight.y * 15.0 + 0.5, nearPlayer)), 0, 15);
-    vec3 stepLight = min(skyRamp[skyLevel] + lampRamp[lampLevel], vec3(1.0));
-    float stepFace = vStepNormal.y > 0.5 ? 1.0 : (vStepNormal.y < -0.5 ? 0.55 : (abs(vStepNormal.x) > 0.5 ? 0.72 : 0.86));
+// 1 where the moon (or the sun) reaches a fragment, 0 where the fragment faces
+// away from it or lies in its shadow. Three.js names the light's shadow map
+// and coordinates; the first directional light is the moon.
+const MOON = `
+float moonLit = 1.0;
 
-    outgoingLight = diffuseColor.rgb * stepLight * stepFace + totalEmissiveRadiance;
-}
+#if NUM_DIR_LIGHTS > 0
+    moonLit = dot(geometryNormal, directionalLights[0].direction) > 0.0 ? 1.0 : 0.0;
+
+    #if defined(USE_SHADOWMAP) && NUM_DIR_LIGHT_SHADOWS > 0
+        moonLit *= getShadow(directionalShadowMap[0], directionalLightShadows[0].shadowMapSize, directionalLightShadows[0].shadowIntensity, directionalLightShadows[0].shadowBias, directionalLightShadows[0].shadowRadius, vDirectionalShadowCoord[0]);
+    #endif
+#endif
+
+float skyShade = mix(0.55, 1.0, moonLit);
+`;
+
+// A face takes the sum of its sky and lamp colours from the zone's ramps, in
+// place of the scene's lights, with the sky dimmed where the moon does not
+// reach. The player's own light falls off a level a cell from the cell the
+// player stands in.
+const STEPPED_FRAGMENT = MOON + `
+vec3 stepCell = floor((vStepPosition + vStepNormal * 0.05) * 3.0);
+float nearPlayer = playerLight.w - floor(distance(stepCell, floor(playerLight.xyz * 3.0)));
+int skyLevel = int(vLight.x * 15.0 + 0.5);
+int lampLevel = clamp(int(max(vLight.y * 15.0 + 0.5, nearPlayer)), 0, 15);
+vec3 stepLight = min(skyRamp[skyLevel] * skyShade + lampRamp[lampLevel], vec3(1.0));
+float stepFace = vStepNormal.y > 0.5 ? 1.0 : (vStepNormal.y < -0.5 ? 0.55 : (abs(vStepNormal.x) > 0.5 ? 0.72 : 0.86));
+
+outgoingLight = diffuseColor.rgb * stepLight * stepFace + totalEmissiveRadiance;
+`;
+
+const CHARACTER_FRAGMENT_PARS = `
+uniform vec3 cellSky;
+uniform vec3 cellLamp;
+`;
+
+const CHARACTER_FRAGMENT = MOON + `
+vec3 worldNormal = inverseTransformDirection(geometryNormal, viewMatrix);
+float faceShade = worldNormal.y >= 0.0 ? mix(0.8, 1.0, worldNormal.y) : mix(0.8, 0.55, -worldNormal.y);
+
+outgoingLight = diffuseColor.rgb * min(cellSky * skyShade + cellLamp, vec3(1.0)) * faceShade + totalEmissiveRadiance;
 `;
 
 const LEVELS = 16;
@@ -77,7 +103,7 @@ export class MaterialLibrary
         this.atlas = atlas;
         this.atlasTexture = atlas.createTexture();
         this.world = this.worldMaterial();
-        this.stepped = { steppedLight: { value: 0 }, skyRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.sky) }, lampRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.lamp) }, playerLight: { value: new THREE.Vector4(0, 0, 0, PLAYER_LIGHT) } };
+        this.stepped = { skyRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.sky) }, lampRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.lamp) }, playerLight: { value: new THREE.Vector4(0, 0, 0, PLAYER_LIGHT) } };
         this.terrain = this.worldMaterial({ vertexColors: true }, this.stepped);
         this.water = new THREE.MeshPhongMaterial({ color: "#1e2a30", specular: 0x5a6a78, shininess: 80, transparent: true, opacity: 0.82 });
     }
@@ -109,17 +135,33 @@ export class MaterialLibrary
         return material;
     }
 
-    setStepped(isStepped)
-    {
-        this.stepped.steppedLight.value = isStepped ? 1 : 0;
-    }
-
     // `steps` gives each of sky and lamp its darkest and brightest colours
     // and the curve between them; a zone without steps takes the defaults.
     setSteps(steps = DEFAULT_STEPS)
     {
         this.stepped.skyRamp.value = MaterialLibrary.ramp(steps.sky);
         this.stepped.lampRamp.value = MaterialLibrary.ramp(steps.lamp);
+    }
+
+    colours(sky, lamp)
+    {
+        return { sky: this.stepped.skyRamp.value[sky], lamp: this.stepped.lampRamp.value[lamp] };
+    }
+
+    // Lights a character's material as stepped light lights the terrain, by
+    // the `cellSky` and `cellLamp` colours in `cell`.
+    shadeCharacter(material, cell)
+    {
+        material.onBeforeCompile = (shader) =>
+        {
+            Object.assign(shader.uniforms, cell);
+
+            shader.fragmentShader = shader.fragmentShader
+                .replace("#include <common>", "#include <common>\n" + CHARACTER_FRAGMENT_PARS)
+                .replace("#include <opaque_fragment>", CHARACTER_FRAGMENT + "#include <opaque_fragment>");
+        };
+
+        material.customProgramCacheKey = () => "character-stepped";
     }
 
     setPlayerLight(position)

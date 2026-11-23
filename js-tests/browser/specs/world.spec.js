@@ -116,6 +116,28 @@ export const tests =
         },
     },
     {
+        name: "right-clicking a block names the object it belongs to",
+        run: async ({ page, baseUrl }) =>
+        {
+            await enterWorld(page, baseUrl);
+
+            const line = await page.evaluate(() =>
+            {
+                const game = window.foreverQuest.game;
+                const canvas = window.foreverQuest.renderer.canvas;
+                const well = new window.foreverQuest.game.camera.position.constructor(0.85, game.zone.groundAt(0.85, 0) + 0.5, 0).project(game.camera);
+                const at = { clientX: (well.x * 0.5 + 0.5) * game.size.width, clientY: (-well.y * 0.5 + 0.5) * game.size.height, bubbles: true };
+
+                canvas.dispatchEvent(new PointerEvent("pointerdown", { ...at, button: 2, buttons: 2 }));
+                window.dispatchEvent(new PointerEvent("pointerup", { ...at, button: 2, buttons: 0 }));
+
+                return [...document.querySelectorAll(".chat-line.system")].at(-1)?.textContent ?? "";
+            });
+
+            assert.match(line, /prop 0: well/);
+        },
+    },
+    {
         name: "clicking the ground walks the player to that spot",
         run: async ({ page, baseUrl }) =>
         {

@@ -238,6 +238,7 @@ export function meshCells(volume, table, origin, frame)
     const out = { positions: [], normals: [], uvs: [], layers: [], colours: [], lights: [], indices: [] };
     const mask = new Int32Array(CHUNK * CHUNK);
     const light = lightCells(volume, table);
+    const floors = floorLights(volume.cells, light, table);
 
     for(const direction of DIRECTIONS)
     {
@@ -247,9 +248,10 @@ export function meshCells(volume, table, origin, frame)
         }
     }
 
-    if(out.indices.length === 0) { return null; }
+    if(out.indices.length === 0) { return { floors }; }
 
     return {
+        floors,
         positions: new Float32Array(out.positions),
         normals: new Float32Array(out.normals),
         uvs: new Float32Array(out.uvs),
@@ -258,6 +260,34 @@ export function meshCells(volume, table, origin, frame)
         lights: new Float32Array(out.lights),
         indices: new Uint32Array(out.indices),
     };
+}
+
+// Each cube of the chunk that something can stand on, by its index in the
+// chunk, ascending, with the light of the cell above it.
+function floorLights(cells, light, table)
+{
+    const indices = [];
+    const levels = [];
+    const above = PADDED * PADDED;
+
+    for(let y = 0; y < CHUNK; y++)
+    {
+        for(let z = 0; z < CHUNK; z++)
+        {
+            for(let x = 0; x < CHUNK; x++)
+            {
+                const index = ((y + MARGIN) * PADDED + z + MARGIN) * PADDED + x + MARGIN;
+                const isFloor = (table.opaque[cells[index]] || table.clear[cells[index]]) && !table.opaque[cells[index + above]] && !table.clear[cells[index + above]];
+
+                if(!isFloor) { continue; }
+
+                indices.push((y * CHUNK + z) * CHUNK + x);
+                levels.push(light[index + above]);
+            }
+        }
+    }
+
+    return { indices: Uint16Array.from(indices), levels: Uint8Array.from(levels) };
 }
 
 /* MASK ***********************************************************************/

@@ -23,6 +23,7 @@ After a change to the Three.js version in `package.json`, run `npm install` and 
 | Creator | Body, Face | Frames the whole body or the face |
 | World | Click the ground | Walks to that spot |
 | World | Click a villager | Walks to the villager and talks |
+| World | Right-click | Names the villager, prop or ground under the pointer, with the prop's number |
 | World | W A S D | Walks relative to the camera |
 | World | Both mouse buttons held | Walks forward, as W does |
 | World | Right-drag, or the arrow keys | Turns and tilts the view |
@@ -30,7 +31,6 @@ After a change to the Three.js version in `package.json`, run `npm install` and 
 | World | R | Switches between walking and running |
 | World | E | Waves |
 | World | Appearance button | Opens the creator |
-| World | Stepped | Switches between stepped light, the default, and smooth light |
 | World | Day | Switches between night, the default, and day |
 
 Two address options help testing: `?zone=testfield` or `?zone=expanse` starts in another zone, and `?stats` shows the frame rate, the triangles and draw calls of the last frame, and the regions loaded.

@@ -11,6 +11,7 @@ import { ZoneView } from "../render/zone-view.js";
 const ORBIT_SPEED = 1.8;
 const MAX_TICKS_PER_FRAME = 5;
 const EYE_HEIGHT = 0.93;
+const INSPECT_RANGE = 60;
 
 
 /******************************************************************************/
@@ -50,6 +51,7 @@ export class GameScreen
             graphics.onChange(() => this.applyGraphics()),
             appearance.onChange(() => this.hud.setPlayer(appearance)),
             this.input.on("click", (x, y) => this.onClick(x, y)),
+            this.input.on("inspect", (x, y) => this.onInspect(x, y)),
             this.input.on("orbit", (dx, dy) => this.rig.orbit(-dx * 0.008, dy * 0.006)),
             this.input.on("zoom", (factor) => this.rig.zoom(factor)),
             this.input.on("key", (code) => this.onKey(code)),
@@ -96,7 +98,7 @@ export class GameScreen
 
         for(const entity of this.sim.entities)
         {
-            const view = new EntityView(entity);
+            const view = new EntityView(entity, this.materials);
 
             this.views.set(entity.id, view);
             this.world.scene.add(view.root);
@@ -109,7 +111,6 @@ export class GameScreen
 
     applyGraphics()
     {
-        this.materials.setStepped(this.graphics.isStepped);
         this.world.setDaylight(this.graphics.isDay);
     }
 
@@ -175,6 +176,45 @@ export class GameScreen
 
         this.sim.command({ type: "moveTo", x: hits[0].point.x, z: hits[0].point.z });
         this.hud.marker(x, y);
+    }
+
+    onInspect(x, y)
+    {
+        const pointer = new THREE.Vector2((x / this.size.width) * 2 - 1, -(y / this.size.height) * 2 + 1);
+
+        this.raycaster.setFromCamera(pointer, this.camera);
+
+        const npc = this.pickNpc();
+
+        if(npc)
+        {
+            this.hud.system("That is " + npc.name + ".");
+            return;
+        }
+
+        const { origin, direction } = this.raycaster.ray;
+        const distance = this.zone.raycast(origin, direction, INSPECT_RANGE);
+
+        if(distance >= INSPECT_RANGE)
+        {
+            this.hud.system("There is nothing there within reach.");
+            return;
+        }
+
+        const point = origin.clone().addScaledVector(direction, distance + 0.01);
+        const [column, row] = this.zone.columnOf(point.x, point.z);
+        const cell = Math.floor(this.zone.cellY(point.y));
+        const block = this.zone.blocks.block(this.zone.blockAt(column, cell, row))?.id ?? "nothing";
+        const object = this.zone.objectAt(column, cell, row);
+        const where = " (cell " + column + ", " + cell + ", " + row + ")";
+
+        if(!object)
+        {
+            this.hud.system("That is " + block + " ground" + where + ".");
+            return;
+        }
+
+        this.hud.system("That is prop " + object.prop + ": " + object.name + " at " + object.x.toFixed(1) + ", " + object.z.toFixed(1) + ", turned " + object.turns * 90 + "°, block " + block + where + ".");
     }
 
     pickNpc()
@@ -309,7 +349,14 @@ export class GameScreen
         const alpha = this.isPaused ? 1 : this.accumulator / Simulation.TICK;
         const player = this.playerView;
 
-        for(const view of this.views.values()) { view.sync(alpha, delta); }
+        for(const view of this.views.values())
+        {
+            view.sync(alpha, delta);
+
+            const light = this.world.lightAt(view.position);
+
+            view.setLight(this.materials.colours(light.sky, light.lamp));
+        }
 
         this.streamer.update(this.player.position.x, this.player.position.z);
         this.rig.update(delta, player.position, player.model.plan.height * EYE_HEIGHT, (origin, direction, distance) => this.zone.raycast(origin, direction, distance));

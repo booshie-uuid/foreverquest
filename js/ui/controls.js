@@ -99,20 +99,13 @@ export function textInput(label, value, onChange, key)
 export function graphicsToggles(graphics)
 {
     const group = element("div", "toggle-group");
-    const stepped = button("Stepped", () => graphics.toggleStepped(), "toggle");
     const day = button("Day", () => graphics.toggleDay(), "toggle");
-    const refresh = () =>
-    {
-        stepped.classList.toggle("is-active", graphics.isStepped);
-        day.classList.toggle("is-active", graphics.isDay);
-    };
+    const refresh = () => day.classList.toggle("is-active", graphics.isDay);
 
-    stepped.dataset.action = "stepped";
-    stepped.title = "Light the world in steps, in the zone's own colours";
     day.dataset.action = "day";
     day.title = "Show the world by day";
     refresh();
-    group.append(stepped, day);
+    group.append(day);
 
     return { element: group, dispose: graphics.onChange(refresh) };
 }

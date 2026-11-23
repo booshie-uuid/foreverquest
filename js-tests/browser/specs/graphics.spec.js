@@ -18,26 +18,28 @@ async function enterWorld(page, baseUrl)
 export const tests =
 [
     {
-        name: "the world starts in stepped light, which the Stepped toggle turns off",
+        name: "the terrain carries light levels, and the player takes the light of the cell it stands in",
         run: async ({ page, baseUrl }) =>
         {
             await enterWorld(page, baseUrl);
 
-            const before = await page.evaluate(() => (
+            const light = await page.evaluate(() =>
             {
-                uniform: window.foreverQuest.materials.stepped.steppedLight.value,
-                isActive: document.querySelector(".hud [data-action=stepped]").classList.contains("is-active"),
-                hasLight: window.foreverQuest.game.world.terrainMeshes.every((mesh) => mesh.geometry.getAttribute("light")?.itemSize === 2),
-            }));
+                const game = window.foreverQuest.game;
+                const view = game.playerView;
+                const expected = window.foreverQuest.materials.colours(15, 0).sky;
 
-            await page.click(".hud [data-action=stepped]");
+                return {
+                    hasLevels: game.world.terrainMeshes.every((mesh) => mesh.geometry.getAttribute("light")?.itemSize === 2),
+                    isOutdoorSky: view.cell.cellSky.value.equals(expected),
+                };
+            });
 
-            assert.deepEqual(before, { uniform: 1, isActive: true, hasLight: true });
-            assert.equal(await page.evaluate(() => window.foreverQuest.materials.stepped.steppedLight.value), 0);
+            assert.deepEqual(light, { hasLevels: true, isOutdoorSky: true });
         },
     },
     {
-        name: "the Day toggle brings up the sun, brightens the sky and puts out the lamps",
+        name: "the Day toggle brings up the sun and brightens the sky",
         run: async ({ page, baseUrl, screenshot }) =>
         {
             await enterWorld(page, baseUrl);
@@ -49,7 +51,6 @@ export const tests =
                 return {
                     sky: world.scene.background.getHSL({}).l,
                     sun: world.moon.intensity,
-                    lit: world.lamps.filter((lamp) => lamp.intensity > 0).length,
                     isActive: document.querySelector(".hud [data-action=day]").classList.contains("is-active"),
                 };
             });
@@ -67,7 +68,7 @@ export const tests =
 
             assert.ok(day.sky > night.sky + 0.2, "The sky stayed dark: " + night.sky + " to " + day.sky);
             assert.ok(day.sun > night.sun, "The sun is no brighter than the moon");
-            assert.deepEqual([night.lit > 0, day.lit, night.isActive, day.isActive], [true, 0, false, true]);
+            assert.deepEqual([night.isActive, day.isActive], [false, true]);
         },
     },
     {

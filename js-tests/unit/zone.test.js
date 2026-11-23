@@ -142,6 +142,18 @@ describe("Zone movement", () =>
         assert.equal(hearthmere.raycast({ x: from.x, y: from.y + 1.7, z: from.z }, up, 10), 10);
     });
 
+    it("names the placed object a cell belongs to, the smallest when boxes overlap", () =>
+    {
+        const [column, row] = hearthmere.columnOf(8.45, -8.5);
+        const inn = hearthmere.objectAt(column, hearthmere.cellY(hearthmere.groundAt(8.45, -8.5)) + 4, row);
+        const [wellColumn, wellRow] = hearthmere.columnOf(0.85, 0);
+        const well = hearthmere.objectAt(wellColumn, hearthmere.cellY(hearthmere.groundAt(0.85, 0)) + 1, wellRow);
+
+        assert.deepEqual([inn?.prop, inn?.name, inn?.turns], [6, "house.inn", 0]);
+        assert.deepEqual([well?.prop, well?.name], [0, "well"]);
+        assert.equal(hearthmere.objectAt(0, 0, 0), null);
+    });
+
     it("places entities on open ground beside the props", () =>
     {
         const spot = hearthmere.openGround(0, 0, 0.35);
@@ -235,14 +247,12 @@ describe("Zone props", () =>
         assert.equal(cells.get((19 * 96 + 48) * 96 + 48), 0, "The room was not carved");
     });
 
-    it("builds the test field's props as cubes and keeps the lamp's light", () =>
+    it("builds the test field's props as cubes", () =>
     {
-        const lamp = testfield.lightSpots[0];
         const [poleColumn, poleRow] = testfield.columnOf(3, -3);
 
-        assert.equal(testfield.lightSpots.length, 1);
-        assert.ok(lamp[1] > testfield.groundAt(3, -3) + 1.5, JSON.stringify(lamp));
         assert.ok(testfield.heightAt(-8, -8) > testfield.groundAt(-8, -8) + 3, "The pine is missing");
+        assert.ok(testfield.heightAt(3, -3) > testfield.groundAt(3, -3) + 2, "The lamp post is missing");
         assert.ok(testfield.isSolid(poleColumn, testfield.surface(poleColumn, poleRow) - 1, poleRow));
         assert.ok(testfield.heightAt(-2, 11) > testfield.groundAt(-2, 11), "The fence post is missing");
     });
@@ -272,17 +282,16 @@ describe("Zone view", () =>
         view.dispose();
     });
 
-    it("lights only the lamps nearest the focus, with a fixed number of lights", () =>
+    it("gives a character the light of the cell it stands in: full sky outside, less inside the inn, lamp light by a lit window", () =>
     {
         const view = new ZoneView(hearthmere, materials);
+        const street = view.lightAt({ x: 9.35, y: hearthmere.groundAt(9.35, -3.5), z: -3.5 });
+        const room = view.lightAt({ x: 8.45, y: hearthmere.groundAt(8.45, -8.5) + 2 / 3, z: -8.5 });
 
-        view.update(0.016, { position: view.sky.position.clone().set(0, 5, 10) }, { x: 0, y: 0.5, z: 0 });
-
-        const lit = view.lamps.filter((light) => light.intensity > 0);
-
-        assert.equal(view.lamps.length, ZoneView.LIGHT_BUDGET);
-        assert.equal(lit.length, ZoneView.LIGHT_BUDGET);
-        assert.ok(lit.every((light) => Math.hypot(light.position.x, light.position.z) < 14));
+        assert.equal(street.sky, 15);
+        assert.ok(room.sky < street.sky - 2, "The room is as bright as the street: " + JSON.stringify(room));
+        assert.ok(room.lamp > 0, "The inn's lit window does not reach its room");
+        assert.deepEqual(view.lightAt({ x: 0, y: 40, z: 0 }), { sky: 15, lamp: 0 });
         view.dispose();
     });
 

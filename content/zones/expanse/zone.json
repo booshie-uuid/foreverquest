@@ -47,12 +47,6 @@
         "moon": {
             "colour": "#a8b8d8",
             "intensity": 1.7
-        },
-        "lamp": {
-            "colour": "#ff9a40",
-            "intensity": 5,
-            "distance": 8,
-            "decay": 1.6
         }
     },
     "spawn": {

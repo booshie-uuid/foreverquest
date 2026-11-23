@@ -9,7 +9,7 @@ export class Input
         this.keys = new Set();
         this.drag = null;
         this.buttons = 0;
-        this.listeners = { click: [], orbit: [], zoom: [], key: [] };
+        this.listeners = { click: [], inspect: [], orbit: [], zoom: [], key: [] };
         this.handlers = [];
     }
 
@@ -114,11 +114,12 @@ export class Input
         this.drag = null;
         this.buttons = event.buttons;
 
-        if(!drag || drag.hasMoved || drag.wasBoth || drag.button !== 0) { return; }
+        if(!drag || drag.hasMoved || drag.wasBoth) { return; }
 
         const bounds = this.canvas.getBoundingClientRect();
 
-        this.emit("click", event.clientX - bounds.left, event.clientY - bounds.top);
+        if(drag.button === 0) { this.emit("click", event.clientX - bounds.left, event.clientY - bounds.top); }
+        if(drag.button === 2) { this.emit("inspect", event.clientX - bounds.left, event.clientY - bounds.top); }
     }
 
     onWheel(event)

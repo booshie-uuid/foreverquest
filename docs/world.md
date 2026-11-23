@@ -29,7 +29,7 @@ A zone folder holds `zone.json` and a `terrain` folder with one image per region
 | `base` | The cell whose bottom is at height 0 in metres |
 | `water` | The cell below which every empty cell of a column fills with water |
 | `ground` | The ground layers `{ top, under }`, two solid block types each, that the terrain images refer to by index |
-| `lighting` | The sky, fog, hemisphere, moon and lamp colours and strengths |
+| `lighting` | The sky, fog, hemisphere and moon colours and strengths, and optionally the stepped light ramps (`steps`) and daylight (`day`) |
 | `spawn` | Where the player arrives, in metres, and the heading they face |
 | `people` | The residents and the crowd; see [People](#people) |
 | `props` | Prefab placements `{ prefab, x, z, angle, scale }` and runs `{ run, points }`, in metres |
@@ -53,7 +53,7 @@ A prefab is a prop built at the origin, facing +z, at a scale of 1. The bake run
 | Prefab functions return | Used for |
 |---|---|
 | `{ x, z, radius }` or `{ collider }` | A circle, or a turned box `{ x, z, halfWidth, halfDepth, angle }`, that the workbench shows over the prop |
-| `{ lights }` or `{ light }` | Points where a lamp lights the zone |
+| `{ lights }` or `{ light }` | Points where a lamp hangs, which the workbench shows over the prop |
 | `{ rooms }` | Boxes `{ size, at }` that the bake carves out of the prop's cubes, such as a house's ground floor |
 | `{ doors }` | Boxes `{ size, at }` in the prop's front, facing +z, that the bake carves out and leads steps down from |
 
@@ -91,19 +91,21 @@ The game never loads a whole zone. [RegionStreamer](../js/engine/region-streamer
 
 `ZoneView` meshes each chunk with [CubeMesher](../js/render/cube-mesher.js) as its region arrives, and draws the terrain in tiles of two by two columns of chunks, about 21 metres square and the full height of the zone, one mesh each. Tiles keep the draw calls low, and Three.js leaves out the tiles outside the camera. Tiles cast and receive the moon's shadows. In the game, [ChunkWorkers](../js/render/chunk-workers.js) meshes the chunks in web workers, up to eight queued in each, nearest the player first; without workers, as in the unit tests, the view meshes every waiting chunk at once. A chunk of one opaque block closed in on every side is not meshed. The mesher draws a cube face only where the cell beside it is not opaque, and lays each texture across the faces in world cells, so a texture continues from one cube to the next. It merges neighbouring faces of one texture and one shading into a single rectangle, so a flat floor of a chunk is two triangles. Each corner of a face darkens a step for each opaque cube that touches it in front of the face, which shades the foot of every step and wall. The mesher returns plain arrays and imports no Three.js, because a worker does not see the page's import map; the lint enforces it. Water is one plane at the water line. The terrain's material takes the corner shading as vertex colours and reads its textures from the world texture array.
 
-Each face also carries the light of the air cell in front of it, as a sky level and a lamp level from 0 to 15. The mesher works them out for each chunk from its cells and a border of 15 more: sky light is 15 above a column's surface, and lamp light starts at the `light` of a glowing block, such as a window at 12; both spread through cells that are not opaque, one level dimmer a cell. By default the terrain is drawn by these levels in place of the scene's lights, and the Stepped toggle switches back to the scene's smooth lights. In stepped light each face takes the sum of its sky and lamp colours from the zone's ramps, so light falls off in visible steps. A zone's `lighting.steps` gives each ramp as `{ dark, bright, curve }`, and a zone without it takes a cold-moon and amber-lamp default. The player carries a light of level 7, which falls a level a cell around the cell the player stands in. The Day toggle shows the zone by day: the sky, fog and hemisphere light take daylight colours, the sun stands where the moon was and casts the shadows, the lamps go out, and stepped light takes daylight ramps. A zone's `lighting.day` can give its own `sky`, `hemisphere`, `sun` and `steps`; a zone without it takes a default. The zone's own `lighting` is its night.
+Each face also carries the light of the air cell in front of it, as a sky level and a lamp level from 0 to 15. The mesher works them out for each chunk from its cells and a border of 15 more: sky light is 15 above a column's surface, and lamp light starts at the `light` of a glowing block, such as a window at 12; both spread through cells that are not opaque, one level dimmer a cell. The terrain is drawn by these levels in place of the scene's lights: each face takes the sum of its sky and lamp colours from the zone's ramps, so light falls off in visible steps. The sky colour is dimmed to 0.55 where the moon does not reach a face, because the face looks away from it or lies in its shadow, so roofs, walls and trees cast moon shadows across the steps. Characters are lit the same way, by the levels of the cell they stand in: the mesher records the light above every cube that can be stood on, and `ZoneView.lightAt` reads it each frame, so a villager walking into a dark room darkens with it. A zone's `lighting.steps` gives each ramp as `{ dark, bright, curve }`, and a zone without it takes a cold-moon and amber-lamp default. The player carries a light of level 7, which falls a level a cell around the cell the player stands in. The Day toggle shows the zone by day: the sky, fog and hemisphere light take daylight colours, the sun stands where the moon was and casts the shadows, and stepped light takes daylight ramps. A zone's `lighting.day` can give its own `sky`, `hemisphere`, `sun` and `steps`; a zone without it takes a default. The zone's own `lighting` is its night.
 
 The [camera](../js/game/camera-rig.js) starts in first person, at the player's eyes, 0.93 of the model's height, with the player's own model and nameplate hidden. The mouse wheel zooms out to third person, from 1.5 to 22 metres behind the eyes, and zooming in past 1.5 metres returns to first person. In third person, `ZoneData.raycast` casts a ray through the cells from the eyes towards the camera, and the camera stands 0.25 metres short of the first solid cell. It pulls in at once and eases back out, so walls, ceilings and upper floors never hide the player, on any storey.
 
 | Light | Purpose |
 |---|---|
-| Hemisphere | Cold sky from above and warm earth from below |
-| Directional moonlight | The main light; casts shadows in a 52-metre square around the player |
-| Point lights | Six lamps, placed each frame at the light spots nearest the player |
+| Stepped light | Lights the terrain and the characters by light levels; see above |
+| Directional moonlight | Casts shadows in a 52-metre square around the player, which stepped light reads |
+| Hemisphere | Cold sky from above and warm earth from below, for the water |
 | Glow texels | Window panes, lamps and lanterns light themselves |
 | Fog | Fades the zone into the horizon colour between the fog's `near` and `far` |
 
-The number of point lights stays fixed, because changing it recompiles every lit shader. Light spots farther away still glow from their glow texels.
+## Inspecting Props
+
+The zone's index lists each placed prop as an object: its number in the zone file's `props`, its prefab or run, its position, its quarter turns and the box of cells its blocks reach. Right-clicking without dragging casts a ray through the cells, and the chat names what it meets: a villager, the prop whose box holds the cell, choosing the smallest box where boxes overlap, or the ground. Each line gives the prop's number, so a broken prop can be reported and found in the zone file.
 
 ## People
 
