@@ -5,7 +5,8 @@ export const SIZE = 64;
 export const TEXELS_PER_METRE = 48;
 
 // The layer order is the order in the baked atlas. An overlay's alpha is the
-// weathering level at which each texel appears; every other texture is opaque.
+// weathering level at which each texel appears, and a glass texel's how much
+// it hides; every other texture is opaque.
 export const TEXTURES =
 [
     { name: "grass", seed: 400, paint: (r, a, random) => Surfaces.grass(r, a, random) },
@@ -47,6 +48,10 @@ export const TEXTURES =
     { name: "pottery", seed: 920, paint: (r, a, random) => Surfaces.plaster(r, a, random, "#8c4a2c") },
     { name: "linen", seed: 933, paint: (r, a, random) => Surfaces.plaster(r, a, random, "#c4bca6") },
     { name: "apple", seed: 946, paint: (r, a, random) => Surfaces.plaster(r, a, random, "#9a2c22") },
+    { name: "clearGlass", seed: 972, glass: true, paint: (r, a, random) => Surfaces.glass(r, a, random, "clear") },
+    { name: "leadedGlass", seed: 985, glass: true, paint: (r, a, random) => Surfaces.glass(r, a, random, "leaded") },
+    { name: "stainedGlass", seed: 998, glass: true, paint: (r, a, random) => Surfaces.glass(r, a, random, "stained") },
+    { name: "grimyGlass", seed: 1011, glass: true, paint: (r, a, random) => Surfaces.glass(r, a, random, "grimy") },
     { name: "mossTop", seed: 777, overlay: true, paint: (r, a, random) => Weathering.mossTop(r, a, random) },
     { name: "mossEdge", seed: 790, overlay: true, paint: (r, a, random) => Weathering.mossEdge(r, a, random, true) },
     { name: "mossFoot", seed: 803, overlay: true, paint: (r, a, random) => Weathering.mossEdge(r, a, random, false) },

@@ -19,7 +19,7 @@ export const BUILDINGS =
         walls: { ground: "stone" },
         roof: { texture: "thatch", ridge: "x" },
         doors: [{ at: 0 }],
-        windows: [{ side: "front", at: -4 }, { side: "front", at: 6 }, { side: "back", at: 0, isLit: false }],
+        windows: [{ side: "front", at: -4 }, { side: "front", at: 6 }, { side: "back", at: 0, isBoarded: true }],
         details(cottage)
         {
             furnish(cottage,
@@ -37,7 +37,7 @@ export const BUILDINGS =
         walls: { ground: "stone", upper: "plaster", frame: "timber" },
         roof: { texture: "slate", ridge: "x" },
         doors: [{ at: -4 }],
-        windows: [{ at: 4 }, { at: -6, storey: 1 }, { at: 5, storey: 1, isLit: false }, { side: "right", at: 0 }, { side: "right", at: 0, storey: 1 }],
+        windows: [{ at: 4 }, { at: -6, storey: 1 }, { at: 5, storey: 1, isBoarded: true }, { side: "right", at: 0 }, { side: "right", at: 0, storey: 1 }],
         stairs: [{ side: "left", storey: 0, from: -4 }],
         details(house)
         {
@@ -56,7 +56,7 @@ export const BUILDINGS =
         walls: { ground: "stone", upper: "plaster", frame: "timber" },
         roof: { texture: "slate", ridge: "z" },
         doors: [{ at: -3 }],
-        windows: [{ at: 4 }, { at: -4, storey: 1 }, { at: 4, storey: 1, isLit: false }, { at: -4, storey: 2, isLit: false }, { at: 4, storey: 2 }],
+        windows: [{ at: 4 }, { at: -4, storey: 1 }, { at: 4, storey: 1, isBoarded: true }, { at: -4, storey: 2, isBoarded: true }, { at: 4, storey: 2 }],
         lockedStairs: [{ side: "back", storey: 0, at: 2, isFull: true, deep: 8 }],
         details(townhouse)
         {
@@ -78,7 +78,7 @@ export const BUILDINGS =
         windows:
         [
             { at: -12 }, { at: -7 }, { at: 8 }, { at: 13 },
-            { at: -12, storey: 1 }, { at: -5, storey: 1, isLit: false }, { at: 5, storey: 1 }, { at: 12, storey: 1, isLit: false },
+            { at: -12, storey: 1 }, { at: -5, storey: 1, isBoarded: true }, { at: 5, storey: 1 }, { at: 12, storey: 1, isBoarded: true },
             { side: "back", at: -8 }, { side: "back", at: -8, storey: 1 },
         ],
         stairs: [{ side: "left", storey: 0, from: -8 }],
@@ -115,7 +115,7 @@ export const BUILDINGS =
         walls: { ground: "stone", upper: "plaster", frame: "timber" },
         roof: { texture: "slate", ridge: "x" },
         doors: [{ at: -2 }, { side: "right", storey: 1, at: 3 }],
-        windows: [{ at: 5 }, { at: -6, storey: 1 }, { at: 5, storey: 1, isLit: false }],
+        windows: [{ at: 5, glass: "clearGlass" }, { at: -6, storey: 1 }, { at: 5, storey: 1, isBoarded: true }],
         outsideStairs: [{ side: "right", storey: 0, from: -8 }],
         details(store)
         {
@@ -136,7 +136,7 @@ export const BUILDINGS =
         walls: { ground: "stone" },
         roof: { texture: "slate", ridge: "x" },
         doors: [{ at: 0, width: 9 }],
-        windows: [{ side: "left", at: 0, isLit: false }],
+        windows: [{ side: "left", at: 0, isBoarded: true }],
         details(smithy)
         {
             smithy.box([-9, 0, -8], [-4, 3, -3], "stone");
@@ -153,7 +153,7 @@ export const BUILDINGS =
         walls: { ground: "stone", upper: "oldPlanks", frame: "timber" },
         roof: { texture: "slate", ridge: "x" },
         doors: [{ at: -2, width: 5 }],
-        windows: [{ at: -10, isLit: false }, { at: 9, storey: 1, isLit: false }, { side: "back", at: 0, storey: 1 }],
+        windows: [{ at: -10, isBoarded: true }, { at: 9, storey: 1, isBoarded: true }, { side: "back", at: 0, storey: 1, glass: "grimyGlass" }],
         lifts: [{ storey: 1, box: [8, -6, 11, -3] }],
         details(warehouse)
         {
@@ -174,7 +174,7 @@ export const BUILDINGS =
         walls: { ground: "stone", upper: "oldPlanks", frame: "timber" },
         roof: { texture: "thatch", ridge: "x" },
         doors: [{ at: 0, width: 5 }],
-        windows: [{ at: -10, isLit: false }, { at: 10, isLit: false }],
+        windows: [{ at: -10, isBoarded: true }, { at: 10, isBoarded: true }],
         lockedStairs: [{ side: "left", storey: 0, at: -2 }],
         details(stable)
         {
@@ -189,7 +189,7 @@ export const BUILDINGS =
         walls: { ground: "stone" },
         roof: { texture: "stone", isFlat: true },
         doors: [{ at: 0, width: 4 }, { side: "back", at: 0, width: 4 }],
-        windows: [{ at: -8, storey: 1, isLit: false }, { at: 9, storey: 1 }, { side: "back", at: -8, storey: 1 }, { side: "back", at: 9, storey: 1, isLit: false }],
+        windows: [{ at: -8, storey: 1, isBoarded: true }, { at: 9, storey: 1, glass: "grimyGlass" }, { side: "back", at: -8, storey: 1, glass: "grimyGlass" }, { side: "back", at: 9, storey: 1, isBoarded: true }],
         stairs: [{ side: "right", storey: 0, from: -8 }],
         details(gate)
         {
@@ -216,8 +216,8 @@ export const BUILDINGS =
         doors: [{ at: 0 }],
         windows:
         [
-            { at: -5, storey: 1, isLit: false }, { at: 5, storey: 2, isLit: false }, { at: 0, storey: 3 },
-            { side: "back", at: 0, storey: 2 }, { side: "left", at: 0, storey: 3, isLit: false }, { side: "right", at: 4, storey: 1 },
+            { at: -5, storey: 1, isBoarded: true }, { at: 5, storey: 2, isBoarded: true }, { at: 0, storey: 3 },
+            { side: "back", at: 0, storey: 2 }, { side: "left", at: 0, storey: 3, isBoarded: true }, { side: "right", at: 4, storey: 1 },
         ],
         stairs: [{ side: "left", storey: 0, from: -4 }, { side: "right", storey: 1, from: -4 }, { side: "left", storey: 2, from: -4 }],
     },
@@ -229,7 +229,7 @@ export const BUILDINGS =
         walls: { ground: "stone", upper: "plaster", frame: "timber" },
         roof: { texture: "thatch", ridge: "x" },
         doors: [{ at: 0 }],
-        windows: [{ at: -7 }, { at: 7, storey: 1 }, { side: "back", at: 0, storey: 1, isLit: false }],
+        windows: [{ at: -7, glass: "grimyGlass" }, { at: 7, storey: 1, glass: "grimyGlass" }, { side: "back", at: 0, storey: 1, isBoarded: true }],
         stairs: [{ side: "right", storey: 0, from: -6 }],
         details(mill)
         {
@@ -245,7 +245,7 @@ export const BUILDINGS =
         walls: { ground: "oldPlanks", frame: "timber" },
         roof: { texture: "thatch", ridge: "x" },
         doors: [{ at: 0, width: 7 }],
-        windows: [{ side: "left", at: 0, isLit: false }],
+        windows: [{ side: "left", at: 0, isBoarded: true }],
         lamps: false,
     },
 };

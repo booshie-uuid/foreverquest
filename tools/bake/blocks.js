@@ -5,7 +5,7 @@ import * as url from "node:url";
 
 const CONTENT = path.resolve(import.meta.dirname, "..", "..", "content", "blocks");
 const ID_PATTERN = /^[a-z][A-Za-z0-9]*$/;
-const KINDS = ["solid", "clear", "liquid", "object"];
+const KINDS = ["solid", "clear", "glass", "liquid", "object"];
 const FACES = ["all", "top", "side", "bottom"];
 const MAX_LIGHT = 15;
 const WEATHERS = ["moss", "grime", "cracks", "chips"];
@@ -29,7 +29,7 @@ export async function bake(problems, context)
 
             if(blocks.some((entry) => entry.id === id)) { problems.push(where + " is listed twice"); continue; }
 
-            const baked = bakeBlock(id, block, context.worldTextures, where, problems);
+            const baked = bakeBlock(id, block, context.worldTextures, where, problems, context.glassTextures);
 
             if(baked) { blocks.push({ ...baked, group: file.replace(/\.js$/, "") }); }
         }
@@ -43,7 +43,9 @@ export async function bake(problems, context)
     };
 }
 
-export function bakeBlock(id, block, textures, where, problems)
+// `glassTextures` are the world textures with see-through texels, which only
+// glass blocks paint.
+export function bakeBlock(id, block, textures, where, problems, glassTextures = [])
 {
     const before = problems.length;
     const kind = block.kind ?? "solid";
@@ -66,6 +68,7 @@ export function bakeBlock(id, block, textures, where, problems)
     const bottom = faces.bottom ?? faces.all;
 
     if(kind !== "object" && !(top && side && bottom)) { problems.push(where + " needs a texture for its top, sides and bottom"); }
+    if(kind !== "object" && [top, side, bottom].some((texture) => glassTextures.includes(texture) !== (kind === "glass"))) { problems.push(where + " needs glass textures on every face if it is glass, and none if it is not"); }
     if(!(weathers.every((weather) => WEATHERS.includes(weather)) && (kind === "solid" || weathers.length === 0))) { problems.push(where + " weathers in an unknown way, or is not solid: " + weathers.join(", ")); }
     if(block.worn !== undefined && !textures.includes(block.worn)) { problems.push(where + " wears to an unknown world texture: " + block.worn); }
     if(block.glow !== undefined && !(light > 0 && LightColours.LIGHT_COLOURS[block.glow])) { problems.push(where + " needs a light above 0 and a glow from light-colours.js, not " + block.glow); }

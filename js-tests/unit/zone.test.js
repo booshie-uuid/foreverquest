@@ -447,6 +447,20 @@ describe("Zone view", () =>
         view.dispose();
     });
 
+    it("glazes the kit's windows and the chapel's in every kind of glass", () =>
+    {
+        const counts = new Map();
+
+        for(const chunk of hearthmere.chunks.values())
+        {
+            const cells = chunk.cells ?? [chunk.uniform];
+
+            for(const block of cells) { counts.set(block, (counts.get(block) ?? 0) + 1); }
+        }
+
+        for(const id of ["clearGlass", "leadedGlass", "stainedGlass", "grimyGlass"]) { assert.ok(counts.get(hearthmere.blocks.number(id)) > 0, "Hearthmere has no " + id); }
+    });
+
     it("lets a light set in stone glow from the open cubes beside it, and never from a closed coarse cell", () =>
     {
         const smithy = hearthmere.objects.find((entry) => entry.name === "smithy");

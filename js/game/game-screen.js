@@ -193,7 +193,7 @@ export class GameScreen
     // nothing is in front of it, or null.
     pickLever()
     {
-        const hits = this.raycaster.intersectObjects([...this.world.objectMeshes.values(), ...this.world.terrainMeshes], false);
+        const hits = this.raycaster.intersectObjects([...this.world.objectMeshes.values(), ...this.world.terrainMeshes, ...this.world.glassMeshes], false);
         const first = hits[0];
         const entry = first?.object.isInstancedMesh ? this.world.objectOf(first.object, first.instanceId) : null;
 

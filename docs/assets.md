@@ -110,13 +110,13 @@ A block type is one world cube's material. The files in [content/blocks/](../con
 | Field | Meaning |
 |---|---|
 | `faces` | World texture names for `top`, `side` and `bottom`; `all` covers the faces that are not named |
-| `kind` | `solid` (the default) blocks movement and hides the faces behind it; `clear` blocks movement and lets the faces behind it show, as leaves do; `liquid` lets entities enter it |
+| `kind` | `solid` (the default) blocks movement and hides the faces behind it; `clear` blocks movement and lets the faces behind it show, as leaves do; `glass` blocks movement, lets light through and draws see-through, as windows do; `liquid` lets entities enter it |
 | `light` | The light the block gives, from 0 (the default) to 15 |
 | `glow` | Optional, for a block with a light. The colour of its light, by name from [content/light-colours.js](../content/light-colours.js): `candle` (the default), `hearth` or `moonstone`. The forge's `embers` glow hearth red |
 | `weathers` | Optional. The ways a solid block weathers: any of `moss`, `grime`, `cracks` and `chips`; see [Weathering](world.md#weathering) |
 | `worn` | Optional. The world texture an old block takes, such as `plasterWorn` |
 
-[BlockSet](../js/sim/block-set.js) numbers the block types from 1 in the baked order, file by file in name order, and keeps 0 for air. The simulation and the views both read it. The bake fails on a repeated id, an unknown texture, face or kind, a block without a texture on every face, a light out of range, an unknown way of weathering or one on a block that is not solid, an unknown worn texture, and a glow on a block with no light or of a colour that light-colours.js does not name.
+[BlockSet](../js/sim/block-set.js) numbers the block types from 1 in the baked order, file by file in name order, and keeps 0 for air. The simulation and the views both read it. The bake fails on a repeated id, an unknown texture, face or kind, a block without a texture on every face, a light out of range, an unknown way of weathering or one on a block that is not solid, an unknown worn texture, a glow on a block with no light or of a colour that light-colours.js does not name, and a glass block with a texture that is not glass or a glass texture on a block that is not glass.
 
 ## Adding an Object
 
@@ -134,7 +134,7 @@ An object is a thing built from fine cubes, eight to a world cube's edge, such a
 
 ## Adding a World Texture
 
-1. Add an entry to `TEXTURES` in [content/world-textures.js](../content/world-textures.js) with a `name`, a whole-number `seed` that no other texture uses, a `paint` function from [content/art/surfaces.js](../content/art/surfaces.js) or [content/art/weathering.js](../content/art/weathering.js), `glow: true` if the texture lights itself, and `overlay: true` for a weathering overlay, whose alpha is the level from 1 to 255 at which each texel appears.
+1. Add an entry to `TEXTURES` in [content/world-textures.js](../content/world-textures.js) with a `name`, a whole-number `seed` that no other texture uses, a `paint` function from [content/art/surfaces.js](../content/art/surfaces.js) or [content/art/weathering.js](../content/art/weathering.js), `glow: true` if the texture lights itself, `overlay: true` for a weathering overlay, whose alpha is the level from 1 to 255 at which each texel appears, and `glass: true` for a glass texture, whose alpha is how much of what lies behind each texel hides. `Surfaces.glass` paints the four glass textures: `clearGlass`, `leadedGlass` in diamond quarries, `stainedGlass` with each quarry one colour, and `grimyGlass`, whose dirt gathers towards the bottom of each cube.
 2. Run `npm run bake`, check the new layer in `assets/textures/world.png`, then run `npm run bake -- --accept`.
 
-Each texture has its own seed, so adding or moving a texture leaves the texels of the others unchanged. The bake fails on an invalid or repeated name, a missing seed or a texel that is not opaque, except in an overlay.
+Each texture has its own seed, so adding or moving a texture leaves the texels of the others unchanged. The bake fails on an invalid or repeated name, a missing seed or a texel that is not opaque, except in an overlay or a glass texture.

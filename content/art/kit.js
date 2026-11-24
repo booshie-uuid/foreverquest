@@ -268,7 +268,7 @@ function window(layout, spec, entry)
     const bottom = (entry.storey ?? 0) * STOREY + WINDOW.bottom;
     const [from, to] = spanBox(spec, entry.side ?? "front", entry.at ?? 0, WINDOW.width, [bottom, bottom + WINDOW.height]);
 
-    layout.box(from, to, entry.isLit === false ? "oldPlanks" : "glow");
+    layout.box(from, to, entry.isBoarded ? "oldPlanks" : entry.glass ?? "leadedGlass");
 }
 
 

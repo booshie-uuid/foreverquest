@@ -23,16 +23,19 @@ export function bake(problems, context = {})
 
     for(let i = 3; i < strip.data.length; i += 4)
     {
-        if(TEXTURES[Math.floor(i / 4 / SIZE / SIZE)].overlay) { continue; }
+        const texture = TEXTURES[Math.floor(i / 4 / SIZE / SIZE)];
+
+        if(texture.overlay || texture.glass) { continue; }
 
         if(strip.data[i] !== 255)
         {
-            problems.push("World texture " + TEXTURES[Math.floor(i / 4 / SIZE / SIZE)].name + " has a texel that is not opaque");
+            problems.push("World texture " + texture.name + " has a texel that is not opaque");
             break;
         }
     }
 
     context.worldTextures = [...names];
+    context.glassTextures = TEXTURES.filter((texture) => texture.glass).map((texture) => texture.name);
 
     const index =
     {

@@ -8,14 +8,15 @@ const FRAME = { half: 0, base: 0, perCell: 0.25 };
 const STONE = 1;
 const LEAVES = 2;
 const LAMP = 3;
+const GLASS = 4;
 const OVERLAYS = { mossTop: 40, mossEdge: 41, mossFoot: 42, grime: 43, cracks: 44 };
 const WORN = 50;
 
 function table()
 {
-    const faces = { top: new Int16Array([0, 10, 20, 30]), side: new Int16Array([0, 11, 21, 31]), bottom: new Int16Array([0, 12, 22, 32]) };
+    const faces = { top: new Int16Array([0, 10, 20, 30, 60]), side: new Int16Array([0, 11, 21, 31, 61]), bottom: new Int16Array([0, 12, 22, 32, 62]) };
     const flags = () => new Uint8Array(256);
-    const built = { ...faces, opaque: flags(), clear: flags(), liquid: flags(), hidden: flags(), standable: flags(), lights: flags() };
+    const built = { ...faces, opaque: flags(), clear: flags(), glass: flags(), liquid: flags(), hidden: flags(), standable: flags(), lights: flags() };
 
     built.opaque[STONE] = 1;
     built.opaque[LAMP] = 1;
@@ -23,6 +24,8 @@ function table()
     built.standable[STONE] = 1;
     built.standable[LAMP] = 1;
     built.standable[LEAVES] = 1;
+    built.glass[GLASS] = 1;
+    built.standable[GLASS] = 1;
     built.lights[LAMP] = 12;
     built.weathers = flags();
     built.weathers[STONE] = 15;
@@ -322,5 +325,32 @@ describe("Cube mesher", () =>
         assert.ok(byRed[0] === 15 && byRed[2] < 4, "The floor by the red lamp is lit " + byRed);
         assert.ok(byBlue[2] === 15 && byBlue[0] < 4, "The floor by the blue lamp is lit " + byBlue);
         assert.ok(between[0] > 4 && between[2] > 4, "The floor between the lamps is lit " + between);
+    });
+    it("draws glass in its own mesh, lets lamp light through it, and lights a pane by the brighter side", () =>
+    {
+        const room = (pane) => cells((set) =>
+        {
+            for(let x = 0; x < 32; x++) { for(let z = 0; z < 32; z++) { set(x, 0, z, STONE); } }
+            for(let y = 1; y < 32; y++) { for(let z = 0; z < 32; z++) { set(16, y, z, STONE); } }
+            for(let y = 1; y < 3; y++) { for(let z = 15; z < 17; z++) { set(16, y, z, pane); } }
+
+            set(20, 1, 16, LAMP);
+        });
+        const lampOnFloor = (mesh, x) =>
+        {
+            const found = mesh.floors.indices.indexOf((0 * 32 + 16) * 32 + x);
+
+            return mesh.floors.levels[found] & 0xf;
+        };
+        const glazed = CubeMesher.meshCells(room(GLASS), table(), [0, 0, 0], FRAME);
+        const walled = CubeMesher.meshCells(room(STONE), table(), [0, 0, 0], FRAME);
+        const panes = quads(glazed.glass);
+        const lampOf = (sign) => Math.max(...panes.flatMap((quad, q) => (quad.normal[0] === sign ? [glazed.glass.lights[q * 8 + 1] * 15] : [])));
+
+        assert.ok(panes.length > 0 && panes.every((quad) => quad.layer >= 60 && Math.abs(quad.normal[0]) === 1), "The glass mesh holds faces other than the pane's two sides");
+        assert.ok(quads(glazed).every((quad) => quad.layer < 60), "The opaque mesh holds glass");
+        assert.equal(walled.glass, undefined);
+        assert.ok(lampOnFloor(glazed, 13) > 0 && lampOnFloor(walled, 13) === 0, "Lamp light beyond the pane is " + lampOnFloor(glazed, 13) + " through glass and " + lampOnFloor(walled, 13) + " through stone");
+        assert.equal(Math.round(lampOf(-1)), Math.round(lampOf(1)), "The pane's street side is not lit by the room");
     });
 });

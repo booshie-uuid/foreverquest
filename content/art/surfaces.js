@@ -6,6 +6,8 @@ import * as Pixels from "./pixels.js";
 
 const CUBE = 16;
 const HALF = CUBE / 2;
+const LEAD = "#2a2622";
+const STAINED = ["#1a2860", "#1a2860", "#1a2860", "#22306e", "#6a1a1c", "#6a1a1c", "#8a6a26", "#2a4430"];
 
 
 /******************************************************************************/
@@ -421,4 +423,46 @@ export function glow(raster, target, random, colour = "#f0a848")
             Pixels.dot(raster, target, x, y, isLead ? "#3a2a1d" : tone(colour, random, 0.24));
         }
     }
+}
+
+// A texel's alpha is how much of what lies behind the pane it hides.
+export function glass(raster, target, random, style)
+{
+    const quarries = new Map();
+
+    for(let y = 0; y < target.h; y++)
+    {
+        for(let x = 0; x < target.w; x++)
+        {
+            const isLead = style !== "clear" && ((x + y) % HALF === 0 || (x - y + target.w) % HALF === 0);
+            const quarry = Math.floor((x + y) / HALF) + "," + Math.floor((x - y + target.w) / HALF);
+
+            if(!quarries.has(quarry)) { quarries.set(quarry, { colour: pick(STAINED, random), dirt: random.next() }); }
+
+            Pixels.dot(raster, target, x, y, isLead ? LEAD : pane(style, quarries.get(quarry), y % CUBE / CUBE, random));
+        }
+    }
+}
+
+function pane(style, quarry, depth, random)
+{
+    if(style === "stained") { return withAlpha(tone(quarry.colour, random, 0.2), 200); }
+
+    if(style === "grimy")
+    {
+        const dirt = Math.min(1, quarry.dirt * 0.5 + depth * depth * 0.6 + random.next() * 0.2);
+
+        return withAlpha(tone(Colour.mix("#8a9a8a", "#4a4232", dirt), random, 0.1), Math.round(90 + dirt * 140));
+    }
+
+    if(random.next() < 0.04) { return withAlpha("#d8e4dc", 120); }
+
+    return style === "clear" ? withAlpha(tone("#b0c0bc", random, 0.12), 40) : withAlpha(tone("#94aca0", random, 0.12), 70);
+}
+
+function withAlpha(colour, alpha)
+{
+    const [r, g, b] = Colour.rgb(colour);
+
+    return [r, g, b, alpha];
 }

@@ -166,7 +166,7 @@ export function chapel(builder, x, y, z, angle)
 
         for(const wz of [-5, -2.5, 0, 2.5])
         {
-            put([0.08, 1.8, 0.6], [side * 2.9, 2.8, wz], "glow");
+            put([0.08, 1.8, 0.6], [side * 2.9, 2.8, wz], "stainedGlass");
             put([0.3, 5, 0.6], [side * 3.1, 2.6, wz + 1.25], "stone");
         }
     }

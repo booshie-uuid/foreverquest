@@ -26,4 +26,8 @@ export const BLOCK_FOR_TEXTURE =
     banner: "banner",
     glow: "window",
     embers: "embers",
+    clearGlass: "clearGlass",
+    leadedGlass: "leadedGlass",
+    stainedGlass: "stainedGlass",
+    grimyGlass: "grimyGlass",
 };

@@ -109,7 +109,7 @@ float skyShade = mix(0.55, 1.0, moonLit);
 // reach. The player's own light falls off a level a cell from the cell the
 // player stands in, and keeps the lamp ramp's colour; each colour channel
 // takes the brighter of it and the cell's lamp light, so the two meet without
-// an edge.
+// an edge. Neither the moon's shadow nor the face's direction dims glass.
 // A glow is band * 4096 + red * 256 + green * 16 + blue, as the mesher packs
 // it: the band, 1 to 15, is its strength, and each channel, 0 to 15, its
 // colour at full strength in sRGB. 0 is no glow. Where a glow reaches, the
@@ -179,6 +179,11 @@ int ownLamp = int(vLight.y * 15.0 + 0.5);
 vec3 lampLight = max(inGlowColour(lampRamp[ownLamp], vLampHue), lampRamp[clamp(int(nearPlayer), 0, 15)]);
 vec3 stepLight = floorLight(fitLight(skyRamp[skyLevel] * skyShade + lampLight + glowLight(vGlow)), glowBase(ambientFloor, vGlow));
 float stepFace = vStepNormal.y > 0.5 ? 1.0 : (vStepNormal.y < -0.5 ? 0.55 : (abs(vStepNormal.x) > 0.5 ? 0.72 : 0.86));
+
+#ifdef GLASS
+    stepLight = floorLight(fitLight(skyRamp[skyLevel] + lampLight + glowLight(vGlow)), glowBase(ambientFloor, vGlow));
+    stepFace = 1.0;
+#endif
 
 outgoingLight = diffuseColor.rgb * stepLight * stepFace + totalEmissiveRadiance;
 
@@ -274,6 +279,8 @@ export class MaterialLibrary
         this.stepped = { skyRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.sky) }, lampRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.lamp) }, ambientFloor: { value: MaterialLibrary.floorOf(DEFAULT_AMBIENT) }, glowStrength: { value: DEFAULT_AMBIENT.glow }, playerLight: { value: new THREE.Vector4(0, 0, 0, PLAYER_LIGHT) }, cubeGrid: { value: 0 } };
         this.terrain = this.worldMaterial({ vertexColors: true }, this.stepped);
         this.objects = this.worldMaterial({}, this.stepped);
+        this.glass = this.worldMaterial({ vertexColors: true, transparent: true, depthWrite: false }, this.stepped);
+        this.glass.defines = { GLASS: "" };
         this.water = new THREE.MeshPhongMaterial({ color: "#1e2a30", specular: 0x5a6a78, shininess: 80, transparent: true, opacity: 0.82 });
         this.water.onBeforeCompile = (shader) => this.addHeightFog(shader);
     }
@@ -320,7 +327,7 @@ export class MaterialLibrary
             this.addHeightFog(shader);
         };
 
-        material.customProgramCacheKey = () => "world-atlas:" + this.atlas.glowLayers.join(",") + (material.vertexColors ? ":shaded" : "") + (stepped ? ":stepped" : "");
+        material.customProgramCacheKey = () => "world-atlas:" + this.atlas.glowLayers.join(",") + (material.vertexColors ? ":shaded" : "") + (stepped ? ":stepped" : "") + (material.transparent ? ":glass" : "");
 
         return material;
     }

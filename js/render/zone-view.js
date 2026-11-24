@@ -50,6 +50,7 @@ export class ZoneView
         this.chunkArrays = new Map();
         this.floors = new Map();
         this.tileMeshes = new Map();
+        this.glassTiles = new Map();
         this.dirtyTiles = new Set();
         this.focus = { x: zone.spawn.x, z: zone.spawn.z };
         this.waiting = new Set();
@@ -88,6 +89,11 @@ export class ZoneView
     get terrainMeshes()
     {
         return [...this.tileMeshes.values()];
+    }
+
+    get glassMeshes()
+    {
+        return [...this.glassTiles.values()];
     }
 
     get isSettled()
@@ -277,7 +283,7 @@ export class ZoneView
     {
         this.floors.set(key, arrays.floors);
 
-        if(arrays.indices) { this.chunkArrays.set(key, arrays); }
+        if(arrays.indices || arrays.glass) { this.chunkArrays.set(key, arrays); }
         else { this.chunkArrays.delete(key); }
 
         this.dirtyTiles.add(this.tileOf(key));
@@ -290,6 +296,7 @@ export class ZoneView
             const [tx, tz] = tile.split(",").map(Number);
             const wide = this.zone.chunksWide;
             const parts = [];
+            const panes = [];
 
             for(let cy = 0; cy < this.zone.chunksHigh; cy++)
             {
@@ -299,7 +306,8 @@ export class ZoneView
                     {
                         const arrays = this.chunkArrays.get(this.zone.chunkKey(cx, cy, cz));
 
-                        if(arrays) { parts.push(arrays); }
+                        if(arrays?.indices) { parts.push(arrays); }
+                        if(arrays?.glass) { panes.push(arrays.glass); }
                     }
                 }
             }
@@ -307,6 +315,7 @@ export class ZoneView
             this.removeTile(tile);
 
             if(parts.length > 0) { this.addTile(tile, ZoneView.geometryOf(ZoneView.joined(parts))); }
+            if(panes.length > 0) { this.addPanes(tile, ZoneView.geometryOf(ZoneView.joined(panes))); }
         }
 
         this.dirtyTiles.clear();
@@ -323,15 +332,28 @@ export class ZoneView
         this.scene.add(mesh);
     }
 
+    addPanes(tile, geometry)
+    {
+        const mesh = new THREE.Mesh(geometry, this.materials.glass);
+
+        mesh.name = "glass";
+        mesh.receiveShadow = true;
+        this.glassTiles.set(tile, mesh);
+        this.scene.add(mesh);
+    }
+
     removeTile(tile)
     {
-        const mesh = this.tileMeshes.get(tile);
+        for(const meshes of [this.tileMeshes, this.glassTiles])
+        {
+            const mesh = meshes.get(tile);
 
-        if(!mesh) { return; }
+            if(!mesh) { continue; }
 
-        mesh.geometry.dispose();
-        this.scene.remove(mesh);
-        this.tileMeshes.delete(tile);
+            mesh.geometry.dispose();
+            this.scene.remove(mesh);
+            meshes.delete(tile);
+        }
     }
 
     // The sky and lamp levels of the cell at a point in metres, read from the
@@ -734,7 +756,7 @@ export class ZoneView
         {
             node.geometry?.dispose();
 
-            if(node.material && node.material !== this.materials.world && node.material !== this.materials.terrain && node.material !== this.materials.objects && node.material !== this.materials.water) { node.material.dispose(); }
+            if(node.material && node.material !== this.materials.world && node.material !== this.materials.terrain && node.material !== this.materials.objects && node.material !== this.materials.water && node.material !== this.materials.glass) { node.material.dispose(); }
         });
 
         this.moon.shadow.map?.dispose();

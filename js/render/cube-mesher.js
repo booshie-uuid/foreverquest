@@ -55,7 +55,7 @@ export function faceTable(blocks, atlas)
 {
     const count = blocks.count + 1;
     const flags = () => new Uint8Array(256);
-    const table = { top: new Int16Array(count), side: new Int16Array(count), bottom: new Int16Array(count), opaque: flags(), clear: flags(), liquid: flags(), hidden: flags(), standable: flags(), lights: flags() };
+    const table = { top: new Int16Array(count), side: new Int16Array(count), bottom: new Int16Array(count), opaque: flags(), clear: flags(), glass: flags(), liquid: flags(), hidden: flags(), standable: flags(), lights: flags() };
 
     table.weathers = flags();
     table.glowKeys = new Int32Array(256);
@@ -70,9 +70,10 @@ export function faceTable(blocks, atlas)
 
         table.opaque[number] = block.kind === "solid" ? 1 : 0;
         table.clear[number] = block.kind === "clear" ? 1 : 0;
+        table.glass[number] = block.kind === "glass" ? 1 : 0;
         table.liquid[number] = block.kind === "liquid" ? 1 : 0;
         table.hidden[number] = block.kind === "liquid" || block.kind === "object" ? 1 : 0;
-        table.standable[number] = block.kind === "solid" || block.kind === "clear" || block.kind === "object" ? 1 : 0;
+        table.standable[number] = block.kind === "solid" || block.kind === "clear" || block.kind === "glass" || block.kind === "object" ? 1 : 0;
         table.lights[number] = block.light;
         table.glowKeys[number] = block.light > 0 ? blocks.glowKey(number) : 0;
         table.weathers[number] = (block.weathers ?? []).reduce((bits, weather) => bits | WEATHERS[weather], 0);
@@ -635,8 +636,7 @@ function spread(levels, seeds, cells, opaque)
 /* MESH                                                                       */
 /******************************************************************************/
 
-// Returns null for a chunk with no visible face. Liquids are left to the
-// water view.
+// Liquids are left to the water view.
 export function buildChunk(zone, table, atlas, cx, cy, cz)
 {
     const frame = { half: zone.half, base: zone.base, perCell: atlas.uvPerMetre / ZoneData.CUBES_PER_METRE };
@@ -644,32 +644,55 @@ export function buildChunk(zone, table, atlas, cx, cy, cz)
     return meshCells(paddedCells(zone, cx, cy, cz), table, [cx * CHUNK, cy * CHUNK, cz * CHUNK], frame);
 }
 
+// The chunk's floors and its faces' mesh arrays, with the faces of glass in
+// `glass`. Either set of arrays is absent when the chunk has no such faces.
 export function meshCells(volume, table, origin, frame)
 {
-    const out = { positions: [], normals: [], uvs: [], layers: [], colours: [], lights: [], weathers: [], glows: [], hues: [], indices: [] };
+    const out = emptyMesh();
     const masks = { faces: new Int32Array(CHUNK * CHUNK), weathers: new Int32Array(CHUNK * CHUNK), glows: new Int32Array(CHUNK * CHUNK) };
     const { light, hueOf } = lightField(volume, table);
     const ambientOf = volume.coarse ? fineGlow(volume, table) : () => 0;
     const glowOf = (index) => ambientOf(index) + hueOf(index) * HUE_SHIFT;
     const floors = floorLights(volume.cells, light, table, glowOf);
-    const context = { cells: volume.cells, ages: volume.ages ?? new Uint8Array(PADDED * PADDED), light, glowOf, table, origin };
+    const context = { cells: volume.cells, ages: volume.ages ?? new Uint8Array(PADDED * PADDED), light, glowOf, table, origin, isGlass: 0, hasGlass: false };
 
     context.chips = chipsOf(context);
+    addFaces(out, masks, context, frame);
 
+    for(const chip of context.chips.values()) { addChip(out, context, chip, frame); }
+
+    const glass = emptyMesh();
+
+    if(context.hasGlass)
+    {
+        context.isGlass = 1;
+        addFaces(glass, masks, context, frame);
+    }
+
+    return { floors, ...meshArrays(out), ...(glass.indices.length > 0 ? { glass: meshArrays(glass) } : {}) };
+}
+
+function emptyMesh()
+{
+    return { positions: [], normals: [], uvs: [], layers: [], colours: [], lights: [], weathers: [], glows: [], hues: [], indices: [] };
+}
+
+function addFaces(out, masks, context, frame)
+{
     for(const direction of DIRECTIONS)
     {
         for(let slice = 0; slice < CHUNK; slice++)
         {
-            if(fillMask(masks, context, direction, slice)) { mergeMask(out, masks, direction, slice, origin, frame); }
+            if(fillMask(masks, context, direction, slice)) { mergeMask(out, masks, direction, slice, context.origin, frame); }
         }
     }
+}
 
-    for(const chip of context.chips.values()) { addChip(out, context, chip, frame); }
-
-    if(out.indices.length === 0) { return { floors }; }
+function meshArrays(out)
+{
+    if(out.indices.length === 0) { return {}; }
 
     return {
-        floors,
         positions: new Float32Array(out.positions),
         normals: new Float32Array(out.normals),
         uvs: new Float32Array(out.uvs),
@@ -720,7 +743,10 @@ function floorLights(cells, light, table, glowOf)
 
 // A face mask entry is 0 for no face, or the face's layer + 1, then the light
 // of the cell in front of it, then its four corner shades of two bits each.
-// Its weather mask entry holds its two overlays; see weatherOf.
+// Its weather mask entry holds its two overlays; see weatherOf. The mask
+// holds the faces of glass when `context.isGlass` is 1, and the rest when it
+// is 0. A glass face takes the brighter lamp light of the cells on its two
+// sides.
 function fillMask(masks, context, direction, slice)
 {
     const { cells, ages, light, table } = context;
@@ -741,7 +767,10 @@ function fillMask(masks, context, direction, slice)
             const neighbour = cells[front];
             const chip = context.chips.size > 0 ? context.chips.get(index) : undefined;
             const isChipped = chip !== undefined && ((chip.a === axis && chip.signA === sign) || (chip.b === axis && chip.signB === sign));
-            const isHidden = isChipped || block === 0 || table.hidden[block] === 1 || table.opaque[neighbour] === 1 || (table.clear[block] === 1 && neighbour === block);
+            const isGlass = table.glass[block];
+            const isHidden = isGlass !== context.isGlass || isChipped || block === 0 || table.hidden[block] === 1 || table.opaque[neighbour] === 1 || (table.clear[block] === 1 && neighbour === block) || (isGlass === 1 && table.glass[neighbour] === 1);
+
+            if(isGlass === 1) { context.hasGlass = true; }
 
             if(isHidden)
             {
@@ -752,14 +781,22 @@ function fillMask(masks, context, direction, slice)
             const age = ages[Math.floor(index / PADDED) % PADDED * PADDED + index % PADDED];
             const layer = age > 0 ? wornLayer(context, block, index, age, layers[block]) : layers[block];
 
-            mask[j * CHUNK + i] = ((layer + 1) << 16) | (light[front] << 8) | shadesOf(cells, table.opaque, front, stepU, stepV);
+            const lit = isGlass === 1 ? brighterSide(light, front, index - sign * stepAxis) : front;
+            const level = isGlass === 1 ? Math.max(light[front] & 0xf0, light[lit] & 0xf0) | (light[lit] & 0xf) : light[front];
+
+            mask[j * CHUNK + i] = ((layer + 1) << 16) | (level << 8) | shadesOf(cells, table.opaque, front, stepU, stepV);
             weathers[j * CHUNK + i] = age > 0 && table.weathers[block] !== 0 ? weatherOf(context, block, index, front, direction, age / 100) : 0;
-            glows[j * CHUNK + i] = context.glowOf(front);
+            glows[j * CHUNK + i] = context.glowOf(lit);
             hasFace = true;
         }
     }
 
     return hasFace;
+}
+
+function brighterSide(light, front, behind)
+{
+    return (light[behind] & 0xf) > (light[front] & 0xf) ? behind : front;
 }
 
 /* WEATHER ********************************************************************/

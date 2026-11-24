@@ -218,4 +218,25 @@ export const tests =
             assert.deepEqual(shadows, { isEnabled: true, playerCasts: true, moonCasts: true });
         },
     },
+    {
+        name: "windows are see-through glass, drawn after the terrain and casting no shadow",
+        run: async ({ page, baseUrl }) =>
+        {
+            await enterWorld(page, baseUrl);
+            await page.waitFor(() => window.foreverQuest.game.world.isSettled, { timeout: 60000 });
+
+            const glass = await page.evaluate(() =>
+            {
+                const meshes = window.foreverQuest.game.world.glassMeshes;
+
+                return {
+                    hasPanes: meshes.length > 0,
+                    isSeeThrough: meshes.every((mesh) => mesh.material.transparent && !mesh.material.depthWrite && "GLASS" in mesh.material.defines),
+                    castsShadow: meshes.some((mesh) => mesh.castShadow),
+                };
+            });
+
+            assert.deepEqual(glass, { hasPanes: true, isSeeThrough: true, castsShadow: false });
+        },
+    },
 ];
