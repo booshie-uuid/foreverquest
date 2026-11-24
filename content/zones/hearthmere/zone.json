@@ -2,13 +2,13 @@
     "id": "hearthmere",
     "name": "Hearthmere",
     "welcome": [
-        "Welcome to Hearthmere. Click the ground to walk, or click a villager to talk.",
-        "Mirelle the tailor can change your appearance."
+        "Welcome to Hearthmere. Walk with W A S D, or hold both mouse buttons. Click a villager to talk, or a lever to pull it.",
+        "Mirelle the tailor, by the general store, can change your appearance."
     ],
-    "columns": 288,
-    "height": 64,
-    "base": 16,
-    "water": 16,
+    "columns": 576,
+    "height": 96,
+    "base": 32,
+    "water": 32,
     "ground": [
         {
             "top": "grass",
@@ -45,12 +45,12 @@
             "horizon": "#262b34"
         },
         "fog": {
-            "near": 14,
-            "far": 58,
+            "near": 20,
+            "far": 90,
             "height": {
-                "base": 0.5,
+                "base": 0.8,
                 "falloff": 1.5,
-                "density": 0.03
+                "density": 0.02
             }
         },
         "hemisphere": {
@@ -67,79 +67,1337 @@
         "age": 30
     },
     "spawn": {
-        "x": 1.6,
-        "z": 9.5,
+        "x": -4,
+        "z": 12,
         "heading": 3.141592653589793
     },
+    "props": [
+        {
+            "prefab": "chapel",
+            "x": -4,
+            "z": -40,
+            "angle": 0,
+            "age": 60
+        },
+        {
+            "object": "cross",
+            "x": -4,
+            "z": -37,
+            "on": "top"
+        },
+        {
+            "object": "banner",
+            "x": -2.666667,
+            "z": -34.5
+        },
+        {
+            "object": "banner",
+            "x": -5.333333,
+            "z": -34.5,
+            "angle": 3.141592653589793
+        },
+        {
+            "object": "altar",
+            "x": -4,
+            "z": -44
+        },
+        {
+            "object": "candelabra",
+            "x": -2.666667,
+            "z": -44
+        },
+        {
+            "object": "candelabra",
+            "x": -5.333333,
+            "z": -44
+        },
+        {
+            "object": "lectern",
+            "x": -2,
+            "z": -43
+        },
+        {
+            "object": "runner",
+            "x": -4,
+            "z": -41.333333
+        },
+        {
+            "object": "runner",
+            "x": -4,
+            "z": -38.666667
+        },
+        {
+            "object": "candelabra",
+            "x": -1.666667,
+            "z": -36.333333
+        },
+        {
+            "object": "candelabra",
+            "x": -6.333333,
+            "z": -36.333333
+        },
+        {
+            "object": "pew",
+            "x": -2.333333,
+            "z": -42
+        },
+        {
+            "object": "pew",
+            "x": -5.666667,
+            "z": -42
+        },
+        {
+            "object": "pew",
+            "x": -2.333333,
+            "z": -41
+        },
+        {
+            "object": "pew",
+            "x": -5.666667,
+            "z": -41
+        },
+        {
+            "object": "pew",
+            "x": -2.333333,
+            "z": -40
+        },
+        {
+            "object": "pew",
+            "x": -5.666667,
+            "z": -40
+        },
+        {
+            "object": "pew",
+            "x": -2.333333,
+            "z": -39
+        },
+        {
+            "object": "pew",
+            "x": -5.666667,
+            "z": -39
+        },
+        {
+            "object": "pew",
+            "x": -2.333333,
+            "z": -38
+        },
+        {
+            "object": "pew",
+            "x": -5.666667,
+            "z": -38
+        },
+        {
+            "object": "sconce",
+            "x": -1.5,
+            "z": -41.25
+        },
+        {
+            "object": "sconce",
+            "x": -6.5,
+            "z": -41.25,
+            "angle": 3.141592653589793
+        },
+        {
+            "object": "sconce",
+            "x": -1.5,
+            "z": -38.75
+        },
+        {
+            "object": "sconce",
+            "x": -6.5,
+            "z": -38.75,
+            "angle": 3.141592653589793
+        },
+        {
+            "object": "chandelier",
+            "x": -4,
+            "z": -41.333333,
+            "on": "ceiling"
+        },
+        {
+            "object": "chandelier",
+            "x": -4,
+            "z": -38.666667,
+            "on": "ceiling"
+        },
+        {
+            "prefab": "inn",
+            "x": -12,
+            "z": -24,
+            "angle": 1.570796
+        },
+        {
+            "prefab": "store",
+            "x": 4,
+            "z": -26,
+            "angle": -1.570796
+        },
+        {
+            "prefab": "smithy",
+            "x": 13.666667,
+            "z": 3,
+            "angle": 3.141593
+        },
+        {
+            "prefab": "house",
+            "x": -26.333333,
+            "z": -13,
+            "angle": 0
+        },
+        {
+            "prefab": "cottage",
+            "x": -27.333333,
+            "z": 2,
+            "angle": 3.141593
+        },
+        {
+            "prefab": "house",
+            "x": -11,
+            "z": 17,
+            "angle": 1.570796
+        },
+        {
+            "prefab": "townhouse",
+            "x": 3.666667,
+            "z": 15.666667,
+            "angle": -1.570796
+        },
+        {
+            "prefab": "house",
+            "x": 3,
+            "z": 27,
+            "angle": -1.570796
+        },
+        {
+            "prefab": "cottage",
+            "x": -43,
+            "z": -20,
+            "angle": 1.570796
+        },
+        {
+            "prefab": "cottage",
+            "x": -43,
+            "z": 18,
+            "angle": 1.570796
+        },
+        {
+            "prefab": "townhouse",
+            "x": 21,
+            "z": -13,
+            "angle": 0
+        },
+        {
+            "prefab": "warehouse",
+            "x": 27,
+            "z": 3.666667,
+            "angle": 3.141593
+        },
+        {
+            "prefab": "stable",
+            "x": -12,
+            "z": 36,
+            "angle": 1.570796
+        },
+        {
+            "prefab": "gatehouse",
+            "x": -4,
+            "z": 48,
+            "angle": 0
+        },
+        {
+            "prefab": "watchtower",
+            "x": 36,
+            "z": -56,
+            "angle": 0
+        },
+        {
+            "prefab": "mill",
+            "x": 67,
+            "z": -13,
+            "angle": 0
+        },
+        {
+            "prefab": "barn",
+            "x": -70,
+            "z": 65,
+            "angle": 1.570796
+        },
+        {
+            "prefab": "bridge",
+            "x": 57,
+            "z": -6,
+            "angle": 1.570796,
+            "y": 0.666667
+        },
+        {
+            "run": "wall",
+            "points": [
+                [
+                    33,
+                    -58
+                ],
+                [
+                    -58,
+                    -58
+                ],
+                [
+                    -58,
+                    48
+                ],
+                [
+                    -8,
+                    48
+                ]
+            ]
+        },
+        {
+            "run": "wall",
+            "points": [
+                [
+                    0,
+                    48
+                ],
+                [
+                    38,
+                    48
+                ],
+                [
+                    38,
+                    -3
+                ]
+            ]
+        },
+        {
+            "run": "wall",
+            "points": [
+                [
+                    38,
+                    -9
+                ],
+                [
+                    38,
+                    -53
+                ]
+            ]
+        },
+        {
+            "object": "well",
+            "x": -4,
+            "z": -6
+        },
+        {
+            "object": "signpost",
+            "x": 6,
+            "z": -16,
+            "angle": 0.3
+        },
+        {
+            "object": "stocks",
+            "x": -14,
+            "z": 4,
+            "angle": 3.141593
+        },
+        {
+            "object": "lampPost",
+            "x": -7,
+            "z": -32
+        },
+        {
+            "object": "lampPost",
+            "x": -7,
+            "z": 10
+        },
+        {
+            "object": "lampPost",
+            "x": -7,
+            "z": 24
+        },
+        {
+            "object": "lampPost",
+            "x": -7,
+            "z": 40
+        },
+        {
+            "object": "lampPost",
+            "x": -1,
+            "z": -16,
+            "angle": 3.141593
+        },
+        {
+            "object": "lampPost",
+            "x": -1,
+            "z": 20,
+            "angle": 3.141593
+        },
+        {
+            "object": "lampPost",
+            "x": -1,
+            "z": 34,
+            "angle": 3.141593
+        },
+        {
+            "object": "lampPost",
+            "x": -30,
+            "z": -9,
+            "angle": -1.570796
+        },
+        {
+            "object": "lampPost",
+            "x": 16,
+            "z": -9,
+            "angle": -1.570796
+        },
+        {
+            "object": "lampPost",
+            "x": 34,
+            "z": -2.5,
+            "angle": 1.570796
+        },
+        {
+            "object": "barrel",
+            "x": -7,
+            "z": -16
+        },
+        {
+            "object": "crateLarge",
+            "x": -7.3,
+            "z": -15
+        },
+        {
+            "object": "sacks",
+            "x": -0.2,
+            "z": -31.5
+        },
+        {
+            "object": "barrel",
+            "x": 0,
+            "z": -20.5
+        },
+        {
+            "object": "crate",
+            "x": 31.5,
+            "z": -1.5
+        },
+        {
+            "object": "crateSmall",
+            "x": 32.5,
+            "z": -1.2
+        },
+        {
+            "object": "barrel",
+            "x": 24,
+            "z": -1.5
+        },
+        {
+            "object": "barrel",
+            "x": 11,
+            "z": -1.5
+        },
+        {
+            "object": "cart",
+            "x": -20,
+            "z": 5
+        },
+        {
+            "prefab": "grave.0",
+            "x": 4,
+            "z": -47,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.1",
+            "x": 4,
+            "z": -44,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.2",
+            "x": 4,
+            "z": -41,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.3",
+            "x": 4,
+            "z": -38,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.4",
+            "x": 7,
+            "z": -47,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.5",
+            "x": 7,
+            "z": -44,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.6",
+            "x": 7,
+            "z": -41,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.7",
+            "x": 7,
+            "z": -38,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.0",
+            "x": 10,
+            "z": -47,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.1",
+            "x": 10,
+            "z": -44,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.2",
+            "x": 10,
+            "z": -41,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.3",
+            "x": 10,
+            "z": -38,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.4",
+            "x": 13,
+            "z": -47,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.5",
+            "x": 13,
+            "z": -44,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.6",
+            "x": 13,
+            "z": -41,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.7",
+            "x": 13,
+            "z": -38,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.0",
+            "x": 16,
+            "z": -47,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.1",
+            "x": 16,
+            "z": -44,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.2",
+            "x": 16,
+            "z": -41,
+            "angle": 0
+        },
+        {
+            "prefab": "grave.3",
+            "x": 16,
+            "z": -38,
+            "angle": 0
+        },
+        {
+            "prefab": "deadTree.2",
+            "x": 16,
+            "z": -35,
+            "angle": 0.4
+        },
+        {
+            "prefab": "pine.6",
+            "x": -64.68,
+            "z": -79.04,
+            "angle": 2.38,
+            "scale": 0.98
+        },
+        {
+            "prefab": "oak.7",
+            "x": -78.05,
+            "z": -88.39,
+            "angle": 0.75,
+            "scale": 0.94
+        },
+        {
+            "prefab": "pine.3",
+            "x": -89.17,
+            "z": -81.87,
+            "angle": 5.42,
+            "scale": 1.07
+        },
+        {
+            "prefab": "pine.4",
+            "x": -72.61,
+            "z": -61.3,
+            "angle": 2.11,
+            "scale": 1.0
+        },
+        {
+            "prefab": "pine.6",
+            "x": -88.28,
+            "z": -81.9,
+            "angle": 2.53,
+            "scale": 1.12
+        },
+        {
+            "prefab": "oak.7",
+            "x": -67.26,
+            "z": -81.6,
+            "angle": 1.68,
+            "scale": 0.92
+        },
+        {
+            "prefab": "pine.2",
+            "x": -64.08,
+            "z": -63.58,
+            "angle": 6.13,
+            "scale": 0.95
+        },
+        {
+            "prefab": "pine.1",
+            "x": -84.42,
+            "z": -84.0,
+            "angle": 4.57,
+            "scale": 1.15
+        },
+        {
+            "prefab": "pine.7",
+            "x": -71.36,
+            "z": -77.21,
+            "angle": 1.41,
+            "scale": 1.09
+        },
+        {
+            "prefab": "pine.3",
+            "x": -79.89,
+            "z": -62.8,
+            "angle": 2.29,
+            "scale": 0.96
+        },
+        {
+            "prefab": "pine.3",
+            "x": -80.99,
+            "z": -61.25,
+            "angle": 0.64,
+            "scale": 0.9
+        },
+        {
+            "prefab": "pine.6",
+            "x": -73.7,
+            "z": -73.22,
+            "angle": 3.05,
+            "scale": 0.97
+        },
+        {
+            "prefab": "pine.0",
+            "x": -79.63,
+            "z": -85.21,
+            "angle": 3.17,
+            "scale": 1.01
+        },
+        {
+            "prefab": "oak.3",
+            "x": -90.21,
+            "z": -76.56,
+            "angle": 2.93,
+            "scale": 1.1
+        },
+        {
+            "prefab": "pine.0",
+            "x": -90.26,
+            "z": -74.33,
+            "angle": 0.16,
+            "scale": 1.17
+        },
+        {
+            "prefab": "pine.2",
+            "x": -64.88,
+            "z": -92.22,
+            "angle": 1.3,
+            "scale": 1.0
+        },
+        {
+            "prefab": "pine.7",
+            "x": -66.5,
+            "z": -82.68,
+            "angle": 2.87,
+            "scale": 1.17
+        },
+        {
+            "prefab": "pine.3",
+            "x": -73.04,
+            "z": -61.49,
+            "angle": 4.36,
+            "scale": 1.01
+        },
+        {
+            "prefab": "oak.2",
+            "x": -65.43,
+            "z": -87.3,
+            "angle": 0.87,
+            "scale": 0.92
+        },
+        {
+            "prefab": "pine.0",
+            "x": -91.4,
+            "z": -80.57,
+            "angle": 4.71,
+            "scale": 1.16
+        },
+        {
+            "prefab": "oak.2",
+            "x": -84.71,
+            "z": -86.8,
+            "angle": 1.2,
+            "scale": 1.16
+        },
+        {
+            "prefab": "pine.7",
+            "x": -74.66,
+            "z": -78.07,
+            "angle": 0.63,
+            "scale": 0.93
+        },
+        {
+            "prefab": "oak.6",
+            "x": -85.82,
+            "z": -62.31,
+            "angle": 4.42,
+            "scale": 0.92
+        },
+        {
+            "prefab": "pine.2",
+            "x": -83.56,
+            "z": -79.98,
+            "angle": 5.43,
+            "scale": 1.13
+        },
+        {
+            "prefab": "oak.7",
+            "x": -85.41,
+            "z": -89.33,
+            "angle": 0.26,
+            "scale": 1.18
+        },
+        {
+            "prefab": "pine.2",
+            "x": -75.02,
+            "z": -88.07,
+            "angle": 2.03,
+            "scale": 1.03
+        },
+        {
+            "prefab": "pine.7",
+            "x": -70.78,
+            "z": -70.23,
+            "angle": 0.65,
+            "scale": 1.06
+        },
+        {
+            "prefab": "pine.4",
+            "x": -67.11,
+            "z": -66.22,
+            "angle": 4.3,
+            "scale": 0.92
+        },
+        {
+            "prefab": "pine.6",
+            "x": -87.99,
+            "z": -64.06,
+            "angle": 4.51,
+            "scale": 1.11
+        },
+        {
+            "prefab": "pine.1",
+            "x": -91.48,
+            "z": -90.69,
+            "angle": 1.54,
+            "scale": 0.94
+        },
+        {
+            "prefab": "oak.7",
+            "x": -64.19,
+            "z": -82.29,
+            "angle": 0.14,
+            "scale": 1.02
+        },
+        {
+            "prefab": "oak.4",
+            "x": -71.29,
+            "z": -61.89,
+            "angle": 3.32,
+            "scale": 1.07
+        },
+        {
+            "prefab": "pine.1",
+            "x": -92.29,
+            "z": -42.62,
+            "angle": 3.64
+        },
+        {
+            "prefab": "pine.4",
+            "x": -89.72,
+            "z": -91.39,
+            "angle": 1.69
+        },
+        {
+            "prefab": "pine.1",
+            "x": -29.86,
+            "z": -67.99,
+            "angle": 5.66
+        },
+        {
+            "prefab": "pine.0",
+            "x": -37.11,
+            "z": -89.57,
+            "angle": 1.75
+        },
+        {
+            "prefab": "pine.6",
+            "x": -79.39,
+            "z": 46.43,
+            "angle": 0.74
+        },
+        {
+            "prefab": "pine.1",
+            "x": 12.99,
+            "z": -63.78,
+            "angle": 1.1
+        },
+        {
+            "prefab": "pine.7",
+            "x": 36.28,
+            "z": -78.48,
+            "angle": 6.16
+        },
+        {
+            "prefab": "pine.7",
+            "x": -74.43,
+            "z": 91.5,
+            "angle": 5.99
+        },
+        {
+            "prefab": "pine.3",
+            "x": 66.3,
+            "z": -75.92,
+            "angle": 3.41
+        },
+        {
+            "prefab": "pine.5",
+            "x": 87.53,
+            "z": -92.12,
+            "angle": 2.66
+        },
+        {
+            "prefab": "pine.7",
+            "x": 9.48,
+            "z": 58.38,
+            "angle": 1.38
+        },
+        {
+            "prefab": "pine.6",
+            "x": 71.11,
+            "z": 91.57,
+            "angle": 4.96
+        },
+        {
+            "prefab": "pine.7",
+            "x": -69.79,
+            "z": -6.24,
+            "angle": 5.43
+        },
+        {
+            "prefab": "pine.6",
+            "x": -34.95,
+            "z": 60.07,
+            "angle": 2.85
+        },
+        {
+            "prefab": "oak.1",
+            "x": 46.95,
+            "z": 35.28,
+            "angle": 6.25
+        },
+        {
+            "prefab": "oak.4",
+            "x": -17.15,
+            "z": 78.56,
+            "angle": 6.11
+        },
+        {
+            "prefab": "oak.7",
+            "x": -73.56,
+            "z": -68.38,
+            "angle": 5.11
+        },
+        {
+            "prefab": "oak.4",
+            "x": 18.41,
+            "z": -75.46,
+            "angle": 0.19
+        },
+        {
+            "prefab": "oak.4",
+            "x": 87.13,
+            "z": -42.86,
+            "angle": 2.29
+        },
+        {
+            "prefab": "oak.7",
+            "x": 3.45,
+            "z": 60.3,
+            "angle": 4.94
+        },
+        {
+            "prefab": "oak.0",
+            "x": 46.54,
+            "z": -75.16,
+            "angle": 2.48
+        },
+        {
+            "prefab": "oak.0",
+            "x": 47.12,
+            "z": -81.3,
+            "angle": 1.03
+        },
+        {
+            "prefab": "oak.5",
+            "x": -16.79,
+            "z": 73.61,
+            "angle": 4.34
+        },
+        {
+            "prefab": "oak.6",
+            "x": -79.29,
+            "z": -3.56,
+            "angle": 0.36
+        },
+        {
+            "prefab": "oak.5",
+            "x": 37.69,
+            "z": -66.1,
+            "angle": 2.18
+        },
+        {
+            "prefab": "oak.5",
+            "x": -71.92,
+            "z": -26.35,
+            "angle": 5.88
+        },
+        {
+            "prefab": "bush.1",
+            "x": -63.71,
+            "z": 48.47,
+            "angle": 5.84
+        },
+        {
+            "prefab": "bush.0",
+            "x": -7.97,
+            "z": -78.37,
+            "angle": 5.68
+        },
+        {
+            "prefab": "bush.0",
+            "x": 78.91,
+            "z": 91.93,
+            "angle": 6.07
+        },
+        {
+            "prefab": "bush.7",
+            "x": -64.6,
+            "z": -16.76,
+            "angle": 4.59
+        },
+        {
+            "prefab": "bush.5",
+            "x": 47.92,
+            "z": 28.0,
+            "angle": 3.89
+        },
+        {
+            "prefab": "bush.3",
+            "x": -85.51,
+            "z": -72.95,
+            "angle": 0.73
+        },
+        {
+            "prefab": "bush.6",
+            "x": 43.46,
+            "z": -74.5,
+            "angle": 2.14
+        },
+        {
+            "prefab": "bush.4",
+            "x": 6.55,
+            "z": -68.76,
+            "angle": 3.97
+        },
+        {
+            "prefab": "bush.2",
+            "x": 43.25,
+            "z": -74.44,
+            "angle": 1.67
+        },
+        {
+            "prefab": "bush.4",
+            "x": -62.04,
+            "z": -10.47,
+            "angle": 4.7
+        },
+        {
+            "prefab": "bush.0",
+            "x": -67.41,
+            "z": -1.46,
+            "angle": 4.97
+        },
+        {
+            "prefab": "bush.7",
+            "x": 44.03,
+            "z": -36.55,
+            "angle": 1.59
+        },
+        {
+            "prefab": "bush.5",
+            "x": -73.43,
+            "z": 51.08,
+            "angle": 4.21
+        },
+        {
+            "prefab": "bush.1",
+            "x": -12.07,
+            "z": -90.15,
+            "angle": 4.83
+        },
+        {
+            "prefab": "bush.1",
+            "x": -90.12,
+            "z": 59.25,
+            "angle": 2.23
+        },
+        {
+            "prefab": "bush.2",
+            "x": -31.73,
+            "z": -73.5,
+            "angle": 0.43
+        },
+        {
+            "prefab": "bush.5",
+            "x": -4.73,
+            "z": -76.68,
+            "angle": 5.61
+        },
+        {
+            "prefab": "bush.5",
+            "x": 89.2,
+            "z": 83.15,
+            "angle": 2.23
+        },
+        {
+            "prefab": "bush.1",
+            "x": 43.75,
+            "z": 74.18,
+            "angle": 5.77
+        },
+        {
+            "prefab": "bush.4",
+            "x": -85.49,
+            "z": 80.81,
+            "angle": 4.14
+        },
+        {
+            "prefab": "bush.7",
+            "x": 90.21,
+            "z": 79.86,
+            "angle": 2.52
+        },
+        {
+            "prefab": "bush.5",
+            "x": 47.29,
+            "z": 43.3,
+            "angle": 3.91
+        },
+        {
+            "prefab": "rock.7",
+            "x": -40.36,
+            "z": 58.05,
+            "angle": 3.36
+        },
+        {
+            "prefab": "rock.5",
+            "x": -14.16,
+            "z": 85.12,
+            "angle": 4.34
+        },
+        {
+            "prefab": "rock.0",
+            "x": -42.64,
+            "z": 63.79,
+            "angle": 3.88
+        },
+        {
+            "prefab": "rock.0",
+            "x": -20.48,
+            "z": -75.6,
+            "angle": 3.0
+        },
+        {
+            "prefab": "rock.2",
+            "x": 76.72,
+            "z": -65.74,
+            "angle": 3.42
+        },
+        {
+            "prefab": "rock.0",
+            "x": -92.0,
+            "z": -22.07,
+            "angle": 2.56
+        },
+        {
+            "prefab": "rock.3",
+            "x": 84.01,
+            "z": -47.82,
+            "angle": 3.7
+        },
+        {
+            "prefab": "rock.2",
+            "x": -86.22,
+            "z": -8.69,
+            "angle": 2.98
+        },
+        {
+            "prefab": "rock.3",
+            "x": 40.57,
+            "z": 88.63,
+            "angle": 3.47
+        },
+        {
+            "prefab": "rock.3",
+            "x": -82.45,
+            "z": -65.98,
+            "angle": 0.47
+        },
+        {
+            "prefab": "rock.4",
+            "x": -77.21,
+            "z": -32.64,
+            "angle": 1.91
+        },
+        {
+            "prefab": "rock.2",
+            "x": -92.71,
+            "z": -57.8,
+            "angle": 0.44
+        },
+        {
+            "prefab": "weeds.5",
+            "x": 44.22,
+            "z": -79.58,
+            "angle": 5.36
+        },
+        {
+            "prefab": "weeds.5",
+            "x": -77.15,
+            "z": -72.17,
+            "angle": 0.11
+        },
+        {
+            "prefab": "weeds.5",
+            "x": -86.52,
+            "z": 63.03,
+            "angle": 0.57
+        },
+        {
+            "prefab": "weeds.4",
+            "x": 44.2,
+            "z": 67.93,
+            "angle": 3.81
+        },
+        {
+            "prefab": "weeds.6",
+            "x": -80.51,
+            "z": 81.43,
+            "angle": 3.25
+        },
+        {
+            "prefab": "weeds.4",
+            "x": 92.43,
+            "z": -19.72,
+            "angle": 1.75
+        },
+        {
+            "prefab": "weeds.4",
+            "x": 19.87,
+            "z": -69.6,
+            "angle": 5.1
+        },
+        {
+            "prefab": "weeds.5",
+            "x": 86.05,
+            "z": -39.33,
+            "angle": 5.91
+        },
+        {
+            "prefab": "weeds.1",
+            "x": 31.06,
+            "z": 59.99,
+            "angle": 3.41
+        },
+        {
+            "prefab": "weeds.2",
+            "x": 35.93,
+            "z": -83.0,
+            "angle": 5.39
+        },
+        {
+            "prefab": "weeds.2",
+            "x": 12.21,
+            "z": -68.08,
+            "angle": 0.37
+        },
+        {
+            "prefab": "weeds.1",
+            "x": -49.72,
+            "z": -71.64,
+            "angle": 2.59
+        },
+        {
+            "prefab": "weeds.5",
+            "x": 81.09,
+            "z": 6.97,
+            "angle": 0.99
+        },
+        {
+            "prefab": "weeds.2",
+            "x": -31.63,
+            "z": 53.12,
+            "angle": 1.99
+        },
+        {
+            "prefab": "weeds.3",
+            "x": -19.95,
+            "z": -85.86,
+            "angle": 2.24
+        },
+        {
+            "prefab": "weeds.3",
+            "x": 85.66,
+            "z": 20.92,
+            "angle": 3.77
+        },
+        {
+            "prefab": "oak.2",
+            "x": -34,
+            "z": -42,
+            "angle": 0.7
+        },
+        {
+            "prefab": "oak.4",
+            "x": 20,
+            "z": 34,
+            "angle": 0.7
+        },
+        {
+            "prefab": "oak.0",
+            "x": -48,
+            "z": 36,
+            "angle": 0.7
+        },
+        {
+            "prefab": "oak.2",
+            "x": -50,
+            "z": -48,
+            "angle": 0.7
+        }
+    ],
     "people": {
         "seed": 4242,
         "residents": [
             {
                 "npc": "aldric",
                 "home": [
-                    -3,
-                    6
-                ],
-                "roam": 6
-            },
-            {
-                "npc": "mirelle",
-                "home": [
-                    5,
-                    -3
+                    14,
+                    -2
                 ],
                 "roam": 4
             },
             {
+                "npc": "mirelle",
+                "home": [
+                    -1,
+                    -16
+                ],
+                "roam": 3
+            },
+            {
                 "npc": "ilyra",
                 "home": [
-                    -8,
-                    -15
+                    -4,
+                    -32
                 ],
                 "roam": 4
             },
             {
                 "npc": "brom",
                 "home": [
-                    9,
-                    6
+                    27,
+                    -2
                 ],
                 "roam": 5
             },
             {
                 "npc": "grukk",
                 "home": [
-                    -14,
-                    6
+                    -4,
+                    40
                 ],
-                "roam": 7
+                "roam": 6
             },
             {
                 "npc": "pip",
                 "home": [
-                    11,
-                    -8
+                    -6,
+                    -24
                 ],
-                "roam": 7
+                "roam": 5
             },
             {
                 "npc": "osric",
                 "home": [
-                    -2,
-                    -10
+                    -8,
+                    -2
                 ],
                 "roam": 6
             }
         ],
         "crowd": {
-            "count": 7,
+            "count": 8,
             "centre": [
-                0,
-                0
+                -4,
+                -6
             ],
-            "radius": 11,
+            "radius": 12,
             "startAngle": 0.3,
-            "roam": 9,
+            "roam": 10,
             "lines": "villager",
             "archetypes": [
                 null,
@@ -147,1851 +1405,5 @@
                 "villager"
             ]
         }
-    },
-    "props": [
-        {
-            "object": "well",
-            "x": 0,
-            "z": 0,
-            "angle": 0
-        },
-        {
-            "object": "stocks",
-            "x": 3.6,
-            "z": -3.4,
-            "angle": 0.5
-        },
-        {
-            "object": "lampPost",
-            "x": 6.079003,
-            "z": 2.570161,
-            "angle": -0.4
-        },
-        {
-            "object": "lampPost",
-            "x": -2.443193,
-            "z": 6.131134,
-            "angle": -1.95
-        },
-        {
-            "object": "lampPost",
-            "x": -6.05718,
-            "z": -2.621178,
-            "angle": -3.55
-        },
-        {
-            "object": "lampPost",
-            "x": 2.494653,
-            "z": -6.110377,
-            "angle": -5.1
-        },
-        {
-            "prefab": "house.inn",
-            "x": 8.446144,
-            "z": -8.524239,
-            "angle": -0.780796
-        },
-        {
-            "object": "barrel",
-            "x": 5.107329,
-            "z": -7.882119,
-            "angle": 0.217838
-        },
-        {
-            "prefab": "house.thatch",
-            "x": -9.165782,
-            "z": -7.74522,
-            "angle": 0.869204
-        },
-        {
-            "object": "barrel",
-            "x": -8.261505,
-            "z": -4.467678,
-            "angle": 0.613124
-        },
-        {
-            "prefab": "house.slate",
-            "x": -6.866575,
-            "z": 9.841247,
-            "angle": 2.532389
-        },
-        {
-            "object": "barrel",
-            "x": -3.686437,
-            "z": 8.638449,
-            "angle": 0.888306
-        },
-        {
-            "prefab": "house.croft",
-            "x": 6.88224,
-            "z": 9.830299,
-            "angle": -2.530796
-        },
-        {
-            "object": "barrel",
-            "x": 6.845533,
-            "z": 6.430497,
-            "angle": 0.149675
-        },
-        {
-            "prefab": "cottage",
-            "x": 13.6,
-            "z": -2.4,
-            "angle": -1.396124
-        },
-        {
-            "prefab": "cottage",
-            "x": -13.2,
-            "z": -4.8,
-            "angle": 1.222025
-        },
-        {
-            "object": "cart",
-            "x": -4.4,
-            "z": 4.6,
-            "angle": 0.7
-        },
-        {
-            "object": "sacks",
-            "x": -6.2,
-            "z": 3.2,
-            "angle": 0.4
-        },
-        {
-            "object": "crateLarge",
-            "x": 5.2,
-            "z": -6.8,
-            "angle": 0.54647
-        },
-        {
-            "object": "crateSmall",
-            "x": 5.9,
-            "z": -6.2,
-            "angle": 0.954752
-        },
-        {
-            "object": "crate",
-            "x": -7.2,
-            "z": -3.2,
-            "angle": 0.375243
-        },
-        {
-            "object": "crateSmall",
-            "x": -7.6,
-            "z": -2.5,
-            "angle": 0.009588
-        },
-        {
-            "object": "signpost",
-            "x": -14.5,
-            "z": 3.6,
-            "angle": 0.3
-        },
-        {
-            "prefab": "gibbet",
-            "x": -25,
-            "z": 7.5,
-            "angle": 1.2
-        },
-        {
-            "run": "fence",
-            "points": [
-                [
-                    -18,
-                    12
-                ],
-                [
-                    -12,
-                    18
-                ],
-                [
-                    -6,
-                    20
-                ],
-                [
-                    -2,
-                    24
-                ]
-            ]
-        },
-        {
-            "prefab": "chapel",
-            "x": -9,
-            "z": -22,
-            "angle": 0,
-            "age": 60
-        },
-        {
-            "prefab": "grave.0",
-            "x": 4.508402,
-            "z": -17.890635,
-            "angle": 0.033527
-        },
-        {
-            "prefab": "grave.1",
-            "x": 6.170166,
-            "z": -17.997892,
-            "angle": 0.018679
-        },
-        {
-            "prefab": "grave.2",
-            "x": 3.056335,
-            "z": -20.554986,
-            "angle": 0.116987
-        },
-        {
-            "prefab": "grave.3",
-            "x": 4.600701,
-            "z": -20.329167,
-            "angle": 0.024145
-        },
-        {
-            "prefab": "grave.4",
-            "x": 6.327534,
-            "z": -20.250653,
-            "angle": -0.019715
-        },
-        {
-            "prefab": "grave.5",
-            "x": 1.41528,
-            "z": -22.677695,
-            "angle": -0.132499
-        },
-        {
-            "prefab": "grave.6",
-            "x": 3.140249,
-            "z": -22.672812,
-            "angle": -0.122273
-        },
-        {
-            "run": "fence",
-            "points": [
-                [
-                    0,
-                    -15.5
-                ],
-                [
-                    8.5,
-                    -15.5
-                ],
-                [
-                    8.5,
-                    -25.5
-                ],
-                [
-                    0,
-                    -25.5
-                ]
-            ]
-        },
-        {
-            "prefab": "deadTree.0",
-            "x": 7,
-            "z": -27.5,
-            "angle": 1.73559,
-            "scale": 1.2
-        },
-        {
-            "prefab": "pine.0",
-            "x": -18.424598,
-            "z": -21.816024,
-            "angle": 0.124501,
-            "scale": 1.165508
-        },
-        {
-            "prefab": "pine.1",
-            "x": -18.925474,
-            "z": -26.65534,
-            "angle": 1.231546,
-            "scale": 0.826927
-        },
-        {
-            "prefab": "deadTree.1",
-            "x": -36.70714,
-            "z": -32.743962,
-            "angle": 3.021007,
-            "scale": 0.993943
-        },
-        {
-            "prefab": "deadTree.2",
-            "x": -15.839553,
-            "z": -16.820146,
-            "angle": 2.072091,
-            "scale": 1.225188
-        },
-        {
-            "prefab": "pine.2",
-            "x": -31.072886,
-            "z": -26.70302,
-            "angle": 0.589233,
-            "scale": 0.925142
-        },
-        {
-            "prefab": "pine.3",
-            "x": 30.894018,
-            "z": -19.639008,
-            "angle": 0.271163,
-            "scale": 1.016267
-        },
-        {
-            "prefab": "pine.4",
-            "x": -18.034186,
-            "z": -32.273071,
-            "angle": 0.530718,
-            "scale": 0.866248
-        },
-        {
-            "prefab": "oak.0",
-            "x": 24.976827,
-            "z": -19.866217,
-            "angle": 0.813187,
-            "scale": 1.208389
-        },
-        {
-            "prefab": "deadTree.3",
-            "x": 34.673518,
-            "z": -38.793037,
-            "angle": 0.830597,
-            "scale": 0.812356
-        },
-        {
-            "prefab": "oak.1",
-            "x": -12.872362,
-            "z": -32.125472,
-            "angle": 0.726801,
-            "scale": 1.217175
-        },
-        {
-            "prefab": "pine.5",
-            "x": -20.736771,
-            "z": -18.963395,
-            "angle": 0.857765,
-            "scale": 1.091009
-        },
-        {
-            "prefab": "pine.6",
-            "x": 38.648101,
-            "z": -34.292467,
-            "angle": 1.218583,
-            "scale": 1.168921
-        },
-        {
-            "prefab": "pine.7",
-            "x": 32.31567,
-            "z": -32.307578,
-            "angle": 1.03782,
-            "scale": 1.144969
-        },
-        {
-            "prefab": "deadTree.4",
-            "x": -24.464632,
-            "z": -38.643233,
-            "angle": 2.73144,
-            "scale": 1.222687
-        },
-        {
-            "prefab": "pine.0",
-            "x": -42.85899,
-            "z": -43.251408,
-            "angle": 1.124923,
-            "scale": 0.860016
-        },
-        {
-            "prefab": "pine.1",
-            "x": 22.133773,
-            "z": -36.988049,
-            "angle": 1.052034,
-            "scale": 1.045544
-        },
-        {
-            "prefab": "pine.2",
-            "x": 34.782357,
-            "z": -17.559789,
-            "angle": 1.255505,
-            "scale": 1.292345
-        },
-        {
-            "prefab": "deadTree.5",
-            "x": 25.196092,
-            "z": 41.284308,
-            "angle": 1.773997,
-            "scale": 1.034702
-        },
-        {
-            "prefab": "pine.3",
-            "x": -31.201584,
-            "z": -14.649321,
-            "angle": 0.106666,
-            "scale": 0.845023
-        },
-        {
-            "prefab": "oak.2",
-            "x": 28.57578,
-            "z": -29.32425,
-            "angle": 0.986707,
-            "scale": 1.017344
-        },
-        {
-            "prefab": "pine.4",
-            "x": 17.355479,
-            "z": 43.084846,
-            "angle": 0.770092,
-            "scale": 1.037389
-        },
-        {
-            "prefab": "pine.5",
-            "x": 34.471542,
-            "z": -30.973027,
-            "angle": 1.237208,
-            "scale": 1.19869
-        },
-        {
-            "prefab": "pine.6",
-            "x": 40.906177,
-            "z": -30.212208,
-            "angle": 0.416384,
-            "scale": 0.889837
-        },
-        {
-            "prefab": "pine.7",
-            "x": 22.265255,
-            "z": -34.65808,
-            "angle": 0.657952,
-            "scale": 0.818282
-        },
-        {
-            "prefab": "oak.3",
-            "x": -24.607317,
-            "z": -19.757649,
-            "angle": 1.173239,
-            "scale": 0.889418
-        },
-        {
-            "prefab": "pine.0",
-            "x": 27.491358,
-            "z": 22.470953,
-            "angle": 0.135185,
-            "scale": 1.157866
-        },
-        {
-            "prefab": "pine.1",
-            "x": -19.948531,
-            "z": -33.965268,
-            "angle": 0.275523,
-            "scale": 0.991824
-        },
-        {
-            "prefab": "pine.2",
-            "x": 20.067144,
-            "z": -33.577481,
-            "angle": 1.261802,
-            "scale": 0.843394
-        },
-        {
-            "prefab": "pine.3",
-            "x": -20.911807,
-            "z": 38.728659,
-            "angle": 0.804753,
-            "scale": 0.933862
-        },
-        {
-            "prefab": "deadTree.6",
-            "x": 18.093357,
-            "z": 39.102063,
-            "angle": 1.217052,
-            "scale": 1.03164
-        },
-        {
-            "prefab": "deadTree.7",
-            "x": -32.285004,
-            "z": 31.901646,
-            "angle": 2.027634,
-            "scale": 0.920138
-        },
-        {
-            "prefab": "pine.4",
-            "x": -28.608886,
-            "z": -18.554512,
-            "angle": 0.103801,
-            "scale": 1.229994
-        },
-        {
-            "prefab": "pine.5",
-            "x": 22.153185,
-            "z": -38.92133,
-            "angle": 1.420765,
-            "scale": 1.137699
-        },
-        {
-            "prefab": "pine.6",
-            "x": 32.524854,
-            "z": -27.86135,
-            "angle": 1.355094,
-            "scale": 1.284598
-        },
-        {
-            "prefab": "pine.7",
-            "x": 33.915327,
-            "z": 10.470886,
-            "angle": 1.295822,
-            "scale": 0.843116
-        },
-        {
-            "prefab": "pine.0",
-            "x": 28.978049,
-            "z": 34.390161,
-            "angle": 0.238653,
-            "scale": 1.01671
-        },
-        {
-            "prefab": "pine.1",
-            "x": -24.758158,
-            "z": -33.405774,
-            "angle": 1.459945,
-            "scale": 1.052628
-        },
-        {
-            "prefab": "deadTree.0",
-            "x": -36.073519,
-            "z": -19.700515,
-            "angle": 0.946573,
-            "scale": 1.010729
-        },
-        {
-            "prefab": "oak.4",
-            "x": 32.043431,
-            "z": -1.817932,
-            "angle": 0.606541,
-            "scale": 1.198328
-        },
-        {
-            "prefab": "pine.2",
-            "x": -39.59766,
-            "z": -17.565147,
-            "angle": 0.043014,
-            "scale": 1.251427
-        },
-        {
-            "prefab": "pine.3",
-            "x": -25.642028,
-            "z": -17.696823,
-            "angle": 0.53786,
-            "scale": 1.29664
-        },
-        {
-            "prefab": "pine.4",
-            "x": -18.733399,
-            "z": -38.83721,
-            "angle": 0.061185,
-            "scale": 1.155193
-        },
-        {
-            "prefab": "pine.5",
-            "x": -37.814097,
-            "z": -22.66855,
-            "angle": 0.270839,
-            "scale": 1.184543
-        },
-        {
-            "prefab": "pine.6",
-            "x": -13.894821,
-            "z": 37.074991,
-            "angle": 1.153103,
-            "scale": 1.034605
-        },
-        {
-            "prefab": "pine.7",
-            "x": -43.574861,
-            "z": 18.684595,
-            "angle": 0.54041,
-            "scale": 1.279771
-        },
-        {
-            "prefab": "deadTree.1",
-            "x": 22.673906,
-            "z": -21.136594,
-            "angle": 0.831214,
-            "scale": 1.009526
-        },
-        {
-            "prefab": "oak.5",
-            "x": 37.750717,
-            "z": 35.800855,
-            "angle": 0.668156,
-            "scale": 1.113081
-        },
-        {
-            "prefab": "pine.0",
-            "x": -31.202395,
-            "z": -22.847713,
-            "angle": 1.214898,
-            "scale": 0.930167
-        },
-        {
-            "prefab": "pine.1",
-            "x": -25.931774,
-            "z": -26.969472,
-            "angle": 1.07664,
-            "scale": 1.268308
-        },
-        {
-            "prefab": "pine.2",
-            "x": -34.492225,
-            "z": -13.164205,
-            "angle": 0.564178,
-            "scale": 0.900945
-        },
-        {
-            "prefab": "oak.6",
-            "x": 40.468083,
-            "z": -25.993428,
-            "angle": 1.533461,
-            "scale": 1.031439
-        },
-        {
-            "prefab": "oak.7",
-            "x": -27.755577,
-            "z": -27.848013,
-            "angle": 0.076069,
-            "scale": 1.032941
-        },
-        {
-            "prefab": "deadTree.2",
-            "x": 13.019813,
-            "z": 41.966337,
-            "angle": 1.149632,
-            "scale": 0.945451
-        },
-        {
-            "prefab": "oak.0",
-            "x": 43.349355,
-            "z": -40.405041,
-            "angle": 0.724454,
-            "scale": 0.997072
-        },
-        {
-            "prefab": "deadTree.3",
-            "x": 3.94948,
-            "z": -31.686311,
-            "angle": 1.720841,
-            "scale": 1.275632
-        },
-        {
-            "prefab": "oak.1",
-            "x": -36.096782,
-            "z": 33.155307,
-            "angle": 0.609887,
-            "scale": 0.902808
-        },
-        {
-            "prefab": "pine.3",
-            "x": 39.532399,
-            "z": -31.329226,
-            "angle": 1.530886,
-            "scale": 1.257193
-        },
-        {
-            "prefab": "pine.4",
-            "x": 24.380633,
-            "z": -17.432045,
-            "angle": 0.440679,
-            "scale": 1.022556
-        },
-        {
-            "prefab": "pine.5",
-            "x": -27.089892,
-            "z": -10.870547,
-            "angle": 1.553828,
-            "scale": 1.299593
-        },
-        {
-            "prefab": "pine.6",
-            "x": 6.421721,
-            "z": 40.512264,
-            "angle": 1.363585,
-            "scale": 1.073844
-        },
-        {
-            "prefab": "pine.7",
-            "x": 32.500026,
-            "z": 24.143417,
-            "angle": 0.621746,
-            "scale": 0.944794
-        },
-        {
-            "prefab": "pine.0",
-            "x": 12.483369,
-            "z": 38.044459,
-            "angle": 0.926655,
-            "scale": 1.230333
-        },
-        {
-            "prefab": "pine.1",
-            "x": -33.082867,
-            "z": -30.855483,
-            "angle": 0.81744,
-            "scale": 1.27068
-        },
-        {
-            "prefab": "pine.2",
-            "x": 30.049724,
-            "z": -32.736904,
-            "angle": 0.979953,
-            "scale": 1.148539
-        },
-        {
-            "prefab": "pine.3",
-            "x": 18.014697,
-            "z": -21.328365,
-            "angle": 0.118302,
-            "scale": 1.12774
-        },
-        {
-            "prefab": "deadTree.4",
-            "x": 20.241996,
-            "z": -28.948682,
-            "angle": 1.80873,
-            "scale": 0.96122
-        },
-        {
-            "prefab": "pine.4",
-            "x": 39.374819,
-            "z": 24.680359,
-            "angle": 0.121547,
-            "scale": 1.244915
-        },
-        {
-            "prefab": "pine.5",
-            "x": -0.473414,
-            "z": -40.472115,
-            "angle": 1.104826,
-            "scale": 1.082649
-        },
-        {
-            "prefab": "pine.6",
-            "x": 26.022055,
-            "z": -32.841132,
-            "angle": 1.003352,
-            "scale": 1.034814
-        },
-        {
-            "prefab": "oak.2",
-            "x": -39.614029,
-            "z": 8.93216,
-            "angle": 1.309564,
-            "scale": 0.826253
-        },
-        {
-            "prefab": "pine.7",
-            "x": -37.840982,
-            "z": 9.90695,
-            "angle": 0.110637,
-            "scale": 1.139926
-        },
-        {
-            "prefab": "oak.3",
-            "x": -35.720399,
-            "z": -35.418284,
-            "angle": 0.230736,
-            "scale": 0.822624
-        },
-        {
-            "prefab": "deadTree.5",
-            "x": -18.548134,
-            "z": -14.563562,
-            "angle": 2.736594,
-            "scale": 0.833165
-        },
-        {
-            "prefab": "pine.0",
-            "x": -12.294127,
-            "z": 22.106358,
-            "angle": 1.035969,
-            "scale": 0.863908
-        },
-        {
-            "prefab": "pine.1",
-            "x": -40.248376,
-            "z": -22.156947,
-            "angle": 0.054682,
-            "scale": 1.103013
-        },
-        {
-            "prefab": "pine.2",
-            "x": -29.43447,
-            "z": -30.310446,
-            "angle": 0.704636,
-            "scale": 1.062708
-        },
-        {
-            "prefab": "pine.3",
-            "x": 36.930342,
-            "z": -36.692081,
-            "angle": 0.125682,
-            "scale": 1.061175
-        },
-        {
-            "prefab": "deadTree.6",
-            "x": -38.549019,
-            "z": -5.73612,
-            "angle": 0.120231,
-            "scale": 0.817684
-        },
-        {
-            "prefab": "pine.4",
-            "x": -12.957548,
-            "z": 39.981497,
-            "angle": 0.112077,
-            "scale": 1.267262
-        },
-        {
-            "prefab": "pine.5",
-            "x": 27.277886,
-            "z": -40.31348,
-            "angle": 0.456579,
-            "scale": 1.059858
-        },
-        {
-            "prefab": "pine.6",
-            "x": -4.050058,
-            "z": 38.861211,
-            "angle": 1.546544,
-            "scale": 1.289572
-        },
-        {
-            "prefab": "pine.7",
-            "x": 40.084185,
-            "z": -27.912252,
-            "angle": 0.245596,
-            "scale": 1.020104
-        },
-        {
-            "prefab": "pine.0",
-            "x": -32.84436,
-            "z": -17.148041,
-            "angle": 1.030422,
-            "scale": 1.257602
-        },
-        {
-            "prefab": "pine.1",
-            "x": -30.278756,
-            "z": -20.769988,
-            "angle": 0.777073,
-            "scale": 1.057302
-        },
-        {
-            "prefab": "deadTree.7",
-            "x": 38.217464,
-            "z": -24.165686,
-            "angle": 0.320262,
-            "scale": 1.138706
-        },
-        {
-            "prefab": "pine.2",
-            "x": 31.999593,
-            "z": -42.791517,
-            "angle": 0.086843,
-            "scale": 1.006644
-        },
-        {
-            "prefab": "pine.3",
-            "x": 24.256445,
-            "z": 37.179029,
-            "angle": 1.077852,
-            "scale": 1.080661
-        },
-        {
-            "prefab": "deadTree.0",
-            "x": -22.297233,
-            "z": 10.702855,
-            "angle": 2.957716,
-            "scale": 0.879316
-        },
-        {
-            "prefab": "pine.4",
-            "x": 42.396571,
-            "z": 5.2463,
-            "angle": 0.781627,
-            "scale": 1.083702
-        },
-        {
-            "prefab": "pine.5",
-            "x": 34.305399,
-            "z": -34.238187,
-            "angle": 0.924971,
-            "scale": 1.003054
-        },
-        {
-            "prefab": "oak.4",
-            "x": -17.410543,
-            "z": -9.635342,
-            "angle": 1.327878,
-            "scale": 0.89446
-        },
-        {
-            "prefab": "pine.6",
-            "x": -22.450868,
-            "z": -4.285949,
-            "angle": 0.838963,
-            "scale": 1.123054
-        },
-        {
-            "prefab": "pine.7",
-            "x": -33.949948,
-            "z": -18.978107,
-            "angle": 0.172278,
-            "scale": 1.100868
-        },
-        {
-            "prefab": "deadTree.1",
-            "x": 6.007548,
-            "z": 42.380243,
-            "angle": 2.482894,
-            "scale": 0.863645
-        },
-        {
-            "prefab": "pine.0",
-            "x": -16.046351,
-            "z": -13.639893,
-            "angle": 0.42236,
-            "scale": 0.883217
-        },
-        {
-            "prefab": "pine.1",
-            "x": 23.409731,
-            "z": -22.805585,
-            "angle": 0.204827,
-            "scale": 0.90692
-        },
-        {
-            "prefab": "pine.2",
-            "x": 37.197421,
-            "z": 1.97197,
-            "angle": 0.230974,
-            "scale": 0.977526
-        },
-        {
-            "prefab": "pine.3",
-            "x": -33.260485,
-            "z": -36.069507,
-            "angle": 0.240781,
-            "scale": 0.928819
-        },
-        {
-            "prefab": "pine.4",
-            "x": 31.809735,
-            "z": 2.678314,
-            "angle": 0.958844,
-            "scale": 0.880063
-        },
-        {
-            "prefab": "bush.0",
-            "x": -34.239048,
-            "z": 12.223969,
-            "angle": 2.424983,
-            "scale": 1.240256
-        },
-        {
-            "prefab": "bush.1",
-            "x": 40.269069,
-            "z": 14.003862,
-            "angle": 2.523159,
-            "scale": 0.815504
-        },
-        {
-            "prefab": "rock.0",
-            "x": 24.60373,
-            "z": 42.646192,
-            "angle": 1.158078,
-            "scale": 1.397099
-        },
-        {
-            "prefab": "rock.1",
-            "x": 14.899439,
-            "z": -17.651911,
-            "angle": 2.510771,
-            "scale": 1.091205
-        },
-        {
-            "prefab": "bush.2",
-            "x": -4.060693,
-            "z": -17.958485,
-            "angle": 1.872262,
-            "scale": 1.220439
-        },
-        {
-            "prefab": "rock.2",
-            "x": -14.372654,
-            "z": -37.07451,
-            "angle": 2.40665,
-            "scale": 1.056275
-        },
-        {
-            "prefab": "rock.3",
-            "x": 39.818557,
-            "z": -13.199295,
-            "angle": 0.324008,
-            "scale": 1.33656
-        },
-        {
-            "prefab": "weeds.0",
-            "x": 5.095334,
-            "z": -12.623778,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.1",
-            "x": -22.611059,
-            "z": 12.811027,
-            "angle": 0
-        },
-        {
-            "prefab": "rock.4",
-            "x": 18.217443,
-            "z": 24.058725,
-            "angle": 0.106817,
-            "scale": 0.516908
-        },
-        {
-            "prefab": "weeds.2",
-            "x": -8.893042,
-            "z": 26.287217,
-            "angle": 0
-        },
-        {
-            "prefab": "rock.5",
-            "x": 3.46612,
-            "z": 37.104116,
-            "angle": 1.892274,
-            "scale": 1.023725
-        },
-        {
-            "prefab": "weeds.3",
-            "x": 39.374563,
-            "z": -18.425813,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.3",
-            "x": 21.184737,
-            "z": -24.803391,
-            "angle": 0.795579,
-            "scale": 0.830417
-        },
-        {
-            "prefab": "bush.4",
-            "x": 21.263803,
-            "z": 36.158591,
-            "angle": 2.223044,
-            "scale": 0.862219
-        },
-        {
-            "prefab": "weeds.4",
-            "x": -1.022419,
-            "z": 40.780328,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.5",
-            "x": -1.113439,
-            "z": 28.879569,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.6",
-            "x": 15.434682,
-            "z": 41.604372,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.7",
-            "x": 32.088444,
-            "z": 43.294228,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.5",
-            "x": -35.726923,
-            "z": 13.465381,
-            "angle": 1.857014,
-            "scale": 1.202908
-        },
-        {
-            "prefab": "rock.6",
-            "x": -10.757569,
-            "z": 36.609272,
-            "angle": 2.203307,
-            "scale": 0.935268
-        },
-        {
-            "prefab": "weeds.0",
-            "x": -3.874664,
-            "z": -29.352159,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.6",
-            "x": -13.392906,
-            "z": -39.390977,
-            "angle": 1.495005,
-            "scale": 1.280669
-        },
-        {
-            "prefab": "rock.7",
-            "x": 40.467412,
-            "z": -15.811531,
-            "angle": 0.509093,
-            "scale": 1.37612
-        },
-        {
-            "prefab": "bush.7",
-            "x": 43.719738,
-            "z": -9.419133,
-            "angle": 0.745517,
-            "scale": 0.840033
-        },
-        {
-            "prefab": "bush.0",
-            "x": 29.293634,
-            "z": 26.354301,
-            "angle": 2.734642,
-            "scale": 0.9112
-        },
-        {
-            "prefab": "rock.0",
-            "x": 16.667112,
-            "z": -16.439776,
-            "angle": 0.69011,
-            "scale": 0.544267
-        },
-        {
-            "prefab": "weeds.1",
-            "x": 35.834726,
-            "z": -19.594933,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.1",
-            "x": -33.716301,
-            "z": 38.395769,
-            "angle": 2.887524,
-            "scale": 1.099614
-        },
-        {
-            "prefab": "rock.1",
-            "x": -14.802115,
-            "z": 4.90109,
-            "angle": 2.579879,
-            "scale": 1.127186
-        },
-        {
-            "prefab": "bush.2",
-            "x": -20.473674,
-            "z": -20.395254,
-            "angle": 2.279744,
-            "scale": 0.92673
-        },
-        {
-            "prefab": "weeds.2",
-            "x": -31.976667,
-            "z": 28.777038,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.3",
-            "x": -36.388117,
-            "z": 27.395128,
-            "angle": 1.786849,
-            "scale": 1.047081
-        },
-        {
-            "prefab": "weeds.3",
-            "x": 42.646196,
-            "z": 20.129457,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.4",
-            "x": -37.230535,
-            "z": 37.602316,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.4",
-            "x": 39.913537,
-            "z": 11.953113,
-            "angle": 1.654827,
-            "scale": 0.800333
-        },
-        {
-            "prefab": "weeds.5",
-            "x": 31.878139,
-            "z": 0.3295,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.6",
-            "x": -20.185857,
-            "z": 28.540207,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.7",
-            "x": 35.901484,
-            "z": -5.588355,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.5",
-            "x": -30.449459,
-            "z": 10.159831,
-            "angle": 2.463397,
-            "scale": 1.006827
-        },
-        {
-            "prefab": "bush.6",
-            "x": 33.035397,
-            "z": -43.798355,
-            "angle": 0.255928,
-            "scale": 0.82513
-        },
-        {
-            "prefab": "bush.7",
-            "x": -11.611512,
-            "z": 41.523546,
-            "angle": 0.297265,
-            "scale": 1.16793
-        },
-        {
-            "prefab": "rock.2",
-            "x": 8.570618,
-            "z": -38.61727,
-            "angle": 2.41012,
-            "scale": 0.957554
-        },
-        {
-            "prefab": "weeds.0",
-            "x": -25.807892,
-            "z": -0.638684,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.0",
-            "x": -8.294124,
-            "z": 2.944532,
-            "angle": 0.900745,
-            "scale": 1.043314
-        },
-        {
-            "prefab": "weeds.1",
-            "x": 40.043108,
-            "z": -20.57992,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.2",
-            "x": 43.045538,
-            "z": 41.814036,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.3",
-            "x": -19.764541,
-            "z": 36.498451,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.1",
-            "x": 24.999357,
-            "z": -39.70911,
-            "angle": 2.800653,
-            "scale": 1.256299
-        },
-        {
-            "prefab": "bush.2",
-            "x": 26.697041,
-            "z": 36.034912,
-            "angle": 1.452471,
-            "scale": 0.990689
-        },
-        {
-            "prefab": "bush.3",
-            "x": 16.393988,
-            "z": 37.31835,
-            "angle": 0.265825,
-            "scale": 1.153643
-        },
-        {
-            "prefab": "weeds.4",
-            "x": -12.232627,
-            "z": -36.302516,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.4",
-            "x": 25.17624,
-            "z": -5.955664,
-            "angle": 1.301577,
-            "scale": 1.200935
-        },
-        {
-            "prefab": "bush.5",
-            "x": -21.24202,
-            "z": -12.074604,
-            "angle": 2.494149,
-            "scale": 0.983658
-        },
-        {
-            "prefab": "bush.6",
-            "x": -21.380421,
-            "z": 11.854399,
-            "angle": 0.371791,
-            "scale": 1.198997
-        },
-        {
-            "prefab": "weeds.5",
-            "x": 19.757346,
-            "z": 5.576106,
-            "angle": 0
-        },
-        {
-            "prefab": "rock.3",
-            "x": 26.74167,
-            "z": 9.029199,
-            "angle": 0.084618,
-            "scale": 1.336448
-        },
-        {
-            "prefab": "bush.7",
-            "x": 34.78991,
-            "z": -32.78025,
-            "angle": 2.641521,
-            "scale": 0.919636
-        },
-        {
-            "prefab": "rock.4",
-            "x": 29.697218,
-            "z": -17.125294,
-            "angle": 2.826569,
-            "scale": 0.875274
-        },
-        {
-            "prefab": "bush.0",
-            "x": -2.948666,
-            "z": 30.019416,
-            "angle": 0.046727,
-            "scale": 1.286889
-        },
-        {
-            "prefab": "weeds.6",
-            "x": -0.963347,
-            "z": 25.637313,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.7",
-            "x": -17.59056,
-            "z": -43.490363,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.0",
-            "x": 41.685768,
-            "z": -0.731603,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.1",
-            "x": -17.949127,
-            "z": 33.691643,
-            "angle": 1.67182,
-            "scale": 0.906033
-        },
-        {
-            "prefab": "rock.5",
-            "x": -12.03327,
-            "z": -37.56014,
-            "angle": 1.435764,
-            "scale": 1.262958
-        },
-        {
-            "prefab": "weeds.1",
-            "x": -42.7059,
-            "z": -29.589609,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.2",
-            "x": 33.201489,
-            "z": 16.441654,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.2",
-            "x": 39.445212,
-            "z": -37.666889,
-            "angle": 0.489313,
-            "scale": 0.96207
-        },
-        {
-            "prefab": "weeds.3",
-            "x": 27.019125,
-            "z": -27.321046,
-            "angle": 0
-        },
-        {
-            "prefab": "rock.6",
-            "x": -10.294278,
-            "z": -35.481193,
-            "angle": 0.474704,
-            "scale": 0.576129
-        },
-        {
-            "prefab": "weeds.4",
-            "x": -16.739658,
-            "z": 6.230482,
-            "angle": 0
-        },
-        {
-            "prefab": "rock.7",
-            "x": 17.686518,
-            "z": 9.343895,
-            "angle": 1.212328,
-            "scale": 1.336214
-        },
-        {
-            "prefab": "bush.3",
-            "x": -8.809461,
-            "z": -30.553301,
-            "angle": 0.176843,
-            "scale": 0.800821
-        },
-        {
-            "prefab": "weeds.5",
-            "x": -22.340236,
-            "z": -8.578411,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.6",
-            "x": 19.608094,
-            "z": -30.500271,
-            "angle": 0
-        },
-        {
-            "prefab": "rock.0",
-            "x": 38.599833,
-            "z": 13.837549,
-            "angle": 1.179023,
-            "scale": 0.580844
-        },
-        {
-            "prefab": "weeds.7",
-            "x": -0.7053,
-            "z": 30.3695,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.0",
-            "x": 29.23086,
-            "z": -15.621312,
-            "angle": 0
-        },
-        {
-            "prefab": "rock.1",
-            "x": -28.133871,
-            "z": -38.498632,
-            "angle": 1.607672,
-            "scale": 0.732619
-        },
-        {
-            "prefab": "weeds.1",
-            "x": 41.690934,
-            "z": 8.577805,
-            "angle": 0
-        },
-        {
-            "prefab": "rock.2",
-            "x": -35.935853,
-            "z": -2.273241,
-            "angle": 0.943263,
-            "scale": 0.541661
-        },
-        {
-            "prefab": "weeds.2",
-            "x": -2.298973,
-            "z": 15.481352,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.4",
-            "x": -21.354431,
-            "z": 34.674256,
-            "angle": 2.548228,
-            "scale": 1.07933
-        },
-        {
-            "prefab": "weeds.3",
-            "x": 15.031752,
-            "z": -10.553066,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.5",
-            "x": 24.067122,
-            "z": 0.077404,
-            "angle": 1.511625,
-            "scale": 1.059082
-        },
-        {
-            "prefab": "weeds.4",
-            "x": 21.592702,
-            "z": 26.313887,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.5",
-            "x": 36.79274,
-            "z": -4.91829,
-            "angle": 0
-        },
-        {
-            "prefab": "rock.3",
-            "x": -14.069818,
-            "z": 24.040078,
-            "angle": 2.666234,
-            "scale": 0.986308
-        },
-        {
-            "prefab": "weeds.6",
-            "x": -24.290587,
-            "z": -26.910218,
-            "angle": 0
-        },
-        {
-            "prefab": "rock.4",
-            "x": 27.688705,
-            "z": -2.478113,
-            "angle": 0.493838,
-            "scale": 0.966089
-        },
-        {
-            "prefab": "bush.6",
-            "x": -38.423024,
-            "z": 2.476237,
-            "angle": 1.200479,
-            "scale": 1.158398
-        },
-        {
-            "prefab": "rock.5",
-            "x": -14.592468,
-            "z": 30.058067,
-            "angle": 0.195476,
-            "scale": 1.078209
-        },
-        {
-            "prefab": "bush.7",
-            "x": 8.711666,
-            "z": 20.031647,
-            "angle": 0.182639,
-            "scale": 1.081299
-        },
-        {
-            "prefab": "bush.0",
-            "x": 12.831688,
-            "z": 21.295812,
-            "angle": 0.858518,
-            "scale": 1.044849
-        },
-        {
-            "prefab": "weeds.7",
-            "x": -41.476633,
-            "z": 42.430158,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.1",
-            "x": -24.323549,
-            "z": -30.550708,
-            "angle": 1.7163,
-            "scale": 1.108612
-        },
-        {
-            "prefab": "weeds.0",
-            "x": -6.262026,
-            "z": 32.783414,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.2",
-            "x": -21.493037,
-            "z": -27.234829,
-            "angle": 1.429991,
-            "scale": 0.820762
-        },
-        {
-            "prefab": "rock.6",
-            "x": 10.256895,
-            "z": 42.243618,
-            "angle": 0.804824,
-            "scale": 1.153752
-        },
-        {
-            "prefab": "weeds.1",
-            "x": -41.838283,
-            "z": -26.848286,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.2",
-            "x": 36.677011,
-            "z": 14.755718,
-            "angle": 0
-        },
-        {
-            "prefab": "rock.7",
-            "x": -12.650622,
-            "z": 11.368945,
-            "angle": 1.246532,
-            "scale": 1.163369
-        },
-        {
-            "prefab": "rock.0",
-            "x": -8.496054,
-            "z": 31.733991,
-            "angle": 2.517646,
-            "scale": 0.708468
-        },
-        {
-            "prefab": "bush.3",
-            "x": -23.309784,
-            "z": 31.927965,
-            "angle": 0.064924,
-            "scale": 1.218579
-        },
-        {
-            "prefab": "rock.1",
-            "x": -40.197871,
-            "z": 37.552383,
-            "angle": 0.07272,
-            "scale": 1.071895
-        },
-        {
-            "prefab": "rock.2",
-            "x": -6.977601,
-            "z": -15.23699,
-            "angle": 1.779893,
-            "scale": 1.093353
-        },
-        {
-            "prefab": "weeds.3",
-            "x": 24.381354,
-            "z": 28.643958,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.4",
-            "x": 41.624046,
-            "z": -24.969734,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.4",
-            "x": -5.264982,
-            "z": -28.751758,
-            "angle": 2.125815,
-            "scale": 0.804483
-        },
-        {
-            "prefab": "weeds.5",
-            "x": 8.240731,
-            "z": 35.312864,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.6",
-            "x": 41.837077,
-            "z": 38.461262,
-            "angle": 0
-        },
-        {
-            "prefab": "rock.3",
-            "x": 38.497157,
-            "z": 8.892834,
-            "angle": 0.259851,
-            "scale": 1.195683
-        },
-        {
-            "prefab": "weeds.7",
-            "x": -27.052649,
-            "z": -15.165498,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.0",
-            "x": -33.004652,
-            "z": 25.984599,
-            "angle": 0
-        },
-        {
-            "prefab": "bush.5",
-            "x": -14.401364,
-            "z": -31.74,
-            "angle": 2.822037,
-            "scale": 0.956955
-        },
-        {
-            "prefab": "weeds.1",
-            "x": -32.266712,
-            "z": 9.19223,
-            "angle": 0
-        },
-        {
-            "prefab": "weeds.2",
-            "x": 6.787442,
-            "z": -36.67199,
-            "angle": 0
-        },
-        {
-            "object": "cross",
-            "x": -9,
-            "z": -19,
-            "on": "top"
-        },
-        {
-            "object": "banner",
-            "x": -7.666667,
-            "z": -16.5
-        },
-        {
-            "object": "banner",
-            "x": -10.333333,
-            "z": -16.5,
-            "angle": 3.141592653589793
-        },
-        {
-            "object": "altar",
-            "x": -9,
-            "z": -26
-        },
-        {
-            "object": "candelabra",
-            "x": -7.666667,
-            "z": -26
-        },
-        {
-            "object": "candelabra",
-            "x": -10.333333,
-            "z": -26
-        },
-        {
-            "object": "lectern",
-            "x": -7,
-            "z": -25
-        },
-        {
-            "object": "runner",
-            "x": -9,
-            "z": -23.333333
-        },
-        {
-            "object": "runner",
-            "x": -9,
-            "z": -20.666667
-        },
-        {
-            "object": "candelabra",
-            "x": -6.666667,
-            "z": -18.333333
-        },
-        {
-            "object": "candelabra",
-            "x": -11.333333,
-            "z": -18.333333
-        },
-        {
-            "object": "pew",
-            "x": -7.333333,
-            "z": -24
-        },
-        {
-            "object": "pew",
-            "x": -10.666667,
-            "z": -24
-        },
-        {
-            "object": "pew",
-            "x": -7.333333,
-            "z": -23
-        },
-        {
-            "object": "pew",
-            "x": -10.666667,
-            "z": -23
-        },
-        {
-            "object": "pew",
-            "x": -7.333333,
-            "z": -22
-        },
-        {
-            "object": "pew",
-            "x": -10.666667,
-            "z": -22
-        },
-        {
-            "object": "pew",
-            "x": -7.333333,
-            "z": -21
-        },
-        {
-            "object": "pew",
-            "x": -10.666667,
-            "z": -21
-        },
-        {
-            "object": "pew",
-            "x": -7.333333,
-            "z": -20
-        },
-        {
-            "object": "pew",
-            "x": -10.666667,
-            "z": -20
-        },
-        {
-            "object": "sconce",
-            "x": -6.5,
-            "z": -23.25
-        },
-        {
-            "object": "sconce",
-            "x": -11.5,
-            "z": -23.25,
-            "angle": 3.141592653589793
-        },
-        {
-            "object": "sconce",
-            "x": -6.5,
-            "z": -20.75
-        },
-        {
-            "object": "sconce",
-            "x": -11.5,
-            "z": -20.75,
-            "angle": 3.141592653589793
-        },
-        {
-            "object": "chandelier",
-            "x": -9,
-            "z": -23.333333,
-            "on": "ceiling"
-        },
-        {
-            "object": "chandelier",
-            "x": -9,
-            "z": -20.666667,
-            "on": "ceiling"
-        }
-    ]
+    }
 }

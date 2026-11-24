@@ -106,7 +106,7 @@ function frame(put, width, depth, base, height, hasBraces)
     put([0.14, height * 0.95, 0.12], [width / 2 - 0.55, base + height / 2, depth / 2 + 0.05], "timber", [0, 0, -0.55]);
 }
 
-function stepRoof(put, width, depth, base, roof, gable, inset)
+function stepRoof(put, width, depth, base, roof, gable, inset, centre = 0)
 {
     for(let step = 0; ; step++)
     {
@@ -114,9 +114,9 @@ function stepRoof(put, width, depth, base, roof, gable, inset)
 
         if(slabDepth <= 0.3) { break; }
 
-        put([width, 0.25, slabDepth], [0, base + step * 0.25 + 0.125, 0], roof);
+        put([width, 0.25, slabDepth], [0, base + step * 0.25 + 0.125, centre], roof);
 
-        if(gable && slabDepth - 1.0 > 0.2) { put([width - 0.8, 0.25, slabDepth - 1.0], [0, base + step * 0.25 + 0.125, 0], gable); }
+        if(gable && slabDepth - 1.0 > 0.2) { put([width - 0.8, 0.25, slabDepth - 1.0], [0, base + step * 0.25 + 0.125, centre], gable); }
     }
 }
 
@@ -156,12 +156,14 @@ export function chapel(builder, x, y, z, angle)
 {
     const put = placed(builder, x, y, z, angle);
 
-    put([6.4, 0.8, 9.4], [0, 0.1, 0], "darkStone");
-    put([6, 4.6, 9], [0, 2.8, 0], "darkStone");
+    put([6.4, 0.8, 11.4], [0, 0.1, -1], "darkStone");
+    put([6, 4.6, 11], [0, 2.8, -1], "darkStone");
+    put([4, 4.0, 3.2], [0, 2.5, -8.1], "darkStone");
+    put([4.4, 0.3, 3.6], [0, 4.65, -8.1], "slate");
 
     for(const side of [1, -1])
     {
-        for(const wz of [-2.5, 0, 2.5])
+        for(const wz of [-5, -2.5, 0, 2.5])
         {
             put([0.08, 1.8, 0.6], [side * 2.9, 2.8, wz], "glow");
             put([0.3, 5, 0.6], [side * 3.1, 2.6, wz + 1.25], "stone");
@@ -170,7 +172,7 @@ export function chapel(builder, x, y, z, angle)
 
     put([1.4, 2.6, 0.12], [0, 1.8, 4.52], { front: "oldPlanks", all: "timber" });
     put([2.0, 0.4, 0.4], [0, 3.3, 4.55], "stone");
-    stepRoof(put, 7.0, 9.8, 5.1, "slate", "darkStone", 0.26);
+    stepRoof(put, 7.0, 11.8, 5.1, "slate", "darkStone", 0.26, -1);
     put([2.4, 4.2, 2.4], [0, 7.4, 3.0], "darkStone");
     put([0.6, 0.9, 0.06], [0, 8.2, 4.22], "iron");
 
@@ -185,8 +187,9 @@ export function chapel(builder, x, y, z, angle)
     return {
         collider: { x, z, halfWidth: 3.3, halfDepth: 4.8, angle },
         lights: [local(x, y, z, angle, [0, 2.2, 5.4])],
-        rooms: [{ size: [5.4, 4.0, 8.4], at: [0, 2.6, 0] }],
+        rooms: [{ size: [5.4, 4.0, 10.4], at: [0, 2.6, -1] }, { size: [3.0, 3.0, 2.4], at: [0, 2.1, -8.2] }, { size: [1.0, 2.4, 0.8], at: [CUBE / 2, 1.8, -6.5] }],
         doors: [{ size: [1.4, 2.6, 0.8], at: [0, 1.9, 4.5] }],
+        objects: [{ object: "lockedDoor", at: [CUBE / 2, 2 * CUBE, -6.5], angle: 0 }],
     };
 }
 
@@ -318,6 +321,50 @@ export function landing(builder, x, y, z, angle)
     for(let step = 0; step < 9; step++) { cubes(put, [1, 0, 3 + step], [3, 9 - step, 4 + step], "stone"); }
 
     return { collider: { x, z, halfWidth: 1, halfDepth: 2.5, angle } };
+}
+
+// A stone deck 6 metres wide and 14 long along z, with parapets, its top at
+// the placement's height, on piers down to a riverbed.
+export function bridge(builder, x, y, z, angle)
+{
+    const put = placed(builder, x, y, z, angle);
+
+    cubes(put, [-9, -1, -21], [9, 0, 21], "stone");
+
+    for(const side of [-9, 8]) { cubes(put, [side, 0, -21], [side + 1, 2, 21], "stone"); }
+    for(const pier of [-11, 0, 11]) { cubes(put, [-8, -9, pier - 1], [8, -1, pier + 1], "stone"); }
+
+    return { collider: { x, z, halfWidth: 3, halfDepth: 7, angle } };
+}
+
+// A stone wall 2 cubes thick and 12 tall with battlements, along straight
+// lines between points in metres, each column standing on the ground under it.
+export function wall(builder, points, heightAt)
+{
+    const colliders = [];
+
+    for(let i = 0; i < points.length - 1; i++)
+    {
+        const [ax, az] = points[i].map((metres) => Math.round(metres / CUBE));
+        const [bx, bz] = points[i + 1].map((metres) => Math.round(metres / CUBE));
+        const steps = Math.max(Math.abs(bx - ax), Math.abs(bz - az));
+        const isAlongX = Math.abs(bx - ax) >= Math.abs(bz - az);
+
+        for(let step = 0; step <= steps; step++)
+        {
+            const x = Math.round(ax + ((bx - ax) * step) / steps);
+            const z = Math.round(az + ((bz - az) * step) / steps);
+            const ground = Math.round(heightAt((x + 0.5) * CUBE, (z + 0.5) * CUBE) / CUBE);
+            const height = step % 4 < 2 ? 13 : 12;
+            const size = isAlongX ? [CUBE, height * CUBE, 2 * CUBE] : [2 * CUBE, height * CUBE, CUBE];
+
+            block(builder, size, [(x + 0.5) * CUBE, (ground + height / 2 - 1) * CUBE, (z + 0.5) * CUBE], "stone");
+        }
+
+        colliders.push({ x: (ax + bx) / 2 * CUBE, z: (az + bz) / 2 * CUBE, radius: 0.5 });
+    }
+
+    return colliders;
 }
 
 export function fence(builder, points, heightAt)

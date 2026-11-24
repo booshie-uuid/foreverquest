@@ -32,17 +32,17 @@ describe("Zone cells", () =>
         }
     });
 
-    it("keeps the village square flat and dry, builds the well on it and floods the lake", () =>
+    it("keeps the village square flat and dry, builds the well on it and floods the river", () =>
     {
-        for(const [x, z] of [[0, 0], [5, 3], [-4, -5], [10, 2]]) { assert.equal(hearthmere.groundAt(x, z), 2 / 3, x + ", " + z); }
+        for(const [x, z] of [[-12, -14], [4, 2], [-10, 0], [6, -12]]) { assert.equal(hearthmere.groundAt(x, z), 2 / 3, x + ", " + z); }
 
-        const [column, row] = hearthmere.columnOf(0.85, 0);
-        const wellFoot = hearthmere.blockAt(column, hearthmere.cellY(hearthmere.groundAt(0.85, 0)), row);
+        const [column, row] = hearthmere.columnOf(-3, -6);
+        const wellFoot = hearthmere.blockAt(column, hearthmere.cellY(hearthmere.groundAt(-3, -6)), row);
 
         assert.ok(hearthmere.blocks.isSolid(wellFoot), "The well has no cube on the ground");
-        assert.ok(hearthmere.heightAt(0.85, 0) > hearthmere.groundAt(0.85, 0));
+        assert.ok(hearthmere.heightAt(-3, -6) > hearthmere.groundAt(-3, -6));
         assert.equal(hearthmere.isWater(0, 0), false);
-        assert.ok(hearthmere.isWater(22, 16));
+        assert.ok(hearthmere.isWater(54.6, -30), "The river is dry");
         assert.equal(hearthmere.blockAt(-1, 20, 0), BlockSet.AIR);
     });
 });
@@ -102,14 +102,18 @@ describe("Region files", () =>
 
 describe("Zone movement", () =>
 {
-    it("stops a move into the well, into the lake, and up two cubes", () =>
+    it("stops a move into the well, into the river, and up two cubes", () =>
     {
-        const intoWell = hearthmere.resolveMove({ x: 0, y: hearthmere.groundAt(0, 2), z: 2 }, { x: 0, z: 1 }, 0.35);
-        const shore = { x: 21, y: hearthmere.heightAt(21, 16), z: 16 };
-        const intoLake = hearthmere.resolveMove(shore, { x: 22, z: 16 }, 0.35);
+        const intoWell = hearthmere.resolveMove({ x: -4, y: hearthmere.groundAt(-4, -3.8), z: -3.8 }, { x: -4, z: -4.6 }, 0.35);
+        let shoreX = 40;
 
-        assert.deepEqual([intoWell.x, intoWell.z], [0, 2]);
-        assert.deepEqual([intoLake.x, intoLake.z], [21, 16]);
+        while(!hearthmere.isWater(shoreX + 1, -30)) { shoreX += 0.25; }
+
+        const shore = { x: shoreX, y: hearthmere.heightAt(shoreX, -30), z: -30 };
+        const intoRiver = hearthmere.resolveMove(shore, { x: shoreX + 3, z: -30 }, 0.35);
+
+        assert.deepEqual([intoWell.x, intoWell.z], [-4, -3.8]);
+        assert.equal(intoRiver.x, shoreX, "The move went into the river");
 
         for(let x = -40; x < 40; x++)
         {
@@ -146,13 +150,15 @@ describe("Zone movement", () =>
 
     it("names the placed object a cell belongs to, the smallest when boxes overlap", () =>
     {
-        const [column, row] = hearthmere.columnOf(8.45, -8.5);
-        const inn = hearthmere.objectAt(column, hearthmere.cellY(hearthmere.groundAt(8.45, -8.5)) + 4, row);
-        const [wellColumn, wellRow] = hearthmere.columnOf(0.85, 0);
-        const well = hearthmere.objectAt(wellColumn, hearthmere.cellY(hearthmere.groundAt(0.85, 0)) + 1, wellRow);
+        const named = (name) => hearthmere.objects.find((object) => object.name === name);
+        const [column, row] = hearthmere.columnOf(-12, -24);
+        const inn = hearthmere.objectAt(column, hearthmere.cellY(hearthmere.groundAt(-12, -24)) + 4, row);
+        const altar = named("object altar");
+        const inside = hearthmere.objectAt(altar.box[0], altar.box[1], altar.box[2]);
 
-        assert.deepEqual([inn?.prop, inn?.name, inn?.turns], [6, "house.inn", 0]);
-        assert.deepEqual([well?.prop, well?.name], [0, "object well"]);
+        assert.deepEqual([inn?.prop, inn?.name, inn?.turns], [named("inn").prop, "inn", 1]);
+        assert.deepEqual([inside?.prop, inside?.name], [altar.prop, "object altar"], "The chapel's box was chosen over the altar's");
+        assert.equal(named("chapel").prop, 0);
         assert.equal(hearthmere.objectAt(0, 0, 0), null);
     });
 
@@ -176,9 +182,9 @@ describe("Zone movement", () =>
 
     it("places entities on open ground beside the props", () =>
     {
-        const spot = hearthmere.openGround(0, 0, 0.35);
+        const spot = hearthmere.openGround(-4, -6, 0.35);
 
-        assert.ok(Math.hypot(spot.x, spot.z) > 1, JSON.stringify(spot));
+        assert.ok(Math.hypot(spot.x + 4, spot.z + 6) > 1, JSON.stringify(spot));
         assert.equal(spot.y, hearthmere.groundAt(spot.x, spot.z));
     });
 });
@@ -297,20 +303,21 @@ describe("Zone view", () =>
             return total + sum;
         }, 0);
 
-        assert.equal(view.terrainMeshes.length, 5 * 5);
-        assert.ok(area >= 96 * 96 - 1e-6, "The tops cover only " + area + " square metres");
+        assert.equal(view.terrainMeshes.length, 9 * 9);
+        assert.ok(area >= 192 * 192 - 1e-6, "The tops cover only " + area + " square metres");
         view.dispose();
     });
 
-    it("gives a character the light of the cell it stands in: full sky outside, less inside the inn, lamp light by a lit window", () =>
+    it("gives a character the light of the cell it stands in: full sky outside, less inside the inn, lamp light under a lantern", () =>
     {
         const view = new ZoneView(hearthmere, materials);
-        const street = view.lightAt({ x: 9.35, y: hearthmere.groundAt(9.35, -3.5), z: -3.5 });
-        const room = view.lightAt({ x: 8.45, y: hearthmere.groundAt(8.45, -8.5), z: -8.5 });
+        const street = view.lightAt({ x: -8, y: hearthmere.groundAt(-8, 0), z: 0 });
+        const lantern = hearthmere.objects.find((object) => object.object === "lantern" && Math.abs(object.x + 12) < 3 && Math.abs(object.z + 24) < 3 && object.y < 4);
+        const room = view.lightAt({ x: lantern.x, y: hearthmere.groundAt(lantern.x, lantern.z), z: lantern.z });
 
         assert.equal(street.sky, 15);
         assert.ok(room.sky < street.sky - 2, "The room is as bright as the street: " + JSON.stringify(room));
-        assert.ok(room.lamp > 0, "The inn's lit window does not reach its room");
+        assert.ok(room.lamp >= 4, "The inn's lantern does not light the floor under it: " + JSON.stringify(room));
         assert.deepEqual(view.lightAt({ x: 0, y: 40, z: 0 }), { sky: 15, lamp: 0 });
         view.dispose();
     });
@@ -339,7 +346,7 @@ describe("Zone view", () =>
             assert.equal(shader.uniforms.heightFog, materials.fog.heightFog);
         }
 
-        assert.deepEqual(materials.fog.heightFog.value.toArray().slice(0, 3), [0.5, 1.5, 0.03]);
+        assert.deepEqual(materials.fog.heightFog.value.toArray().slice(0, 3).map((value) => Math.round(value * 1e6) / 1e6), [0.8, 1.5, 0.02]);
         view.dispose();
         new ZoneView(testfield, materials).dispose();
         assert.equal(materials.fog.heightFog.value.z, 0, "A zone without height fog kept the last zone's");

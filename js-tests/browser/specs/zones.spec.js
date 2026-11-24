@@ -85,10 +85,10 @@ export const tests =
 
             assert.deepEqual(freed, { isDisposed: true, children: 0 });
             assert.equal(village.zone, "hearthmere");
-            assert.equal(village.npcs.length, 14);
-            assert.equal(village.plates, 15);
+            assert.equal(village.npcs.length, 15);
+            assert.equal(village.plates, 16);
             assert.equal(village.isInScene, true);
-            assert.deepEqual(village.player, { x: 1.6, z: 9.5 });
+            assert.deepEqual(village.player, { x: -4, z: 12 });
         },
     },
 ];

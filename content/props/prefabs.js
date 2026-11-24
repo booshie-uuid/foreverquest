@@ -56,6 +56,7 @@ export const PREFABS =
     chapel: (b) => Props.chapel(b, 0, 0, 0, 0),
     archway: (b) => Props.archway(b, 0, 0, 0, 0),
     landing: (b) => Props.landing(b, 0, 0, 0, 0),
+    bridge: (b) => Props.bridge(b, 0, 0, 0, 0),
     ...Buildings.PREFABS,
     pedestal,
 };
@@ -74,4 +75,5 @@ Object.entries(SPECIES).forEach(([species, build], index) =>
 export const RUNS =
 {
     fence: (b, points, heightAt) => Props.fence(b, points, heightAt),
+    wall: (b, points, heightAt) => Props.wall(b, points, heightAt),
 };

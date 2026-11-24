@@ -90,6 +90,24 @@ export const OBJECTS =
             }
         },
     },
+    lantern:
+    {
+        cells: [1, 2, 1],
+        lights: [[0, 0, 0]],
+        build(lantern)
+        {
+            lantern.box([3, 9, 3], [5, 16, 5], "iron");
+            lantern.box([1, 8, 1], [7, 9, 7], "iron");
+            lantern.box([2, 3, 2], [6, 8, 6], "window");
+
+            for(const x of [1, 6])
+            {
+                for(const z of [1, 6]) { lantern.box([x, 3, z], [x + 1, 8, z + 1], "iron"); }
+            }
+
+            lantern.box([1, 2, 1], [7, 3, 7], "iron");
+        },
+    },
     sconce:
     {
         cells: [1, 7, 1],
@@ -104,11 +122,11 @@ export const OBJECTS =
     },
     chandelier:
     {
-        cells: [4, 6, 4],
+        cells: [4, 5, 4],
         lights: [[3, 1, 2], [2, 1, 3], [0, 1, 2], [2, 1, 0]],
         build(chandelier)
         {
-            chandelier.box([15, 6, 15], [17, 48, 17], "iron");
+            chandelier.box([15, 6, 15], [17, 40, 17], "iron");
             Shapes.disc(chandelier, [16, 16], 12.6, [3, 4], "iron", 11.4);
             chandelier.box([4, 3, 15], [28, 4, 17], "iron");
             chandelier.box([15, 3, 4], [17, 4, 28], "iron");

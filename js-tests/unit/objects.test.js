@@ -132,8 +132,11 @@ describe("Objects in a zone", () =>
 
         view.update(0.016, { position: view.sky.position.clone() }, { x: 0, y: 1, z: 0 });
 
-        assert.equal(meshes.length, new Set(zone.objects.filter((entry) => entry.object).map((entry) => entry.object)).size);
-        assert.equal(named("barrel").count, 4);
+        const regionOf = (entry) => zone.regionOfColumn(entry.box[0], entry.box[2]);
+        const drawn = meshes.reduce((total, mesh) => total + mesh.count, 0);
+
+        assert.ok(meshes.every((mesh) => mesh.userData.entries.every((entry) => entry.object === mesh.userData.entries[0].object && regionOf(entry) === regionOf(mesh.userData.entries[0]))), "A mesh mixes kinds or regions");
+        assert.equal(drawn, zone.objects.filter((entry) => entry.object && view.objectGeometries.has(entry.object)).length);
         assert.equal(named("cart").geometry.getAttribute("light").getX(0), 1, "The cart under the open sky is not fully lit");
         view.dispose();
     });

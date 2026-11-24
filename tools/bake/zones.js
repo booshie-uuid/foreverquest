@@ -123,7 +123,9 @@ export async function bakeZone(zone, folder, people, context, where, problems)
         if(!(Math.abs(prop.x) < half && Math.abs(prop.z) < half)) { problems.push(where + " prop " + i + " is outside the zone"); }
         if(prop.age !== undefined && !isAge(prop.age)) { problems.push(where + " prop " + i + " needs an age that is a whole number from 0 to 100"); }
 
-        props.push({ ...prop, index: i, y: Voxelise.standingHeight(prop, context.prefabs[prop.prefab], heightAt) });
+        if(prop.y !== undefined && !Number.isFinite(prop.y)) { problems.push(where + " prop " + i + " needs a height in metres"); }
+
+        props.push({ ...prop, index: i, y: prop.y ?? Voxelise.standingHeight(prop, context.prefabs[prop.prefab], heightAt) });
         objects.push(...Voxelise.prefabObjects(props.at(-1), context.prefabs[prop.prefab]));
     }
 

@@ -12,6 +12,7 @@ const HEADROOM = 7;
 const STEPS = STOREY;
 const STAIR_WIDTH = 3;
 const WINDOW = { width: 2, bottom: 3, height: 3 };
+const LAMP_SPACING = 12;
 
 
 /******************************************************************************/
@@ -165,11 +166,40 @@ function ring(layout, spec, y, texture)
     layout.box([x1 - 1, y, z0], [x1, y + 1, z1], texture);
 }
 
+// A parapet 2 cubes tall at `y`, gapped every other pair of cubes on its top
+// course.
+function battlements(layout, spec, y, texture)
+{
+    const [x0, z0, x1, z1] = [-spec.width / 2, -spec.depth / 2, spec.width / 2, spec.depth / 2];
+
+    ring(layout, spec, y, texture);
+
+    for(let x = x0; x < x1; x += 4)
+    {
+        layout.box([x, y + 1, z0], [Math.min(x + 2, x1), y + 2, z0 + 1], texture);
+        layout.box([x, y + 1, z1 - 1], [Math.min(x + 2, x1), y + 2, z1], texture);
+    }
+
+    for(let z = z0; z < z1; z += 4)
+    {
+        layout.box([x0, y + 1, z], [x0 + 1, y + 2, Math.min(z + 2, z1)], texture);
+        layout.box([x1 - 1, y + 1, z], [x1, y + 2, Math.min(z + 2, z1)], texture);
+    }
+}
+
 // A stepped gable roof with its ridge along `ridge`, overhanging the walls by
-// a cube, and gable ends in the top storey's wall texture.
+// a cube, and gable ends in the top storey's wall texture; or a flat roof
+// with battlements.
 function roof(layout, spec)
 {
-    const { width, depth, storeys, roof: { texture, ridge = "x" } } = spec;
+    const { width, depth, storeys, roof: { texture, ridge = "x", isFlat = false } } = spec;
+
+    if(isFlat)
+    {
+        battlements(layout, spec, storeys * STOREY, texture);
+        return;
+    }
+
     const isAlongX = ridge === "x";
     const [length, span] = isAlongX ? [width, depth] : [depth, width];
     const base = storeys * STOREY;
@@ -207,20 +237,25 @@ function roof(layout, spec)
 /* OPENINGS                                                                   */
 /******************************************************************************/
 
+// A doorway `width` cubes wide, 3 by default, on storey `storey`; a doorway
+// on the front of the ground storey is the prefab's door.
 function door(layout, spec, entry, result)
 {
     const side = entry.side ?? "front";
-    const [from, to] = spanBox(spec, side, entry.at ?? 0, DOOR_WIDTH, [0, DOOR_HEIGHT]);
-    const [lintelFrom, lintelTo] = spanBox(spec, side, (entry.at ?? 0) - 1, DOOR_WIDTH + 2, [DOOR_HEIGHT, DOOR_HEIGHT + 1]);
+    const width = entry.width ?? DOOR_WIDTH;
+    const bottom = (entry.storey ?? 0) * STOREY;
+    const start = (entry.at ?? 0) - Math.floor((width - DOOR_WIDTH) / 2);
+    const [from, to] = spanBox(spec, side, start, width, [bottom, bottom + DOOR_HEIGHT]);
+    const [lintelFrom, lintelTo] = spanBox(spec, side, start - 1, width + 2, [bottom + DOOR_HEIGHT, bottom + DOOR_HEIGHT + 1]);
 
     layout.box(lintelFrom, lintelTo, spec.walls.frame ?? "timber");
     layout.clear(from, to);
 
-    if(side !== "front") { return; }
+    if(side !== "front" || bottom > 0 || result.doors.length > 0) { return; }
 
     const middle = [(from[0] + to[0]) / 2, (from[2] + to[2]) / 2];
 
-    result.doors.push({ size: [DOOR_WIDTH * CUBE, DOOR_HEIGHT * CUBE, 0.8], at: [middle[0] * CUBE, (DOOR_HEIGHT / 2) * CUBE, middle[1] * CUBE], height: DOOR_HEIGHT });
+    result.doors.push({ size: [width * CUBE, DOOR_HEIGHT * CUBE, 0.8], at: [middle[0] * CUBE, (DOOR_HEIGHT / 2) * CUBE, middle[1] * CUBE], height: DOOR_HEIGHT });
 }
 
 function window(layout, spec, entry)
@@ -253,6 +288,29 @@ function stairs(layout, spec, flight)
         layout.box(inner[0], inner[1], spec.stair ?? "oldPlanks");
 
         if(step < STEPS - 1 && ceiling - (bottom + step + 1) < HEADROOM) { layout.clear([inner[0][0], ceiling, inner[0][2]], [inner[1][0], ceiling + 1, inner[1][2]]); }
+    }
+}
+
+// A flight of STEPS steps outside the wall on `side`, climbing from `from`
+// cubes along it from the ground to storey `storey` + 1, built solid below,
+// with a landing 3 cubes long at its top beside a door on that storey.
+function outsideStairs(layout, spec, flight)
+{
+    const { side, storey, from } = flight;
+    const top = (storey + 1) * STOREY;
+    const { inward } = wallAt(spec, side, 0);
+
+    for(let step = 0; step < STEPS + 3; step++)
+    {
+        const height = Math.min(top, storey * STOREY + step + 1);
+        const { cell } = wallAt(spec, side, from + step);
+
+        for(let out = 1; out <= STAIR_WIDTH; out++)
+        {
+            const [x, z] = [cell[0] - inward[0] * out, cell[1] - inward[1] * out];
+
+            layout.box([x, -1, z], [x + 1, height, z + 1], spec.walls.ground);
+        }
     }
 }
 
@@ -313,7 +371,13 @@ export function building(spec)
         for(const entry of spec.windows ?? []) { window(layout, spec, entry); }
         for(const entry of spec.doors ?? [{}]) { door(layout, spec, entry, result); }
         for(const flight of spec.stairs ?? []) { stairs(layout, spec, flight); }
+        for(const flight of spec.outsideStairs ?? []) { outsideStairs(layout, spec, flight); }
         for(const entry of spec.lockedStairs ?? []) { lockedStairs(layout, spec, entry, result); }
+
+        if(spec.lamps !== false)
+        {
+            for(let storey = 0; storey < spec.storeys; storey++) { lamps(spec, storey, result); }
+        }
 
         spec.details?.({ box: (from, to, texture) => layout.box(from, to, texture), clear: (from, to) => layout.clear(from, to), object: (entry) => result.objects.push(entry) });
 
@@ -322,6 +386,25 @@ export function building(spec)
 
         return result;
     };
+}
+
+// Lanterns hung from a storey's ceiling, their bottoms HEADROOM cubes up,
+// every LAMP_SPACING cubes each way, but not over a stair or its opening.
+function lamps(spec, storey, result)
+{
+    const flights = (spec.stairs ?? []).filter((flight) => flight.storey === storey || flight.storey === storey - 1);
+    const boxes = flights.map((flight) => spanBox(spec, flight.side, flight.from + 1, STEPS, [0, 1], STAIR_WIDTH + 1));
+    const isOverStair = (x, z) => boxes.some(([from, to]) => x >= from[0] - 1 && x < to[0] + 1 && z >= from[2] - 1 && z < to[2] + 1);
+
+    for(let x = -spec.width / 2 + LAMP_SPACING / 2; x < spec.width / 2 - 2; x += LAMP_SPACING)
+    {
+        for(let z = -spec.depth / 2 + LAMP_SPACING / 2; z < spec.depth / 2 - 2; z += LAMP_SPACING)
+        {
+            if(isOverStair(Math.round(x), Math.round(z))) { continue; }
+
+            result.objects.push({ object: "lantern", at: [(Math.round(x) + 0.5) * CUBE, (storey * STOREY + HEADROOM) * CUBE, (Math.round(z) + 0.5) * CUBE], angle: 0 });
+        }
+    }
 }
 
 // The owner's rules: every upper storey is reached by a stair, a lift or a
@@ -343,6 +426,7 @@ function checked(spec)
         if(flight.from < -length / 2 + 1 || flight.from + STEPS > length / 2 - 1) { problems.push("has a stair that does not fit along its " + flight.side + " wall"); }
     }
     for(const lift of spec.lifts ?? []) { reached.add(lift.storey); }
+    for(const flight of spec.outsideStairs ?? []) { reached.add(flight.storey + 1); }
 
     const lowestLock = Math.min(...(spec.lockedStairs ?? []).map((entry) => entry.storey));
 

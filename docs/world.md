@@ -2,7 +2,7 @@
 
 A zone is content: a folder in [content/zones/](../content/zones/) that holds a zone file and the zone's terrain images. The zone file lists the zone's ground, its lighting, its people and the props placed on it. The props are prefabs, built from blocks by the functions in [content/art/props.js](../content/art/props.js) and listed in [content/props/prefabs.js](../content/props/prefabs.js). The bake checks every zone and prefab, builds each zone's cubes, and writes them to `assets/`. The game loads a zone's baked files, holds its data in [ZoneData](../js/sim/zone-data.js), and draws it with [ZoneView](../js/render/zone-view.js).
 
-Three zones exist: Hearthmere, the village; the Test Field, a small zone that the tests travel to; and the Expanse, a generated zone one kilometre square that tests how far the engine stretches. Hearthmere was exported once from the prototype's generator and then converted from one-metre tiles to cubes.
+Three zones exist: Hearthmere, the village; the Test Field, a small zone that the tests travel to; and the Expanse, a generated zone one kilometre square that tests how far the engine stretches. Hearthmere was rebuilt for the cube world on 25 November 2026 as a walled village 192 metres square, laid out from the owner's plan, with its buildings from the building kit.
 
 ## Cubes and Cells
 
@@ -83,11 +83,13 @@ Props then draw, shade and block movement as cubes do. The colliders that prefab
 | `width`, `depth` | The footprint in cubes, both even, with the front facing +z |
 | `storeys` | The number of storeys |
 | `walls` | `{ ground, upper, frame }`: world textures for the ground storey's walls, the upper storeys' walls, and an optional timber frame of corner posts, posts every 4 cubes and a beam at each floor |
-| `roof` | `{ texture, ridge }`: a stepped gable roof, 1 cube up for each cube in, with its ridge along `x` or `z`, and gable ends in the upper wall texture |
-| `doors` | `{ side, at }`: doorways 3 cubes wide and 7 tall, `at` cubes along the wall from its middle; a doorway on the front is the prefab's door, which sets how deep the building stands |
+| `roof` | `{ texture, ridge, isFlat }`: a stepped gable roof, 1 cube up for each cube in, with its ridge along `x` or `z` and gable ends in the upper wall texture; or, with `isFlat`, a flat roof behind battlements |
+| `doors` | `{ side, at, width, storey }`: doorways 7 cubes tall and `width` cubes wide, 3 by default, `at` cubes along the wall from its middle, on storey `storey`, 0 by default; the first doorway on the front of the ground storey is the prefab's door, which sets how deep the building stands |
 | `windows` | `{ side, at, storey, isLit }`: windows 2 cubes wide and 3 tall, lit unless `isLit` is false, when they are shutters |
 | `stairs` | `{ side, storey, from }`: a flight of 10 steps 3 cubes wide against the wall on `side`, climbing from `from` cubes along it, with the floor above left open over every step whose headroom would be under 7 cubes |
+| `outsideStairs` | `{ side, storey, from }`: a solid flight of 10 steps outside the wall on `side`, from the ground up to storey `storey` + 1, with a landing beside a door on that storey |
 | `lockedStairs` | `{ side, storey, at }`: a locked stair door in a cupboard against the wall on `side` |
+| `lamps` | `false` leaves out the lanterns that the kit otherwise hangs on every storey, every 4 metres each way, 7 cubes up, but not over a stair |
 | `lifts` | `{ storey }`: a storey that a lift in the building's details reaches |
 | `details` | A function given `{ box, clear, object }` that adds hand detail in cubes, and objects such as furniture |
 

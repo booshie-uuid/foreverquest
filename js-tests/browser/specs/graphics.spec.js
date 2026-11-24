@@ -92,7 +92,7 @@ export const tests =
                 };
             });
 
-            assert.deepEqual(fog, { isCompiled: true, hasHeightFog: true, height: [0.5, 1.5, 0.03], zone: { base: 0.5, falloff: 1.5, density: 0.03 } });
+            assert.deepEqual({ ...fog, height: fog.height.map((value) => Math.round(value * 1e6) / 1e6) }, { isCompiled: true, hasHeightFog: true, height: [0.8, 1.5, 0.02], zone: { base: 0.8, falloff: 1.5, density: 0.02 } });
         },
     },
     {

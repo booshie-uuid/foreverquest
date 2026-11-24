@@ -23,7 +23,7 @@ describe("Simulation", () =>
 
         assert.deepEqual(first, second);
         assert.equal(first.ticks, 820);
-        assert.equal(first.entities.length, 15);
+        assert.equal(first.entities.length, 16);
         assert.ok(first.events.some((event) => event.type === "said" && event.line.includes("Tester")), "The tailor did not greet the player");
         assert.ok(first.events.some((event) => event.type === "waved" && event.id === 1), "The player did not wave");
         assert.ok(first.events.some((event) => event.type === "running"), "The run command emitted nothing");
