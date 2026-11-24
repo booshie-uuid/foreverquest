@@ -10,9 +10,12 @@ const DOOR_HEIGHT = 7;
 const DOOR_WIDTH = 3;
 const HEADROOM = 7;
 const STEPS = STOREY;
-const STAIR_WIDTH = 3;
+const STAIR_WIDTH = 4;
+const STAIR_ENTRY = 3;
+const FOUNDATION = 5;
+const CUPBOARD = { length: 12, deep: 6 };
 const WINDOW = { width: 2, bottom: 3, height: 3 };
-const LAMP_SPACING = 12;
+const LAMP_SPACING = 9;
 
 
 /******************************************************************************/
@@ -121,6 +124,7 @@ function shell(layout, spec)
     const { width, depth, storeys, walls } = spec;
     const [x0, z0, x1, z1] = [-width / 2, -depth / 2, width / 2, depth / 2];
 
+    layout.box([x0, -1 - FOUNDATION, z0], [x1, -1, z1], "stone");
     layout.box([x0, -1, z0], [x1, 0, z1], spec.groundFloor ?? "stone");
 
     for(let storey = 0; storey < storeys; storey++)
@@ -272,8 +276,10 @@ function window(layout, spec, entry)
 /******************************************************************************/
 
 // A straight flight of STEPS steps up from storey `storey`, against the wall
-// on `side`, climbing from `from` cubes along that wall. The floor above is
-// left open over every step whose headroom would be under HEADROOM.
+// on `side`, its first step `from` cubes along that wall. The floor above is
+// left open over every step but the last, which is level with it, so no step
+// has less than HEADROOM, and neither does the cube beside it that an
+// entity's width reaches into.
 function stairs(layout, spec, flight)
 {
     const { side, storey, from } = flight;
@@ -287,7 +293,7 @@ function stairs(layout, spec, flight)
 
         layout.box(inner[0], inner[1], spec.stair ?? "oldPlanks");
 
-        if(step < STEPS - 1 && ceiling - (bottom + step + 1) < HEADROOM) { layout.clear([inner[0][0], ceiling, inner[0][2]], [inner[1][0], ceiling + 1, inner[1][2]]); }
+        if(step < STEPS - 1) { layout.clear([inner[0][0], ceiling, inner[0][2]], [inner[1][0], ceiling + 1, inner[1][2]]); }
     }
 }
 
@@ -329,16 +335,19 @@ function stepInside(spec, side, low, high)
     return [from, to];
 }
 
-// A cupboard against the wall on `side`, closed by a locked door, which
-// implies a stair to the storeys above.
+// A walled space against the wall on `side`, big enough to hold a stair to
+// the storeys above, closed by a locked door at `at`. It runs `length` cubes
+// along the wall, centred on the door, or the wall's whole length with
+// `isFull`, and is `deep` cubes deep, walls included.
 function lockedStairs(layout, spec, entry, result)
 {
     const { side, storey, at = 0 } = entry;
     const bottom = storey * STOREY;
     const top = bottom + STOREY - 1;
-    const [outerFrom, outerTo] = spanBox(spec, side, at - 1, DOOR_WIDTH + 2, [bottom, top], 5);
-    const [innerFrom, innerTo] = spanBox(spec, side, at, DOOR_WIDTH, [bottom, top], 4);
-    const [doorFrom, doorTo] = spanBox(spec, side, at, DOOR_WIDTH, [bottom, bottom + DOOR_HEIGHT], 5);
+    const { start, length, deep } = cupboardOf(spec, entry);
+    const [outerFrom, outerTo] = spanBox(spec, side, start + 1, length, [bottom, top], deep);
+    const [innerFrom, innerTo] = spanBox(spec, side, start + 2, length - 2, [bottom, top], deep - 1);
+    const [doorFrom, doorTo] = spanBox(spec, side, at - 1, DOOR_WIDTH, [bottom, bottom + DOOR_HEIGHT], deep);
     const inward = wallAt(spec, side, 0).inward;
     const texture = storey === 0 ? spec.walls.ground : spec.walls.upper ?? spec.walls.ground;
 
@@ -372,6 +381,8 @@ export function building(spec)
         for(const entry of spec.doors ?? [{}]) { door(layout, spec, entry, result); }
         for(const flight of spec.stairs ?? []) { stairs(layout, spec, flight); }
         for(const flight of spec.outsideStairs ?? []) { outsideStairs(layout, spec, flight); }
+
+        shafts(layout, spec);
         for(const entry of spec.lockedStairs ?? []) { lockedStairs(layout, spec, entry, result); }
 
         if(spec.lamps !== false)
@@ -388,28 +399,74 @@ export function building(spec)
     };
 }
 
-// Lanterns hung from a storey's ceiling, their bottoms HEADROOM cubes up,
-// every LAMP_SPACING cubes each way, but not over a stair or its opening.
-function lamps(spec, storey, result)
+// The first cube along the wall, the length and the depth of a locked stair
+// cupboard.
+function cupboardOf(spec, entry)
+{
+    const wall = entry.side === "front" || entry.side === "back" ? spec.width : spec.depth;
+    const length = entry.isFull ? wall - 2 : entry.length ?? CUPBOARD.length;
+    const start = entry.isFull ? -wall / 2 + 1 : (entry.at ?? 0) - Math.floor(length / 2) + 1;
+
+    return { start, length, deep: entry.deep ?? CUPBOARD.deep };
+}
+
+// The boxes a lantern must keep out of on a storey: a stair on it or below
+// it, a lift shaft, and a locked stair cupboard, each with a cube to spare.
+function keptClear(spec, storey)
 {
     const flights = (spec.stairs ?? []).filter((flight) => flight.storey === storey || flight.storey === storey - 1);
-    const boxes = flights.map((flight) => spanBox(spec, flight.side, flight.from + 1, STEPS, [0, 1], STAIR_WIDTH + 1));
-    const isOverStair = (x, z) => boxes.some(([from, to]) => x >= from[0] - 1 && x < to[0] + 1 && z >= from[2] - 1 && z < to[2] + 1);
+    const cupboards = (spec.lockedStairs ?? []).filter((entry) => entry.storey === storey).map((entry) =>
+    {
+        const { start, length, deep } = cupboardOf(spec, entry);
+
+        return spanBox(spec, entry.side, start + 1, length, [0, 1], deep);
+    });
+    const shafts = (spec.lifts ?? []).filter((lift) => lift.box && storey <= lift.storey).map(({ box }) => [[box[0], 0, box[1]], [box[2], 1, box[3]]]);
+
+    return [...flights.map((flight) => spanBox(spec, flight.side, flight.from + 1, STEPS, [0, 1], STAIR_WIDTH + 1)), ...cupboards, ...shafts];
+}
+
+// Lanterns hung from a storey's ceiling, their bottoms HEADROOM cubes up,
+// every LAMP_SPACING cubes each way. A lantern that would hang over a stair,
+// a lift shaft or a cupboard moves towards the front until it is clear.
+function lamps(spec, storey, result)
+{
+    const boxes = keptClear(spec, storey);
+    const isKept = (x, z) => boxes.some(([from, to]) => x >= from[0] - 1 && x < to[0] + 1 && z >= from[2] - 1 && z < to[2] + 1);
 
     for(let x = -spec.width / 2 + LAMP_SPACING / 2; x < spec.width / 2 - 2; x += LAMP_SPACING)
     {
         for(let z = -spec.depth / 2 + LAMP_SPACING / 2; z < spec.depth / 2 - 2; z += LAMP_SPACING)
         {
-            if(isOverStair(Math.round(x), Math.round(z))) { continue; }
+            let at = Math.round(z);
 
-            result.objects.push({ object: "lantern", at: [(Math.round(x) + 0.5) * CUBE, (storey * STOREY + HEADROOM) * CUBE, (Math.round(z) + 0.5) * CUBE], angle: 0 });
+            while(at < spec.depth / 2 - 2 && isKept(Math.round(x), at)) { at++; }
+
+            if(at >= spec.depth / 2 - 2) { continue; }
+
+            result.objects.push({ object: "lantern", at: [(Math.round(x) + 0.5) * CUBE, (storey * STOREY + HEADROOM) * CUBE, (at + 0.5) * CUBE], angle: 0 });
+        }
+    }
+}
+
+// Opens the floors a lift's shaft passes through.
+function shafts(layout, spec)
+{
+    for(const { box, storey } of (spec.lifts ?? []).filter((lift) => lift.box))
+    {
+        for(let below = 0; below < storey; below++)
+        {
+            const floor = below * STOREY + STOREY - 1;
+
+            layout.clear([box[0], floor, box[1]], [box[2], floor + 1, box[3]]);
         }
     }
 }
 
 // The owner's rules: every upper storey is reached by a stair, a lift or a
-// locked stair door on a storey below it, and a footprint has even sides so
-// it sits on whole cubes.
+// locked stair door on a storey below it; a stair has STAIR_ENTRY cubes of
+// floor before its first step and a cube of floor after its last; and a
+// footprint has even sides so it sits on whole cubes.
 function checked(spec)
 {
     const problems = [];
@@ -423,7 +480,8 @@ function checked(spec)
 
         reached.add(flight.storey + 1);
 
-        if(flight.from < -length / 2 + 1 || flight.from + STEPS > length / 2 - 1) { problems.push("has a stair that does not fit along its " + flight.side + " wall"); }
+        if(flight.from - STAIR_ENTRY < -length / 2 + 1) { problems.push("has a stair with less than " + STAIR_ENTRY + " cubes to walk onto it along its " + flight.side + " wall"); }
+        if(flight.from + STEPS > length / 2 - 2) { problems.push("has a stair with no floor to step off onto along its " + flight.side + " wall"); }
     }
     for(const lift of spec.lifts ?? []) { reached.add(lift.storey); }
     for(const flight of spec.outsideStairs ?? []) { reached.add(flight.storey + 1); }

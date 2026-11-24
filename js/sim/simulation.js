@@ -145,7 +145,7 @@ export class Simulation
                 break;
             case "use":
                 this.talkTarget = null;
-                this.useTarget = command.prop;
+                this.useTarget = command.object;
                 this.isUseRouted = false;
                 break;
             case "wave":
@@ -217,7 +217,7 @@ export class Simulation
 
     use()
     {
-        const entry = this.zone.objects.find((object) => object.prop === this.useTarget);
+        const entry = this.useTarget === null ? null : this.zone.objects[this.useTarget];
         const player = this.player;
 
         if(!entry) { return; }
@@ -237,7 +237,7 @@ export class Simulation
         player.stop();
         player.face(entry);
 
-        if(this.movers.use(entry.prop)) { this.emit({ type: "used", prop: entry.prop, name: entry.object }); }
+        if(this.movers.use(entry)) { this.emit({ type: "used", prop: entry.prop, name: entry.object }); }
     }
 
     /* EVENTS *****************************************************************/

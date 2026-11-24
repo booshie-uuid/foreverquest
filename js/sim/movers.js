@@ -127,16 +127,16 @@ export class Mover
         {
             const turns = this.previousPhase + (this.phase - this.previousPhase) * alpha;
 
-            return { prop: this.entry.prop, axis: track.spin.axis, pivot: null, angle: turns * Math.PI * 2 };
+            return { entry: this.entry, axis: track.spin.axis, pivot: null, angle: turns * Math.PI * 2 };
         }
 
         const eased = ease(this.previous + (this.progress - this.previous) * alpha);
 
-        if(track.slide) { return { prop: this.entry.prop, offset: track.slide.map((cubes) => (cubes / CUBES_PER_METRE) * eased) }; }
+        if(track.slide) { return { entry: this.entry, offset: track.slide.map((cubes) => (cubes / CUBES_PER_METRE) * eased) }; }
 
         const { axis, pivot, from = 0, degrees } = track.turn;
 
-        return { prop: this.entry.prop, axis, pivot: pivot.map((fine) => fine / FINE_PER_METRE), angle: (from + degrees * eased) * DEGREES };
+        return { entry: this.entry, axis, pivot: pivot.map((fine) => fine / FINE_PER_METRE), angle: (from + degrees * eased) * DEGREES };
     }
 }
 
@@ -188,10 +188,11 @@ export class Movers
         return this.movers.find((mover) => mover.id === id) ?? null;
     }
 
-    // Toggles the lever placed as prop `prop`; false when it is not a lever.
-    use(prop)
+    // Toggles the lever `entry`, one of the zone's objects; false when it is
+    // not a lever.
+    use(entry)
     {
-        const trigger = this.triggers.find((each) => each.entry.prop === prop && each.entry.trigger.lever);
+        const trigger = this.triggers.find((each) => each.entry === entry && entry.trigger.lever);
 
         if(!trigger) { return false; }
 

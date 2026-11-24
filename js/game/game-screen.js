@@ -177,18 +177,18 @@ export class GameScreen
 
         const lever = this.pickLever();
 
-        if(lever !== null) { this.sim.command({ type: "use", prop: lever }); }
+        if(lever !== null) { this.sim.command({ type: "use", object: lever }); }
     }
 
-    // The prop number of the lever nearest the pointer, when nothing is in
-    // front of it, or null.
+    // The index in the zone's objects of the lever under the pointer, when
+    // nothing is in front of it, or null.
     pickLever()
     {
         const hits = this.raycaster.intersectObjects([...this.world.objectMeshes.values(), ...this.world.terrainMeshes], false);
         const first = hits[0];
         const entry = first?.object.isInstancedMesh ? this.world.objectOf(first.object, first.instanceId) : null;
 
-        return entry?.trigger?.lever ? entry.prop : null;
+        return entry?.trigger?.lever ? this.zone.objects.indexOf(entry) : null;
     }
 
     onInspect(x, y)

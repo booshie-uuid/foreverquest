@@ -23,7 +23,7 @@ export const BUILDINGS =
         roof: { texture: "slate", ridge: "x" },
         doors: [{ at: -4 }],
         windows: [{ at: 4 }, { at: -6, storey: 1 }, { at: 5, storey: 1, isLit: false }, { side: "right", at: 0 }, { side: "right", at: 0, storey: 1 }],
-        stairs: [{ side: "left", storey: 0, from: -7 }],
+        stairs: [{ side: "left", storey: 0, from: -4 }],
     },
     townhouse:
     {
@@ -34,7 +34,7 @@ export const BUILDINGS =
         roof: { texture: "slate", ridge: "z" },
         doors: [{ at: -3 }],
         windows: [{ at: 4 }, { at: -4, storey: 1 }, { at: 4, storey: 1, isLit: false }, { at: -4, storey: 2, isLit: false }, { at: 4, storey: 2 }],
-        lockedStairs: [{ side: "back", storey: 0, at: 2 }],
+        lockedStairs: [{ side: "back", storey: 0, at: 2, isFull: true, deep: 8 }],
     },
     inn:
     {
@@ -50,12 +50,12 @@ export const BUILDINGS =
             { at: -12, storey: 1 }, { at: -5, storey: 1, isLit: false }, { at: 5, storey: 1 }, { at: 12, storey: 1, isLit: false },
             { side: "back", at: -8 }, { side: "back", at: -8, storey: 1 },
         ],
-        stairs: [{ side: "left", storey: 0, from: -10 }],
-        lockedStairs: [{ side: "back", storey: 1, at: 10 }],
+        stairs: [{ side: "left", storey: 0, from: -8 }],
+        lockedStairs: [{ side: "back", storey: 1, at: 12, length: 8 }],
         details(inn)
         {
-            inn.box([4, 0, -9], [14, 3, -7], "planks");
-            inn.box([4, 3, -9], [14, 4, -7], "oldPlanks");
+            inn.box([4, 0, -7], [14, 3, -5], "planks");
+            inn.box([4, 3, -7], [14, 4, -5], "oldPlanks");
             inn.box([15, 0, -3], [17, 32, 3], "stone");
             inn.clear([15, 0, -1], [16, 3, 1]);
             inn.box([16, 0, -1], [17, 1, 1], "glow");
@@ -79,7 +79,7 @@ export const BUILDINGS =
         outsideStairs: [{ side: "right", storey: 0, from: -8 }],
         details(store)
         {
-            store.box([-9, 0, -4], [9, 3, -2], "planks");
+            store.box([-6, 0, -4], [6, 3, -2], "planks");
             store.box([-11, 0, -8], [-9, 6, 6], "oldPlanks");
         },
     },
@@ -109,11 +109,10 @@ export const BUILDINGS =
         roof: { texture: "slate", ridge: "x" },
         doors: [{ at: -2, width: 5 }],
         windows: [{ at: -10, isLit: false }, { at: 9, storey: 1, isLit: false }, { side: "back", at: 0, storey: 1 }],
-        lifts: [{ storey: 1 }],
+        lifts: [{ storey: 1, box: [8, -6, 11, -3] }],
         details(warehouse)
         {
-            warehouse.clear([8, 9, -6], [11, 10, -3]);
-            warehouse.object({ object: "liftPlatform", at: [9.5 / 3, 0, -4.5 / 3], id: "hoist", mover: { slide: [0, 10, 0], seconds: 4 } });
+            warehouse.object({ object: "liftPlatform", at: [9.5 / 3, 0, -4.5 / 3], id: "hoist", mover: { slide: [0, 9, 0], seconds: 4 } });
             warehouse.object({ object: "leverBase", at: [12.5 / 3, 0, -1.5 / 3], trigger: { lever: true, movers: ["hoist", "hoistLever"] } });
             warehouse.object({ object: "leverHandle", at: [12.5 / 3, 1 / 3, -1.5 / 3], id: "hoistLever", mover: { turn: { axis: "x", pivot: [4, 0, 4], from: -40, degrees: 80 }, seconds: 0.4 } });
 
@@ -144,7 +143,7 @@ export const BUILDINGS =
         roof: { texture: "stone", isFlat: true },
         doors: [{ at: 0, width: 4 }, { side: "back", at: 0, width: 4 }],
         windows: [{ at: -8, storey: 1, isLit: false }, { at: 9, storey: 1 }, { side: "back", at: -8, storey: 1 }, { side: "back", at: 9, storey: 1, isLit: false }],
-        stairs: [{ side: "right", storey: 0, from: -10 }],
+        stairs: [{ side: "right", storey: 0, from: -8 }],
         details(gate)
         {
             for(const x of [-2, 3])
@@ -173,7 +172,7 @@ export const BUILDINGS =
             { at: -5, storey: 1, isLit: false }, { at: 5, storey: 2, isLit: false }, { at: 0, storey: 3 },
             { side: "back", at: 0, storey: 2 }, { side: "left", at: 0, storey: 3, isLit: false }, { side: "right", at: 4, storey: 1 },
         ],
-        stairs: [{ side: "left", storey: 0, from: -7 }, { side: "right", storey: 1, from: -7 }, { side: "left", storey: 2, from: -7 }],
+        stairs: [{ side: "left", storey: 0, from: -4 }, { side: "right", storey: 1, from: -4 }, { side: "left", storey: 2, from: -4 }],
     },
     mill:
     {
@@ -184,11 +183,10 @@ export const BUILDINGS =
         roof: { texture: "thatch", ridge: "x" },
         doors: [{ at: 0 }],
         windows: [{ at: -7 }, { at: 7, storey: 1 }, { side: "back", at: 0, storey: 1, isLit: false }],
-        stairs: [{ side: "right", storey: 0, from: -9 }],
+        stairs: [{ side: "right", storey: 0, from: -6 }],
         details(mill)
         {
-            mill.box([-14, -2, -2], [-12, 0, 2], "timber");
-            mill.object({ object: "millWheel", at: [-13 / 3, -2 / 3, 0], mover: { spin: { axis: "x", seconds: 10 } } });
+            mill.object({ object: "millWheel", at: [-13 / 3, -4 / 3, 0], mover: { spin: { axis: "x", seconds: 10 } } });
             mill.box([-6, 0, -6], [-2, 3, -2], "stone");
         },
     },

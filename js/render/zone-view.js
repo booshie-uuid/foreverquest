@@ -407,7 +407,7 @@ export class ZoneView
             entries.forEach((entry, i) =>
             {
                 mesh.setMatrixAt(i, ZoneView.objectMatrix(entry, shared.userData.size));
-                this.objectSlots.set(entry.prop, { mesh, index: i, entry, size: shared.userData.size });
+                this.objectSlots.set(entry, { mesh, index: i, entry, size: shared.userData.size });
             });
 
             mesh.name = "objects";
@@ -426,7 +426,7 @@ export class ZoneView
         {
             if(!key.startsWith(name + "/")) { continue; }
 
-            for(const entry of mesh.userData.entries) { this.objectSlots.delete(entry.prop); }
+            for(const entry of mesh.userData.entries) { this.objectSlots.delete(entry); }
 
             mesh.geometry.dispose();
             mesh.dispose();
@@ -444,7 +444,7 @@ export class ZoneView
 
         for(const pose of poses)
         {
-            const slot = this.objectSlots.get(pose.prop);
+            const slot = this.objectSlots.get(pose.entry);
 
             if(!slot) { continue; }
 

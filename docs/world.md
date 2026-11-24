@@ -76,7 +76,10 @@ Props then draw, shade and block movement as cubes do. The colliders that prefab
 
 1. A door is 7 cubes tall, 2.33 metres, so the tallest character walks through it.
 2. A storey is 10 cubes: a floor 1 cube thick and 9 cubes clear above it, which is 3 metres, 2 cubes more than the tallest character's head.
-3. Every upper storey is reached by a stair, a lift, or a locked stair door on a storey below it. A locked stair door is a closed door object in front of a walled cupboard, which implies a stair without building one.
+3. Every upper storey is reached by a stair, a lift, or a locked stair door on a storey below it. A locked stair door is a closed door object in front of a walled space big enough to hold a stair, which implies one without building it.
+4. A stair is 4 cubes wide, has at least 3 cubes of floor in front of its first step and a cube of floor past its last, and has the floor above it opened, so an entity can walk onto it and up it with its head clear.
+
+A kit building stands on a stone foundation 5 cubes deep, which shows where the ground falls away. A test walks an entity up every stair of every kit building in Hearthmere and the Expanse.
 
 | Field | Meaning |
 |---|---|
@@ -86,14 +89,14 @@ Props then draw, shade and block movement as cubes do. The colliders that prefab
 | `roof` | `{ texture, ridge, isFlat }`: a stepped gable roof, 1 cube up for each cube in, with its ridge along `x` or `z` and gable ends in the upper wall texture; or, with `isFlat`, a flat roof behind battlements |
 | `doors` | `{ side, at, width, storey }`: doorways 7 cubes tall and `width` cubes wide, 3 by default, `at` cubes along the wall from its middle, on storey `storey`, 0 by default; the first doorway on the front of the ground storey is the prefab's door, which sets how deep the building stands |
 | `windows` | `{ side, at, storey, isLit }`: windows 2 cubes wide and 3 tall, lit unless `isLit` is false, when they are shutters |
-| `stairs` | `{ side, storey, from }`: a flight of 10 steps 3 cubes wide against the wall on `side`, climbing from `from` cubes along it, with the floor above left open over every step whose headroom would be under 7 cubes |
+| `stairs` | `{ side, storey, from }`: a flight of 10 steps 4 cubes wide against the wall on `side`, its first step `from` cubes along it, with the floor above left open over every step but the last, which is level with that floor |
 | `outsideStairs` | `{ side, storey, from }`: a solid flight of 10 steps outside the wall on `side`, from the ground up to storey `storey` + 1, with a landing beside a door on that storey |
-| `lockedStairs` | `{ side, storey, at }`: a locked stair door in a cupboard against the wall on `side` |
-| `lamps` | `false` leaves out the lanterns that the kit otherwise hangs on every storey, every 4 metres each way, 7 cubes up, but not over a stair |
-| `lifts` | `{ storey }`: a storey that a lift in the building's details reaches |
+| `lockedStairs` | `{ side, storey, at, length, deep, isFull }`: a locked stair door at `at` in a walled space against the wall on `side`, `length` cubes along it (12 by default) or the whole wall with `isFull`, and `deep` cubes deep (6 by default) |
+| `lamps` | `false` leaves out the lanterns that the kit otherwise hangs on every storey, every 3 metres each way, 7 cubes up, moved towards the front out of the way of a stair, a lift shaft or a locked stair cupboard |
+| `lifts` | `{ storey, box }`: a storey that a lift in the building's details reaches, and the shaft `[x0, z0, x1, z1]` in cubes that the kit opens through the floors below it |
 | `details` | A function given `{ box, clear, object }` that adds hand detail in cubes, and objects such as furniture |
 
-The kit reports a building that breaks rule 3, has a footprint with an odd side, or has a stair that does not fit along its wall, and the bake fails on it. A kit prefab also clears its footprint of terrain before its blocks are placed, and places its objects with it: the bake turns them with the building, stands them on the storey they name, and gives each mover `id` the building's prop number, so a building placed twice keeps its movers apart. A cottage, a two-storey house with a stair and a three-storey townhouse with a locked stair door stand north of the Expanse's spawn.
+The kit reports a building that breaks rule 3 or 4, has a footprint with an odd side, or has a stair that does not fit along its wall, and the bake fails on it. A kit prefab also clears its footprint of terrain before its blocks are placed, and places its objects with it: the bake turns them with the building, stands them on the storey they name, and gives each mover `id` the building's prop number, so a building placed twice keeps its movers apart. A cottage, a two-storey house with a stair and a three-storey townhouse with a locked stair door stand north of the Expanse's spawn.
 
 ## Collision and Movement
 

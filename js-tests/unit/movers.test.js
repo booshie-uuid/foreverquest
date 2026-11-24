@@ -87,11 +87,11 @@ describe("Movers", () =>
         const lever = zone.objects.find((entry) => entry.object === "leverBase");
         const well = zone.objects.find((entry) => entry.name === "well");
 
-        assert.ok(movers.use(lever.prop));
+        assert.ok(movers.use(lever));
         assert.deepEqual(["gate", "gateLever"].map((id) => movers.mover(id).target), [1, 1]);
-        assert.ok(movers.use(lever.prop));
+        assert.ok(movers.use(lever));
         assert.deepEqual(["gate", "gateLever"].map((id) => movers.mover(id).target), [0, 0]);
-        assert.equal(movers.use(well.prop), false);
+        assert.equal(movers.use(well), false);
         movers.dispose();
     });
 
@@ -129,7 +129,7 @@ describe("Movers", () =>
         sim.setPlayer(new Appearance(library, { name: "Tester" }));
         sim.enter(zone);
         sim.player.placeAt(-6, 8.5, zone);
-        sim.command({ type: "use", prop: lever.prop });
+        sim.command({ type: "use", object: zone.objects.indexOf(lever) });
 
         for(let i = 0; i < 200; i++) { sim.tick(); }
 

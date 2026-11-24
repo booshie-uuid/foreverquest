@@ -10,4 +10,4 @@ export const SLIDERS =
     height: { scale: 0.06 },
 };
 
-export const MEASURES = { radius: 0.35, walk: 2.4, run: 5.2, nameplate: 0.32, focus: 1.4 };
+export const MEASURES = { radius: 0.35, walk: 3.2, run: 6.2, nameplate: 0.32, focus: 1.4 };
