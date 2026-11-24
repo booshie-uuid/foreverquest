@@ -91,24 +91,21 @@ for(int overlay = 0; overlay < 2; overlay++)
 
 // A glass face's vWeather.y holds the edges that meet a cell that is not
 // glass, as the mesher's frameEdges gives them: 1 and 2 at the low and high
-// ends of the face's u axis, 4 and 8 of its v axis, and 16 for a face that
-// draws only its frame. Each edge draws a frame of FRAME_LAYER's texture,
-// FRAME_WIDTH of a cube wide. GLASS_LEADS keeps only the solid texels, and
-// the blended glass material only the rest.
+// ends of the face's u axis, 4 and 8 of its v axis. Each draws a frame of
+// FRAME_LAYER's texture, FRAME_WIDTH of a cube wide. GLASS_LEADS keeps only
+// the solid texels, and the blended glass material only the rest.
 const GLASS_FRAGMENT = `
 #ifdef GLASS
     vec3 inCube = fract(vStepPosition * 3.0);
     vec3 facing = abs(vStepNormal);
     vec2 inFace = facing.x > 0.5 ? inCube.zy : (facing.y > 0.5 ? inCube.xz : inCube.xy);
-    float frameCode = floor(vWeather.y + 0.5);
-    float edges = mod(frameCode, 16.0);
+    float edges = floor(vWeather.y + 0.5);
     bool isFrame = (mod(edges, 2.0) > 0.5 && inFace.x < FRAME_WIDTH)
         || (mod(floor(edges / 2.0), 2.0) > 0.5 && inFace.x > 1.0 - FRAME_WIDTH)
         || (mod(floor(edges / 4.0), 2.0) > 0.5 && inFace.y < FRAME_WIDTH)
         || (edges > 7.5 && inFace.y > 1.0 - FRAME_WIDTH);
 
     if(isFrame) { diffuseColor = vec4(texture(worldAtlas, vec3(vTileUv, FRAME_LAYER)).rgb, 1.0); }
-    else if(frameCode > 15.5) { discard; }
 
     #ifdef GLASS_LEADS
         if(diffuseColor.a < 0.99) { discard; }
@@ -292,7 +289,6 @@ const NO_HEIGHT_FOG = { base: 0, falloff: 1, density: 0 };
 const LEVELS = 16;
 const PLAYER_LIGHT = 7;
 const TAIL_EASE = 1;
-const GLASS_FRAME = "iron";
 const GLASS_FRAME_WIDTH = 0.1875;
 const DEFAULT_AMBIENT = { base: "#1c2030", level: 0.2, glow: 0.4 };
 const DEFAULT_STEPS =
@@ -313,7 +309,7 @@ export class MaterialLibrary
         this.terrain = this.worldMaterial({ vertexColors: true }, this.stepped);
         this.objects = this.worldMaterial({}, this.stepped);
         this.glass = this.worldMaterial({ vertexColors: true, transparent: true, depthWrite: false }, this.stepped);
-        this.glass.defines = { GLASS: "", FRAME_LAYER: atlas.layer(GLASS_FRAME) + ".0", FRAME_WIDTH: String(GLASS_FRAME_WIDTH) };
+        this.glass.defines = { GLASS: "", FRAME_LAYER: atlas.frameLayer + ".0", FRAME_WIDTH: String(GLASS_FRAME_WIDTH) };
         this.glassLeads = this.worldMaterial({ vertexColors: true }, this.stepped);
         this.glassLeads.defines = { ...this.glass.defines, GLASS_LEADS: "" };
         this.water = new THREE.MeshPhongMaterial({ color: "#1e2a30", specular: 0x5a6a78, shininess: 80, transparent: true, opacity: 0.82 });

@@ -2,6 +2,7 @@ import * as THREE from "three";
 
 const INDEX = "textures/world.json";
 const IMAGE = "textures/world.png";
+const GLASS_FRAME = "iron";
 
 export class WorldAtlas
 {
@@ -18,6 +19,7 @@ export class WorldAtlas
         this.texelsPerMetre = texelsPerMetre;
         this.names = layers.map((layer) => layer.name);
         this.glowLayers = layers.flatMap((layer, i) => (layer.glow ? [i] : []));
+        this.frameLayer = this.names.indexOf(GLASS_FRAME);
         this.upload = WorldAtlas.flipLayers(image.data, size, layers.length);
     }
 
