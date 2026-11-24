@@ -145,6 +145,9 @@ export function zoneCells(zone, props, runs, prefabs, numbers, where, problems, 
     return { cells, objects };
 }
 
+// A block turned about y by other than a quarter turn would leave ragged
+// cubes, and a thin one, such as a trunk on a cube corner, could cover no
+// cube's middle at all, so the turn snaps.
 function worldBlock(block, placement)
 {
     const [rx, ry, rz] = block.rotation ?? [0, 0, 0];
@@ -152,7 +155,7 @@ function worldBlock(block, placement)
     return {
         size: block.size.map((value) => value * placement.scale),
         at: ZoneData.toWorld(block.at, placement),
-        rotation: [rx, ry + placement.angle, rz],
+        rotation: [rx, quarterTurn(ry) + placement.angle, rz],
     };
 }
 

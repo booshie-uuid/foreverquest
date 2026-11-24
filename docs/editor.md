@@ -59,7 +59,7 @@ The server reads the content code once, when a zone's session opens. After a cha
 
 ## Owned Cubes
 
-The bake records which placement set each cell. The cube tool changes only the zone's own cubes: the server refuses a cube that a placement owns, the editor puts it back, and the message names the owner. Selecting a prefab and choosing **Break apart into cubes** turns its cubes into the zone's own and its objects into the zone's own placements, at the same cells. A building broken apart keeps no link to its type and takes the zone's age.
+The bake records which placement set each cell. The cube tool changes only the zone's own cubes: the server refuses a cube that a placement owns, the editor puts it back, and the message names the owner. Selecting a prefab and choosing **Break apart into cubes** turns its cubes into the zone's own and its objects into the zone's own placements, at the same cells. Every other object standing within it, such as the chapel's pews and candles, keeps its height, which would otherwise be found from the top of the building's cubes. A building broken apart keeps no link to its type and takes the zone's age.
 
 ## Building Parts and Layouts
 

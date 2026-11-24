@@ -139,6 +139,18 @@ describe("Edit sessions", () =>
         assert.equal(hearthmere.blockAt(...wall), terrain);
     });
 
+    it("keeps every object that stood in the chapel where it was when the chapel breaks apart", async () =>
+    {
+        const objects = () => hearthmere.index.objects.filter((entry) => entry.object).map((entry) => entry.object + " " + entry.box.join(",")).sort();
+        const before = objects();
+
+        await hearthmere.apply([{ type: "breakApart", prop: hearthmere.zone.props.findIndex((prop) => prop.prefab === "chapel") }]);
+
+        assert.deepEqual(objects(), before);
+
+        await hearthmere.undo();
+    });
+
     it("copies a placement without its id, and moves and turns a prop", async () =>
     {
         const well = hearthmere.zone.props.findIndex((prop) => prop.object === "well");
@@ -148,11 +160,24 @@ describe("Edit sessions", () =>
         await hearthmere.apply([{ type: "copy", prop: well, by: [3, 0, 0] }, { type: "move", prop: well, by: [0, 0, 3], turns: 1 }]);
 
         assert.deepEqual(hearthmere.zone.props.at(-1), { ...before, x: before.x + 1 });
-        assert.deepEqual([hearthmere.zone.props[well].z, hearthmere.zone.props[well].angle], [before.z + 1, Math.round((before.angle ?? 0) + Math.PI / 2 * 1e6) / 1e6]);
+        assert.deepEqual([hearthmere.zone.props[well].z, hearthmere.zone.props[well].angle], [before.z + 1, 1.570796]);
         assert.equal(hearthmere.zone.props.length, count + 1);
 
         await hearthmere.undo();
         assert.deepEqual(hearthmere.zone.props[well], before);
+    });
+
+    it("keeps a placement on the half-cube grid and its turn under a full turn, however often it moves", async () =>
+    {
+        const well = hearthmere.zone.props.findIndex((prop) => prop.object === "well");
+        const before = { ...hearthmere.zone.props[well] };
+        const step = (by, turns) => ({ type: "move", prop: well, by, turns });
+
+        await hearthmere.apply([step([1, 0, 0], 1), step([1, 0, 0], 1), step([1, 0, 0], 1), step([0, 0, 0], 1)]);
+
+        assert.deepEqual([hearthmere.zone.props[well].x, hearthmere.zone.props[well].angle], [before.x + 1, 0]);
+
+        await hearthmere.undo();
     });
 
     it("takes back a step the bake rejects", async () =>

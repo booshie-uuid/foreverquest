@@ -213,16 +213,16 @@ export class EditSession
         {
             if(dy !== 0 || turns !== 0) { messages.push("A run moves only across the ground."); }
 
-            prop.points = prop.points.map(([x, z]) => [round(x + dx), round(z + dz)]);
+            prop.points = prop.points.map(([x, z]) => [onGrid(x + dx), onGrid(z + dz)]);
             return;
         }
 
-        prop.x = round(prop.x + dx);
-        prop.z = round(prop.z + dz);
+        prop.x = onGrid(prop.x + dx);
+        prop.z = onGrid(prop.z + dz);
 
-        if(dy !== 0) { prop.y = round(this.heightOf(prop) + dy); }
+        if(dy !== 0) { prop.y = onGrid(this.heightOf(prop) + dy); }
         if(dy !== 0 && prop.object) { delete prop.on; }
-        if(turns !== 0) { prop.angle = round(normalised((prop.angle ?? 0) + turns * QUARTER)); }
+        if(turns !== 0) { prop.angle = turned(prop.angle, turns); }
     }
 
     // The height a placement stands at now, in metres.
@@ -245,10 +245,10 @@ export class EditSession
         const base = Object.assign({ ...prefab.objects[part] }, prefab.layout?.[part], prop.parts?.[part]);
         const angle = Voxelise.quarterTurn(prop.angle ?? 0);
         const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
-        const at = [base.at[0] + dx * cos - dz * sin, base.at[1] + dy, base.at[2] + dx * sin + dz * cos].map(round);
+        const at = [base.at[0] + dx * cos - dz * sin, base.at[1] + dy, base.at[2] + dx * sin + dz * cos].map(onGrid);
         const change = { ...prop.parts?.[part], at };
 
-        if(turns !== 0) { change.angle = round(normalised((base.angle ?? 0) + turns * QUARTER)); }
+        if(turns !== 0) { change.angle = turned(base.angle, turns); }
         if(dy !== 0) { change.on = null; }
 
         prop.parts = { ...prop.parts, [part]: change };
@@ -304,8 +304,30 @@ export class EditSession
             return { ...own, ...(id ? { id } : {}), ...(mover ? { mover } : {}), ...(trigger ? { trigger } : {}) };
         });
 
+        this.pinObjectsIn(index);
         this.zone.props.splice(index, 1, ...objects);
         messages.push(...problems);
+    }
+
+    // An object placed without a height stands on the floor or the top that
+    // the bake finds above the terrain's surface. Once a building's cubes join
+    // the terrain, that search starts at the roof, so each object standing in
+    // the building keeps the height it has now.
+    pinObjectsIn(index)
+    {
+        const [x0, , z0, x1, , z1] = this.index.objects.find((entry) => entry.prop === index && entry.part === undefined).box;
+
+        for(const entry of this.index.objects)
+        {
+            const prop = this.zone.props[entry.prop];
+            const [left, , back, right, , front] = entry.box;
+            const isWithin = left <= x1 && right >= x0 && back <= z1 && front >= z0;
+
+            if(!isWithin || entry.prop === index || entry.part !== undefined || !prop.object) { continue; }
+
+            prop.y = round(entry.y);
+            delete prop.on;
+        }
     }
 
     /* CUBES ******************************************************************/
@@ -502,7 +524,17 @@ function round(value)
     return Math.round(value * PRECISION) / PRECISION;
 }
 
-function normalised(angle)
+// Placements stand on whole or half cubes: a footprint an odd number of
+// cubes wide has its middle in a cube's middle.
+function onGrid(metres)
 {
-    return ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    return round(Math.round(metres * CUBES * 2) / (CUBES * 2));
+}
+
+// Placements turn in quarter turns, so an angle snaps before it turns.
+function turned(angle = 0, turns)
+{
+    const quarters = (((Math.round(angle / QUARTER) + turns) % 4) + 4) % 4;
+
+    return round(quarters * QUARTER);
 }
