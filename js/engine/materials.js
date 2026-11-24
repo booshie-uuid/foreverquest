@@ -29,9 +29,11 @@ const STEPPED_VERTEX_PARS = `
 attribute vec2 light;
 attribute vec2 weather;
 attribute float glow;
+attribute float lampHue;
 varying vec2 vLight;
 varying vec2 vWeather;
 varying float vGlow;
+varying float vLampHue;
 varying vec3 vStepPosition;
 varying vec3 vStepNormal;
 `;
@@ -40,6 +42,7 @@ const STEPPED_VERTEX = `
 vLight = light;
 vWeather = weather;
 vGlow = glow;
+vLampHue = lampHue;
 
 #ifdef USE_INSTANCING
     vStepPosition = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
@@ -60,6 +63,7 @@ uniform float cubeGrid;
 varying vec2 vLight;
 varying vec2 vWeather;
 varying float vGlow;
+varying float vLampHue;
 varying vec3 vStepPosition;
 varying vec3 vStepNormal;
 `;
@@ -107,10 +111,11 @@ float skyShade = mix(0.55, 1.0, moonLit);
 // takes the brighter of it and the cell's lamp light, so the two meet without
 // an edge.
 // A glow is band * 4096 + red * 256 + green * 16 + blue, as the mesher packs
-// it: the band, 1 to 4, is its strength, and each channel, 0 to 15, its
+// it: the band, 1 to 15, is its strength, and each channel, 0 to 15, its
 // colour at full strength in sRGB. 0 is no glow. Where a glow reaches, the
-// lamp light and the base take its colour at their own brightness, the base
-// more as the glow strengthens, and the glow itself adds a little light.
+// base takes its colour at its own brightness, more as the glow strengthens,
+// and the glow itself adds light. Lamp light takes the colour of the lamps
+// that reach the cell, which the mesher packs the same way with no band.
 const GLOW = `
 vec3 glowHue(float code)
 {
@@ -121,7 +126,7 @@ vec3 glowHue(float code)
 
 float glowBand(float code)
 {
-    return floor(code / 4096.0) / 4.0;
+    return floor(code / 4096.0) / 15.0;
 }
 
 vec3 inGlowColour(vec3 light, float code)
@@ -171,7 +176,7 @@ vec3 stepCell = floor((vStepPosition + vStepNormal * 0.05) * 3.0);
 float nearPlayer = playerLight.w - floor(distance(stepCell, floor(playerLight.xyz * 3.0)));
 int skyLevel = int(vLight.x * 15.0 + 0.5);
 int ownLamp = int(vLight.y * 15.0 + 0.5);
-vec3 lampLight = max(inGlowColour(lampRamp[ownLamp], vGlow), lampRamp[clamp(int(nearPlayer), 0, 15)]);
+vec3 lampLight = max(inGlowColour(lampRamp[ownLamp], vLampHue), lampRamp[clamp(int(nearPlayer), 0, 15)]);
 vec3 stepLight = floorLight(fitLight(skyRamp[skyLevel] * skyShade + lampLight + glowLight(vGlow)), glowBase(ambientFloor, vGlow));
 float stepFace = vStepNormal.y > 0.5 ? 1.0 : (vStepNormal.y < -0.5 ? 0.55 : (abs(vStepNormal.x) > 0.5 ? 0.72 : 0.86));
 
@@ -194,6 +199,7 @@ const CHARACTER_FRAGMENT_PARS = `
 uniform vec3 cellSky;
 uniform vec3 cellLamp;
 uniform float cellGlow;
+uniform float cellLampHue;
 uniform vec3 ambientFloor;
 uniform float glowStrength;
 ` + AMBIENT;
@@ -202,7 +208,7 @@ const CHARACTER_FRAGMENT = MOON + `
 vec3 worldNormal = inverseTransformDirection(geometryNormal, viewMatrix);
 float faceShade = worldNormal.y >= 0.0 ? mix(0.8, 1.0, worldNormal.y) : mix(0.8, 0.55, -worldNormal.y);
 
-outgoingLight = diffuseColor.rgb * floorLight(fitLight(cellSky * skyShade + inGlowColour(cellLamp, cellGlow) + glowLight(cellGlow)), glowBase(ambientFloor, cellGlow)) * faceShade + totalEmissiveRadiance;
+outgoingLight = diffuseColor.rgb * floorLight(fitLight(cellSky * skyShade + inGlowColour(cellLamp, cellLampHue) + glowLight(cellGlow)), glowBase(ambientFloor, cellGlow)) * faceShade + totalEmissiveRadiance;
 `;
 
 const FOG_VERTEX_PARS = `
@@ -249,11 +255,12 @@ const FOG_FRAGMENT = `
 const NO_HEIGHT_FOG = { base: 0, falloff: 1, density: 0 };
 const LEVELS = 16;
 const PLAYER_LIGHT = 7;
+const TAIL_EASE = 1;
 const DEFAULT_AMBIENT = { base: "#1c2030", level: 0.2, glow: 0.4 };
 const DEFAULT_STEPS =
 {
     sky: { dark: "#12141f", bright: "#56607e", curve: 1.4 },
-    lamp: { dark: "#000000", bright: "#ffb466", curve: 0.6 },
+    lamp: { dark: "#000000", bright: "#ffb466", curve: 0.6, tail: 3 },
 };
 
 export class MaterialLibrary
@@ -379,14 +386,17 @@ export class MaterialLibrary
     }
 
     // The colours are mixed as written, in sRGB, then converted for the shader.
-    static ramp({ dark, bright, curve })
+    // Below `tail` levels the ramp eases to its dark end, so a light with a
+    // curve under 1 fades out rather than ending at a bright last step.
+    static ramp({ dark, bright, curve, tail = 0 })
     {
         const from = new THREE.Color(dark).getRGB({}, THREE.SRGBColorSpace);
         const to = new THREE.Color(bright).getRGB({}, THREE.SRGBColorSpace);
+        const rise = (level) => (level / (LEVELS - 1)) ** curve;
 
         return Array.from({ length: LEVELS }, (unused, level) =>
         {
-            const t = (level / (LEVELS - 1)) ** curve;
+            const t = level < tail ? rise(tail) * (level / tail) ** TAIL_EASE : rise(level);
 
             return new THREE.Color().setRGB(from.r + (to.r - from.r) * t, from.g + (to.g - from.g) * t, from.b + (to.b - from.b) * t, THREE.SRGBColorSpace);
         });

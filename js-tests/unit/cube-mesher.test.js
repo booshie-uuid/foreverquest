@@ -289,4 +289,38 @@ describe("Cube mesher", () =>
 
         assert.ok(inside.length > 0 && inside.every((code) => code >= 4096 && Math.floor(code / 256) % 16 === 15), "The recess's wall does not take the room's glow: " + [...new Set(inside)]);
     });
+    it("colours lamp light by the lamps that reach a cell, the nearest leading", () =>
+    {
+        const lit = table();
+
+        lit.lights[LEAVES] = 12;
+        lit.glowKeys = new Int32Array(256);
+        lit.glowKeys[LAMP] = 0xff0000;
+        lit.glowKeys[LEAVES] = 0x0000ff;
+
+        const floor = cells((set) =>
+        {
+            for(let x = 0; x < 32; x++) { for(let z = 0; z < 32; z++) { set(x, 0, z, STONE); } }
+
+            set(10, 1, 16, LAMP);
+            set(21, 1, 16, LEAVES);
+        });
+        const mesh = CubeMesher.meshCells(floor, lit, [0, 0, 0], FRAME);
+        const hueNear = (x) =>
+        {
+            for(let i = 0; i < mesh.normals.length / 3; i++)
+            {
+                const isFloor = mesh.normals[i * 3 + 1] === 1 && Math.abs(mesh.positions[i * 3 + 1] - 1 / 3) < 1e-6;
+
+                if(isFloor && Math.abs(mesh.positions[i * 3] - x / 3) < 1e-6 && Math.abs(mesh.positions[i * 3 + 2] - 16 / 3) < 1e-6) { return [Math.floor(mesh.hues[i] / 256), Math.floor(mesh.hues[i] / 16) % 16, mesh.hues[i] % 16]; }
+            }
+
+            return null;
+        };
+        const [byRed, between, byBlue] = [hueNear(12), hueNear(16), hueNear(20)];
+
+        assert.ok(byRed[0] === 15 && byRed[2] < 4, "The floor by the red lamp is lit " + byRed);
+        assert.ok(byBlue[2] === 15 && byBlue[0] < 4, "The floor by the blue lamp is lit " + byBlue);
+        assert.ok(between[0] > 4 && between[2] > 4, "The floor between the lamps is lit " + between);
+    });
 });

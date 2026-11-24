@@ -366,7 +366,7 @@ describe("Zone view", () =>
         assert.equal(street.sky, 15);
         assert.ok(room.sky < street.sky - 2, "The room is as bright as the street: " + JSON.stringify(room));
         assert.ok(room.lamp >= 4, "The inn's lantern does not light the floor under it: " + JSON.stringify(room));
-        assert.deepEqual(view.lightAt({ x: 0, y: 40, z: 0 }), { sky: 15, lamp: 0, glow: 0 });
+        assert.deepEqual(view.lightAt({ x: 0, y: 40, z: 0 }), { sky: 15, lamp: 0, glow: 0, hue: 0 });
         view.dispose();
     });
 
@@ -445,6 +445,26 @@ describe("Zone view", () =>
         assert.ok(house.glow > 0 && hue(house.glow)[1] > 8, "The house floor does not take its candles' glow: " + hue(house.glow));
         assert.equal(view.lightAt({ x: 0, y: 40, z: 0 }).glow, 0);
         view.dispose();
+    });
+
+    it("lets a light set in stone glow from the open cubes beside it, and never from a closed coarse cell", () =>
+    {
+        const smithy = hearthmere.objects.find((entry) => entry.name === "smithy");
+        const embers = hearthmere.blocks.number("embers");
+        const hearth = hearthmere.blocks.glowKey(embers);
+        const exits = new Map();
+
+        for(let cy = 0; cy < hearthmere.chunksHigh; cy++)
+        {
+            const { lights } = hearthmere.coarseOf(Math.floor(smithy.x * 3 + hearthmere.columns / 2) >> 5, cy, Math.floor(smithy.z * 3 + hearthmere.columns / 2) >> 5);
+
+            for(let i = 0; i < lights.length; i += 5) { if(lights[i + 4] === hearth) { exits.set(lights.slice(i, i + 3).join(","), lights.slice(i, i + 3)); } }
+        }
+
+        const sides = new Set([...exits.values()].map(([x, , z]) => x + "," + z));
+
+        assert.ok(sides.size >= 4, "The forge glows from only " + sides.size + " columns of coarse cells");
+        assert.ok([...exits.values()].every((coarse) => hearthmere.isCoarseOpen(...coarse)), "The forge glows from a closed coarse cell");
     });
 
     it("lights a door that fills its doorway by the room beside it", async () =>

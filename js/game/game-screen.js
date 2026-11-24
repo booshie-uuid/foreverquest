@@ -400,7 +400,7 @@ export class GameScreen
 
             const light = this.world.lightAt(view.position);
 
-            view.setLight(this.materials.colours(light.sky, light.lamp), light.glow);
+            view.setLight(this.materials.colours(light.sky, light.lamp), light.glow, light.hue);
         }
 
         this.streamer.update(this.player.position.x, this.player.position.z);
@@ -423,7 +423,7 @@ export class GameScreen
 
             const light = this.world.lightAt(view.position);
 
-            view.setLight(this.materials.colours(light.sky, light.lamp), light.glow);
+            view.setLight(this.materials.colours(light.sky, light.lamp), light.glow, light.hue);
         }
 
         this.playerView.root.visible = true;

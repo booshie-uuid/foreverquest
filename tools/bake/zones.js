@@ -274,6 +274,7 @@ function checkLighting(lighting, where, problems)
     for(const [name, steps] of Object.entries(lighting?.steps ?? {}))
     {
         if(!(COLOUR_PATTERN.test(steps.dark ?? "") && COLOUR_PATTERN.test(steps.bright ?? "") && steps.curve > 0)) { problems.push(where + " needs its " + name + " steps to have lower-case #rrggbb dark and bright colours and a positive curve"); }
+        if(steps.tail !== undefined && !(Number.isInteger(steps.tail) && steps.tail >= 0 && steps.tail <= 15)) { problems.push(where + " needs the tail of its " + name + " steps to be a whole number of levels from 0 to 15"); }
     }
 }
 

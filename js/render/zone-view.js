@@ -343,7 +343,7 @@ export class ZoneView
         const [column, row] = zone.columnOf(position.x, position.z);
         const y = Math.floor(zone.cellY(position.y) + 0.01);
 
-        return this.floorLight(column, y, row) ?? { sky: y >= zone.surface(column, row) ? 15 : 0, lamp: 0, glow: 0 };
+        return this.floorLight(column, y, row) ?? { sky: y >= zone.surface(column, row) ? 15 : 0, lamp: 0, glow: 0, hue: 0 };
     }
 
     // The levels of cell `y` when the cell under it is a floor, or null.
@@ -357,7 +357,7 @@ export class ZoneView
         const index = ((floor % CHUNK) * CHUNK + (row % CHUNK)) * CHUNK + (column % CHUNK);
         const found = floors ? ZoneView.search(floors.indices, index) : -1;
 
-        return found < 0 ? null : { sky: floors.levels[found] >> 4, lamp: floors.levels[found] & 0xf, glow: floors.glows[found] };
+        return found < 0 ? null : { sky: floors.levels[found] >> 4, lamp: floors.levels[found] & 0xf, glow: floors.glows[found], hue: floors.hues[found] };
     }
 
     static search(sorted, value)
@@ -384,7 +384,7 @@ export class ZoneView
         const joined = {};
         let vertices = 0;
 
-        for(const name of ["positions", "normals", "uvs", "layers", "colours", "lights", "weathers", "glows"])
+        for(const name of ["positions", "normals", "uvs", "layers", "colours", "lights", "weathers", "glows", "hues"])
         {
             joined[name] = new Float32Array(parts.reduce((total, part) => total + part[name].length, 0));
 
@@ -454,6 +454,7 @@ export class ZoneView
             const mesh = new THREE.InstancedMesh(geometry, this.materials.objects, entries.length);
             geometry.setAttribute("light", new THREE.InstancedBufferAttribute(new Float32Array(entries.length * 2), 2));
             geometry.setAttribute("glow", new THREE.InstancedBufferAttribute(new Float32Array(entries.length), 1));
+            geometry.setAttribute("lampHue", new THREE.InstancedBufferAttribute(new Float32Array(entries.length), 1));
 
             entries.forEach((entry, i) =>
             {
@@ -535,6 +536,7 @@ export class ZoneView
         {
             const light = mesh.geometry.getAttribute("light");
             const glow = mesh.geometry.getAttribute("glow");
+            const hue = mesh.geometry.getAttribute("lampHue");
             let isChanged = false;
 
             mesh.userData.entries.forEach((entry, i) =>
@@ -542,10 +544,11 @@ export class ZoneView
                 const level = this.objectLight(entry);
                 const [sky, lamp] = [level.sky / 15, level.lamp / 15];
 
-                if(light.getX(i) === sky && light.getY(i) === lamp && glow.getX(i) === level.glow) { return; }
+                if(light.getX(i) === sky && light.getY(i) === lamp && glow.getX(i) === level.glow && hue.getX(i) === level.hue) { return; }
 
                 light.setXY(i, sky, lamp);
                 glow.setX(i, level.glow);
+                hue.setX(i, level.hue);
                 isChanged = true;
             });
 
@@ -553,6 +556,7 @@ export class ZoneView
             {
                 light.needsUpdate = true;
                 glow.needsUpdate = true;
+                hue.needsUpdate = true;
             }
         }
     }
@@ -575,7 +579,7 @@ export class ZoneView
         level ??= this.besideLight(entry.box);
         level ??= this.lightAt({ x: entry.x, y: this.zone.metresY(entry.box[4] + 1), z: entry.z });
 
-        return { sky: level.sky, lamp: Math.max(level.lamp, own), glow: level.glow ?? 0 };
+        return { sky: level.sky, lamp: Math.max(level.lamp, own), glow: level.glow ?? 0, hue: level.hue ?? 0 };
     }
 
     // An object that fills its middle column from floor to ceiling, such as a
@@ -617,6 +621,7 @@ export class ZoneView
         geometry.setAttribute("light", new THREE.BufferAttribute(arrays.lights, 2));
         geometry.setAttribute("weather", new THREE.BufferAttribute(arrays.weathers, 2));
         geometry.setAttribute("glow", new THREE.BufferAttribute(arrays.glows, 1));
+        geometry.setAttribute("lampHue", new THREE.BufferAttribute(arrays.hues, 1));
         geometry.setIndex(new THREE.BufferAttribute(arrays.indices, 1));
         geometry.computeBoundingSphere();
 

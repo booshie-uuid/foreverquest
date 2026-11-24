@@ -10,6 +10,9 @@ const CUBES_PER_METRE = 3;
 const COARSE = 2;
 const { CHUNK, REGION } = RegionCodec;
 const COARSE_CHUNK = CHUNK / COARSE;
+const GLOW_EXIT_STEPS = 4;
+const GLOW_EXIT_KEEP = 0.9;
+const AROUND = [-1, 0, 1].flatMap((dx) => [-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dz) => [dx, dy, dz])));
 
 
 /******************************************************************************/
@@ -218,7 +221,12 @@ export class ZoneData
             this.surfaces[column] = surface;
         }
 
-        for(const [x, y, z] of set) { this.coarse.delete(this.chunkKey(Math.floor(x / CHUNK), Math.floor(y / CHUNK), Math.floor(z / CHUNK))); }
+        for(const [x, y, z] of set)
+        {
+            const [cx, cy, cz] = [x, y, z].map((value) => Math.floor(value / CHUNK));
+
+            for(const [dx, dy, dz] of AROUND) { this.coarse.delete(this.chunkKey(cx + dx, cy + dy, cz + dz)); }
+        }
 
         if(set.length > 0) { this.emitRegion("cells", null, set); }
 
@@ -229,34 +237,53 @@ export class ZoneData
 
     // A chunk's cells in cubes of COARSE cells a side, for the glow of light:
     // `open` holds 1 for each coarse cell with fewer than half its cells
-    // opaque, and `lights` [coarse index, strength, colour] for each light
-    // cell: its level as a share of 15, and its colour as 0xrrggbb. Null for
-    // a chunk outside the zone or in a region not loaded.
+    // opaque, and `lights` [x, y, z, strength, colour] for each coarse cell a
+    // light of the chunk glows from: the coarse cell's place in the zone, the
+    // light's level as a share of 15, and its colour as 0xrrggbb. Null for a
+    // chunk outside the zone or in a region not loaded.
     coarseOf(cx, cy, cz)
+    {
+        const entry = this.coarseEntry(cx, cy, cz);
+
+        if(entry && !entry.lights) { entry.lights = this.coarseLights(entry.sources); }
+
+        return entry;
+    }
+
+    coarseEntry(cx, cy, cz)
     {
         if(cx < 0 || cz < 0 || cy < 0 || cx >= this.chunksWide || cz >= this.chunksWide || cy >= this.chunksHigh) { return null; }
         if(!this.isColumnLoaded(cx * CHUNK, cz * CHUNK)) { return null; }
 
         const key = this.chunkKey(cx, cy, cz);
 
-        if(!this.coarse.has(key)) { this.coarse.set(key, this.buildCoarse(this.chunks.get(key) ?? null)); }
+        if(!this.coarse.has(key)) { this.coarse.set(key, this.buildCoarse(this.chunks.get(key) ?? null, [cx, cy, cz])); }
 
         return this.coarse.get(key);
     }
 
-    buildCoarse(chunk)
+    isCoarseOpen(x, y, z)
+    {
+        const entry = this.coarseEntry(Math.floor(x / COARSE_CHUNK), Math.floor(y / COARSE_CHUNK), Math.floor(z / COARSE_CHUNK));
+        const local = (value) => ((value % COARSE_CHUNK) + COARSE_CHUNK) % COARSE_CHUNK;
+
+        return entry !== null && entry.open[(local(y) * COARSE_CHUNK + local(z)) * COARSE_CHUNK + local(x)] === 1;
+    }
+
+    // `sources` lists the chunk's light cells as [x, y, z, block] in the zone.
+    buildCoarse(chunk, [cx, cy, cz])
     {
         const open = new Uint8Array(COARSE_CHUNK * COARSE_CHUNK * COARSE_CHUNK).fill(1);
-        const lights = [];
+        const sources = [];
         const blocks = this.blocks;
 
-        if(!chunk) { return { open, lights }; }
+        if(!chunk) { return { open, sources, lights: null }; }
 
         if(chunk.cells === null)
         {
             if(blocks.isOpaque(chunk.uniform)) { open.fill(0); }
 
-            return { open, lights };
+            return { open, sources, lights: null };
         }
 
         const opaque = new Uint8Array(open.length);
@@ -269,26 +296,85 @@ export class ZoneData
                 {
                     const block = chunk.cells[(y * CHUNK + z) * CHUNK + x];
                     const coarse = (Math.floor(y / COARSE) * COARSE_CHUNK + Math.floor(z / COARSE)) * COARSE_CHUNK + Math.floor(x / COARSE);
-                    const light = blocks.light(block);
 
                     if(blocks.isOpaque(block)) { opaque[coarse]++; }
-                    if(light > 0) { lights.push(coarse, light / 15, blocks.glowKey(block)); }
+                    if(blocks.light(block) > 0) { sources.push([cx * CHUNK + x, cy * CHUNK + y, cz * CHUNK + z, block]); }
                 }
             }
         }
 
         for(let i = 0; i < open.length; i++) { open[i] = opaque[i] * 2 < COARSE ** 3 ? 1 : 0; }
 
-        return { open, lights };
+        return { open, sources, lights: null };
     }
 
+    coarseLights(sources)
+    {
+        const lights = [];
+
+        for(const [x, y, z, block] of sources)
+        {
+            for(const [coarse, keep] of this.glowExits(x, y, z)) { lights.push(...coarse, this.blocks.light(block) / 15 * keep, this.blocks.glowKey(block)); }
+        }
+
+        return lights;
+    }
+
+    // The open coarse cells a light's glow starts from, each with the share
+    // of the glow that reaches it. A light in an open coarse cell glows from
+    // that cell. A light whose coarse cell is closed, such as embers set in a
+    // hearth or a lantern against a wall, glows from the open coarse cells
+    // that open cells lead to within GLOW_EXIT_STEPS cells of it, so its glow
+    // leaves on the sides it is open to and not through the wall.
+    glowExits(x, y, z)
+    {
+        const coarseOf = (cell) => cell.map((value) => Math.floor(value / COARSE));
+        const isOpaque = (cell) => this.blocks.isOpaque(this.blockAt(...cell));
+
+        if(!isOpaque([x, y, z]) && this.isCoarseOpen(...coarseOf([x, y, z]))) { return [[coarseOf([x, y, z]), 1]]; }
+
+        const exits = new Map();
+        const seen = new Set([x + "," + y + "," + z]);
+        let frontier = [[x, y, z]];
+
+        for(let step = 1; step <= GLOW_EXIT_STEPS && frontier.length > 0; step++)
+        {
+            const next = [];
+
+            for(const [fx, fy, fz] of frontier)
+            {
+                for(const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]])
+                {
+                    const cell = [fx + dx, fy + dy, fz + dz];
+                    const key = cell.join(",");
+
+                    if(seen.has(key) || !this.isCell(...cell) || isOpaque(cell)) { continue; }
+
+                    seen.add(key);
+
+                    const coarse = coarseOf(cell);
+
+                    if(this.isCoarseOpen(...coarse)) { exits.set(coarse.join(","), [coarse, Math.max(exits.get(coarse.join(","))?.[1] ?? 0, GLOW_EXIT_KEEP ** step)]); }
+                    else { next.push(cell); }
+                }
+            }
+
+            frontier = next;
+        }
+
+        return [...exits.values()];
+    }
+
+    // A light near the region's edge glows from coarse cells of its
+    // neighbours, so every chunk's lights are found again.
     forgetCoarse(name)
     {
-        for(const key of this.coarse.keys())
+        for(const [key, entry] of this.coarse)
         {
             const [x, z] = [key % this.chunksWide, Math.floor(key / this.chunksWide) % this.chunksWide];
 
             if(this.regionOfColumn(x * CHUNK, z * CHUNK) === name) { this.coarse.delete(key); }
+            else { entry.lights = null; }
         }
     }
 
