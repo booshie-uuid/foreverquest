@@ -345,7 +345,7 @@ describe("Cube mesher", () =>
         assert.ok(byBlue[2] === 15 && byBlue[0] < 4, "The floor by the blue lamp is lit " + byBlue);
         assert.ok(between[0] > 4 && between[2] > 4, "The floor between the lamps is lit " + between);
     });
-    it("draws glass in its own mesh, frames it where it meets stone, lets lamp light through it, and lights a pane by the brighter side", () =>
+    it("draws glass in its own mesh, frames it where it meets stone, inside the wall too, lets lamp light through it, and lights a pane by the brighter side", () =>
     {
         const room = (pane) => cells((set) =>
         {
@@ -366,14 +366,18 @@ describe("Cube mesher", () =>
         const panes = quads(glazed.glass);
         const lampOf = (sign) => Math.max(...panes.flatMap((quad, q) => (quad.normal[0] === sign ? [glazed.glass.lights[q * 8 + 1] * 15] : [])));
 
-        assert.ok(panes.length > 0 && panes.every((quad) => quad.layer >= 60 && Math.abs(quad.normal[0]) === 1), "The glass mesh holds faces other than the pane's two sides");
+        assert.ok(panes.length > 0 && panes.every((quad) => quad.layer >= 60), "The glass mesh holds a face that is not glass");
         assert.ok(quads(glazed).every((quad) => quad.layer < 60), "The opaque mesh holds glass");
         assert.equal(walled.glass, undefined);
         assert.ok(lampOnFloor(glazed, 13) > 0 && lampOnFloor(walled, 13) === 0, "Lamp light beyond the pane is " + lampOnFloor(glazed, 13) + " through glass and " + lampOnFloor(walled, 13) + " through stone");
         assert.equal(Math.round(lampOf(-1)), Math.round(lampOf(1)), "The pane's street side is not lit by the room");
 
-        const edges = panes.map((quad, q) => glazed.glass.weathers[q * 8 + 1]);
+        const codes = panes.map((quad, q) => glazed.glass.weathers[q * 8 + 1]);
+        const isPane = (quad) => Math.abs(quad.normal[0]) === 1;
+        const sides = codes.filter((code, q) => isPane(panes[q]));
+        const inWall = codes.filter((code, q) => !isPane(panes[q]));
 
-        assert.ok(edges.every((edge) => [1, 2].includes(edge & 3) && [4, 8].includes(edge & 12)), "A corner of the two-by-two pane is not framed on its two outer edges: " + edges);
+        assert.ok(sides.every((edge) => [1, 2].includes(edge & 3) && [4, 8].includes(edge & 12)), "A corner of the two-by-two pane is not framed on its two outer edges: " + sides);
+        assert.ok(inWall.length > 0 && inWall.every((code) => code >= 16 && (code & 3) === 3), "A face of the glass inside the wall is not drawn as a frame along the street and the room: " + inWall);
     });
 });

@@ -447,6 +447,28 @@ describe("Zone view", () =>
         view.dispose();
     });
 
+    it("orders the quads of glass that face one way from the farthest to the nearest", () =>
+    {
+        const quads = [[-1, 1], [-1, 5], [1, 5], [1, 1], [-1, 3]];
+        const mesh = { positions: [], normals: [], indices: [] };
+
+        quads.forEach(([sign, x], quad) =>
+        {
+            for(let corner = 0; corner < 4; corner++)
+            {
+                mesh.positions.push(x, corner, quad);
+                mesh.normals.push(sign, 0, 0);
+            }
+
+            mesh.indices.push(...[0, 1, 2, 0, 2, 3].map((index) => quad * 4 + index));
+        });
+
+        const sorted = ZoneView.backToFront({ positions: Float32Array.from(mesh.positions), normals: Float32Array.from(mesh.normals), indices: Uint32Array.from(mesh.indices) });
+        const order = Array.from({ length: quads.length }, (unused, i) => quads[sorted.indices[i * 6] / 4]);
+
+        assert.deepEqual(order, [[-1, 5], [-1, 3], [-1, 1], [1, 1], [1, 5]]);
+    });
+
     it("glazes the kit's windows and the chapel's in every kind of glass", () =>
     {
         const counts = new Map();

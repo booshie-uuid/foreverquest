@@ -28,6 +28,7 @@ const HUE_SHIFT = 65536;
 const GLOW_STEPS = Math.log(GLOW_END) / Math.log(GLOW_KEEP);
 const FILL_STEPS = 6;
 const FILL_KEEP = Math.sqrt(GLOW_KEEP);
+const FRAME_ONLY = 16;
 const CORE = [GLOW_REACH / COARSE - 1 - Math.ceil((FILL_STEPS + 1) / COARSE), (GLOW_REACH + CHUNK) / COARSE + Math.ceil((FILL_STEPS + 1) / COARSE)];
 
 // The step through the padded cells along x, y and z.
@@ -746,7 +747,8 @@ function floorLights(cells, light, table, glowOf)
 // Its weather mask entry holds its two overlays; see weatherOf. The mask
 // holds the faces of glass when `context.isGlass` is 1, and the rest when it
 // is 0. A glass face takes the brighter lamp light of the cells on its two
-// sides, and its weather entry holds its frame edges; see frameEdges.
+// sides, and its weather entry holds its frame edges; see frameEdges. A glass
+// face against an opaque cell draws only its frame, in its own cell's light.
 function fillMask(masks, context, direction, slice)
 {
     const { cells, ages, light, table } = context;
@@ -768,7 +770,8 @@ function fillMask(masks, context, direction, slice)
             const chip = context.chips.size > 0 ? context.chips.get(index) : undefined;
             const isChipped = chip !== undefined && ((chip.a === axis && chip.signA === sign) || (chip.b === axis && chip.signB === sign));
             const isGlass = table.glass[block];
-            const isHidden = isGlass !== context.isGlass || isChipped || block === 0 || table.hidden[block] === 1 || table.opaque[neighbour] === 1 || (table.clear[block] === 1 && neighbour === block) || (isGlass === 1 && table.glass[neighbour] === 1);
+            const isInWall = isGlass === 1 && table.opaque[neighbour] === 1;
+            const isHidden = isGlass !== context.isGlass || isChipped || block === 0 || table.hidden[block] === 1 || (table.opaque[neighbour] === 1 && !isInWall) || (table.clear[block] === 1 && neighbour === block) || (isGlass === 1 && table.glass[neighbour] === 1);
 
             if(isGlass === 1) { context.hasGlass = true; }
 
@@ -781,11 +784,14 @@ function fillMask(masks, context, direction, slice)
             const age = ages[Math.floor(index / PADDED) % PADDED * PADDED + index % PADDED];
             const layer = age > 0 ? wornLayer(context, block, index, age, layers[block]) : layers[block];
 
-            const lit = isGlass === 1 ? brighterSide(light, front, index - sign * stepAxis) : front;
+            let lit = isGlass === 1 ? brighterSide(light, front, index - sign * stepAxis) : front;
+
+            if(isInWall) { lit = index; }
+
             const level = isGlass === 1 ? Math.max(light[front] & 0xf0, light[lit] & 0xf0) | (light[lit] & 0xf) : light[front];
 
             mask[j * CHUNK + i] = ((layer + 1) << 16) | (level << 8) | shadesOf(cells, table.opaque, front, stepU, stepV);
-            if(isGlass === 1) { weathers[j * CHUNK + i] = frameEdges(cells, table.glass, index, stepU, stepV); }
+            if(isGlass === 1) { weathers[j * CHUNK + i] = frameEdges(cells, table.glass, index, stepU, stepV) | (isInWall ? FRAME_ONLY : 0); }
             else { weathers[j * CHUNK + i] = age > 0 && table.weathers[block] !== 0 ? weatherOf(context, block, index, front, direction, age / 100) : 0; }
             glows[j * CHUNK + i] = context.glowOf(lit);
             hasFace = true;

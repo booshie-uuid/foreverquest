@@ -219,7 +219,7 @@ export const tests =
         },
     },
     {
-        name: "windows are see-through glass, drawn after the terrain and casting no shadow",
+        name: "windows are see-through glass, drawn after the terrain and casting no shadow, with solid frames and leads that hide what lies behind them",
         run: async ({ page, baseUrl }) =>
         {
             await enterWorld(page, baseUrl);
@@ -229,14 +229,18 @@ export const tests =
             {
                 const meshes = window.foreverQuest.game.world.glassMeshes;
 
+                const blended = meshes.filter((mesh) => mesh.material.transparent);
+                const leads = meshes.filter((mesh) => !mesh.material.transparent);
+
                 return {
-                    hasPanes: meshes.length > 0,
-                    isSeeThrough: meshes.every((mesh) => mesh.material.transparent && !mesh.material.depthWrite && "GLASS" in mesh.material.defines),
+                    hasPanes: blended.length > 0,
+                    isSeeThrough: blended.every((mesh) => !mesh.material.depthWrite && "GLASS" in mesh.material.defines),
+                    leadsHideWhatIsBehind: leads.length === blended.length && leads.every((mesh) => mesh.material.depthWrite && "GLASS_LEADS" in mesh.material.defines),
                     castsShadow: meshes.some((mesh) => mesh.castShadow),
                 };
             });
 
-            assert.deepEqual(glass, { hasPanes: true, isSeeThrough: true, castsShadow: false });
+            assert.deepEqual(glass, { hasPanes: true, isSeeThrough: true, leadsHideWhatIsBehind: true, castsShadow: false });
         },
     },
 ];

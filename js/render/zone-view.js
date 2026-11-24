@@ -51,6 +51,7 @@ export class ZoneView
         this.floors = new Map();
         this.tileMeshes = new Map();
         this.glassTiles = new Map();
+        this.leadTiles = new Map();
         this.dirtyTiles = new Set();
         this.focus = { x: zone.spawn.x, z: zone.spawn.z };
         this.waiting = new Set();
@@ -93,7 +94,7 @@ export class ZoneView
 
     get glassMeshes()
     {
-        return [...this.glassTiles.values()];
+        return [...this.leadTiles.values(), ...this.glassTiles.values()];
     }
 
     get isSettled()
@@ -315,7 +316,7 @@ export class ZoneView
             this.removeTile(tile);
 
             if(parts.length > 0) { this.addTile(tile, ZoneView.geometryOf(ZoneView.joined(parts))); }
-            if(panes.length > 0) { this.addPanes(tile, ZoneView.geometryOf(ZoneView.joined(panes))); }
+            if(panes.length > 0) { this.addPanes(tile, ZoneView.geometryOf(ZoneView.backToFront(ZoneView.joined(panes)))); }
         }
 
         this.dirtyTiles.clear();
@@ -332,19 +333,24 @@ export class ZoneView
         this.scene.add(mesh);
     }
 
+    // The solid texels of glass, its frames and leads, draw with the terrain;
+    // the see-through texels draw after it, blended. The two share a geometry.
     addPanes(tile, geometry)
     {
-        const mesh = new THREE.Mesh(geometry, this.materials.glass);
+        for(const [meshes, material] of [[this.leadTiles, this.materials.glassLeads], [this.glassTiles, this.materials.glass]])
+        {
+            const mesh = new THREE.Mesh(geometry, material);
 
-        mesh.name = "glass";
-        mesh.receiveShadow = true;
-        this.glassTiles.set(tile, mesh);
-        this.scene.add(mesh);
+            mesh.name = "glass";
+            mesh.receiveShadow = true;
+            meshes.set(tile, mesh);
+            this.scene.add(mesh);
+        }
     }
 
     removeTile(tile)
     {
-        for(const meshes of [this.tileMeshes, this.glassTiles])
+        for(const meshes of [this.tileMeshes, this.leadTiles, this.glassTiles])
         {
             const mesh = meshes.get(tile);
 
@@ -397,6 +403,28 @@ export class ZoneView
         }
 
         return -1;
+    }
+
+    // The quads of a glass mesh reordered so that, within the quads that face
+    // one way, the farthest from a camera that sees them draws first. A quad
+    // facing +x is seen from a greater x, so the one with the least x is the
+    // farthest.
+    static backToFront(mesh)
+    {
+        const quads = Array.from({ length: mesh.indices.length / 6 }, (unused, quad) =>
+        {
+            const vertex = mesh.indices[quad * 6];
+            const axis = [0, 1, 2].find((index) => mesh.normals[vertex * 3 + index] !== 0);
+            const sign = mesh.normals[vertex * 3 + axis];
+
+            return { quad, facing: axis * 2 + (sign > 0 ? 1 : 0), depth: sign * mesh.positions[vertex * 3 + axis] };
+        });
+        const indices = new Uint32Array(mesh.indices.length);
+
+        quads.sort((a, b) => a.facing - b.facing || a.depth - b.depth);
+        quads.forEach(({ quad }, i) => indices.set(mesh.indices.subarray(quad * 6, quad * 6 + 6), i * 6));
+
+        return { ...mesh, indices };
     }
 
     static joined(parts)
@@ -756,7 +784,7 @@ export class ZoneView
         {
             node.geometry?.dispose();
 
-            if(node.material && node.material !== this.materials.world && node.material !== this.materials.terrain && node.material !== this.materials.objects && node.material !== this.materials.water && node.material !== this.materials.glass) { node.material.dispose(); }
+            if(node.material && node.material !== this.materials.world && node.material !== this.materials.terrain && node.material !== this.materials.objects && node.material !== this.materials.water && node.material !== this.materials.glass && node.material !== this.materials.glassLeads) { node.material.dispose(); }
         });
 
         this.moon.shadow.map?.dispose();
