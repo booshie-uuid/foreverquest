@@ -25,6 +25,10 @@
         "moon": {
             "colour": "#a8b8d8",
             "intensity": 1.7
+        },
+        "ambient": {
+            "base": "#1c2030",
+            "level": 0.18
         }
     },
     "spawn": {

@@ -50,6 +50,7 @@ vWeather = weather;
 const STEPPED_FRAGMENT_PARS = `
 uniform vec3 skyRamp[16];
 uniform vec3 lampRamp[16];
+uniform vec3 ambientFloor;
 uniform vec4 playerLight;
 uniform float cubeGrid;
 varying vec2 vLight;
@@ -98,12 +99,33 @@ float skyShade = mix(0.55, 1.0, moonLit);
 // place of the scene's lights, with the sky dimmed where the moon does not
 // reach. The player's own light falls off a level a cell from the cell the
 // player stands in.
+// The zone's base level raises a face darker than it to its brightness, in
+// the base's own colour. Light brighter than full scales down whole. Raising
+// or capping each colour channel on its own would make colours that neither
+// light has, such as a red light turning yellow beside its source.
+const AMBIENT = `
+vec3 fitLight(vec3 light)
+{
+    return light / max(1.0, max(light.r, max(light.g, light.b)));
+}
+
+vec3 floorLight(vec3 light, vec3 base)
+{
+    vec3 weights = vec3(0.2126, 0.7152, 0.0722);
+    float baseBrightness = dot(base, weights);
+
+    if(baseBrightness <= 0.0) { return light; }
+
+    return light + base * max(0.0, 1.0 - dot(light, weights) / baseBrightness);
+}
+`;
+
 const STEPPED_FRAGMENT = MOON + `
 vec3 stepCell = floor((vStepPosition + vStepNormal * 0.05) * 3.0);
 float nearPlayer = playerLight.w - floor(distance(stepCell, floor(playerLight.xyz * 3.0)));
 int skyLevel = int(vLight.x * 15.0 + 0.5);
 int lampLevel = clamp(int(max(vLight.y * 15.0 + 0.5, nearPlayer)), 0, 15);
-vec3 stepLight = min(skyRamp[skyLevel] * skyShade + lampRamp[lampLevel], vec3(1.0));
+vec3 stepLight = floorLight(fitLight(skyRamp[skyLevel] * skyShade + lampRamp[lampLevel]), ambientFloor);
 float stepFace = vStepNormal.y > 0.5 ? 1.0 : (vStepNormal.y < -0.5 ? 0.55 : (abs(vStepNormal.x) > 0.5 ? 0.72 : 0.86));
 
 outgoingLight = diffuseColor.rgb * stepLight * stepFace + totalEmissiveRadiance;
@@ -124,13 +146,14 @@ if(cubeGrid > 0.5)
 const CHARACTER_FRAGMENT_PARS = `
 uniform vec3 cellSky;
 uniform vec3 cellLamp;
-`;
+uniform vec3 ambientFloor;
+` + AMBIENT;
 
 const CHARACTER_FRAGMENT = MOON + `
 vec3 worldNormal = inverseTransformDirection(geometryNormal, viewMatrix);
 float faceShade = worldNormal.y >= 0.0 ? mix(0.8, 1.0, worldNormal.y) : mix(0.8, 0.55, -worldNormal.y);
 
-outgoingLight = diffuseColor.rgb * min(cellSky * skyShade + cellLamp, vec3(1.0)) * faceShade + totalEmissiveRadiance;
+outgoingLight = diffuseColor.rgb * floorLight(fitLight(cellSky * skyShade + cellLamp), ambientFloor) * faceShade + totalEmissiveRadiance;
 `;
 
 const FOG_VERTEX_PARS = `
@@ -177,6 +200,7 @@ const FOG_FRAGMENT = `
 const NO_HEIGHT_FOG = { base: 0, falloff: 1, density: 0 };
 const LEVELS = 16;
 const PLAYER_LIGHT = 7;
+const DEFAULT_AMBIENT = { base: "#1c2030", level: 0.18 };
 const DEFAULT_STEPS =
 {
     sky: { dark: "#12141f", bright: "#56607e", curve: 1.4 },
@@ -191,7 +215,7 @@ export class MaterialLibrary
         this.atlasTexture = atlas.createTexture();
         this.world = this.worldMaterial();
         this.fog = { heightFog: { value: new THREE.Vector4(NO_HEIGHT_FOG.base, NO_HEIGHT_FOG.falloff, NO_HEIGHT_FOG.density, 0) } };
-        this.stepped = { skyRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.sky) }, lampRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.lamp) }, playerLight: { value: new THREE.Vector4(0, 0, 0, PLAYER_LIGHT) }, cubeGrid: { value: 0 } };
+        this.stepped = { skyRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.sky) }, lampRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.lamp) }, ambientFloor: { value: MaterialLibrary.floorOf(DEFAULT_AMBIENT) }, playerLight: { value: new THREE.Vector4(0, 0, 0, PLAYER_LIGHT) }, cubeGrid: { value: 0 } };
         this.terrain = this.worldMaterial({ vertexColors: true }, this.stepped);
         this.objects = this.worldMaterial({}, this.stepped);
         this.water = new THREE.MeshPhongMaterial({ color: "#1e2a30", specular: 0x5a6a78, shininess: 80, transparent: true, opacity: 0.82 });
@@ -232,7 +256,7 @@ export class MaterialLibrary
                 .replace("#include <begin_vertex>", "#include <begin_vertex>\n" + VERTEX + (stepped ? STEPPED_VERTEX : ""));
 
             shader.fragmentShader = shader.fragmentShader
-                .replace("#include <common>", "#include <common>\n" + FRAGMENT_PARS + (stepped ? STEPPED_FRAGMENT_PARS : ""))
+                .replace("#include <common>", "#include <common>\n" + FRAGMENT_PARS + (stepped ? STEPPED_FRAGMENT_PARS + AMBIENT : ""))
                 .replace("#include <color_fragment>", "#include <color_fragment>\n" + TILE_FRAGMENT + (stepped ? WEATHER_FRAGMENT : "") + FRAGMENT)
                 .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n" + emissive)
                 .replace("#include <opaque_fragment>", (stepped ? STEPPED_FRAGMENT : "") + "#include <opaque_fragment>");
@@ -253,6 +277,23 @@ export class MaterialLibrary
         this.stepped.lampRamp.value = MaterialLibrary.ramp(steps.lamp);
     }
 
+    // `ambient` gives the zone's base colour and its brightness, from 0 to 1;
+    // a zone without one takes the default.
+    setAmbient(ambient = DEFAULT_AMBIENT)
+    {
+        this.stepped.ambientFloor.value.copy(MaterialLibrary.floorOf(ambient));
+    }
+
+    // The base colour at full strength, scaled to the level, in sRGB as the
+    // ramps are, then converted for the shader.
+    static floorOf({ base, level })
+    {
+        const colour = new THREE.Color(base).getRGB({}, THREE.SRGBColorSpace);
+        const strongest = Math.max(colour.r, colour.g, colour.b, 1e-6);
+
+        return new THREE.Color().setRGB(colour.r / strongest * level, colour.g / strongest * level, colour.b / strongest * level, THREE.SRGBColorSpace);
+    }
+
     colours(sky, lamp)
     {
         return { sky: this.stepped.skyRamp.value[sky], lamp: this.stepped.lampRamp.value[lamp] };
@@ -264,7 +305,7 @@ export class MaterialLibrary
     {
         material.onBeforeCompile = (shader) =>
         {
-            Object.assign(shader.uniforms, cell);
+            Object.assign(shader.uniforms, cell, { ambientFloor: this.stepped.ambientFloor });
 
             shader.fragmentShader = shader.fragmentShader
                 .replace("#include <common>", "#include <common>\n" + CHARACTER_FRAGMENT_PARS)

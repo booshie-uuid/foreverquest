@@ -268,6 +268,7 @@ function checkLighting(lighting, where, problems)
 
     if(!colours.every((colour) => COLOUR_PATTERN.test(colour ?? ""))) { problems.push(where + " needs lower-case #rrggbb lighting colours"); }
     if(!(lighting?.fog?.far > lighting?.fog?.near)) { problems.push(where + " needs a fog that ends after it starts"); }
+    if(lighting?.ambient !== undefined && !(COLOUR_PATTERN.test(lighting.ambient.base ?? "") && lighting.ambient.level >= 0 && lighting.ambient.level <= 1)) { problems.push(where + " needs an ambient of { base, level }, with a lower-case #rrggbb base and a level from 0 to 1"); }
     if(lighting?.fog?.height !== undefined && !isHeightFog(lighting.fog.height)) { problems.push(where + " needs a height fog of { base, falloff, density }, with a falloff above 0 and a density from 0 to 1"); }
 
     for(const [name, steps] of Object.entries(lighting?.steps ?? {}))

@@ -15,8 +15,80 @@ async function enterWorld(page, baseUrl)
     await page.waitFor(() => window.foreverQuest.screen === "game" && window.foreverQuest.renderer.frameCount > 10, { timeout: 20000 });
 }
 
+// The mean brightness of the frame, from 0 to 1, after drawing it with the
+// player's own light out, so only the zone's light shows.
+function frameBrightness()
+{
+    const app = window.foreverQuest;
+    const webgl = app.renderer.webgl;
+    const gl = webgl.getContext();
+    const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
+    let sum = 0;
+
+    app.materials.stepped.playerLight.value.w = 0;
+    app.game.render(webgl);
+    gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+    for(let i = 0; i < pixels.length; i += 4) { sum += pixels[i] * 0.2126 + pixels[i + 1] * 0.7152 + pixels[i + 2] * 0.0722; }
+
+    return sum / (pixels.length / 4) / 255;
+}
+
 export const tests =
 [
+    {
+        name: "a sealed room that no light reaches draws no darker than the zone's base level",
+        run: async ({ page, baseUrl, screenshot }) =>
+        {
+            await page.goto(baseUrl + "/index.html?zone=testfield&edit&view=8,1.5,8,0.4,0");
+            await page.waitFor(() => window.foreverQuest?.isReady === true && window.foreverQuest.game?.editMode.isActive, { timeout: 30000 });
+            await page.evaluate(() =>
+            {
+                const game = window.foreverQuest.game;
+                const zone = game.zone;
+                const [column, row] = zone.columnOf(8, 8);
+                const floor = zone.surface(column, row);
+                const stone = zone.blocks.number("stone");
+                const cells = [];
+
+                for(let y = floor; y <= floor + 10; y++)
+                {
+                    for(let z = row - 4; z <= row + 4; z++)
+                    {
+                        for(let x = column - 4; x <= column + 4; x++)
+                        {
+                            const isShell = y === floor + 10 || Math.abs(x - column) === 4 || Math.abs(z - row) === 4;
+
+                            cells.push([x, y, z, isShell ? stone : 0]);
+                        }
+                    }
+                }
+
+                zone.setCells(cells);
+                game.editMode.fly.setView({ x: 8, y: zone.metresY(floor + 5), z: 8, yaw: 0.4, pitch: 0.3 });
+            });
+            await page.waitFor(() => window.foreverQuest.game.world.isSettled, { timeout: 30000 });
+
+            const measured = await page.evaluate((measure) =>
+            {
+                const materials = window.foreverQuest.materials;
+                const floor = materials.stepped.ambientFloor.value.clone();
+                const lit = new Function("return (" + measure + ")()")();
+
+                materials.stepped.ambientFloor.value.setRGB(0, 0, 0);
+
+                const unlit = new Function("return (" + measure + ")()")();
+
+                materials.stepped.ambientFloor.value.copy(floor);
+
+                return { lit, unlit };
+            }, frameBrightness.toString());
+
+            await screenshot("sealed-room");
+            assert.ok(measured.lit > 0.012, "The sealed room draws at " + measured.lit.toFixed(3) + " of full brightness");
+            assert.ok(measured.lit > measured.unlit * 2.5, "The base level barely lifts the room: " + JSON.stringify(measured));
+        },
+    },
     {
         name: "the terrain carries light levels, and the player takes the light of the cell it stands in",
         run: async ({ page, baseUrl }) =>

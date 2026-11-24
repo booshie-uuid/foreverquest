@@ -400,6 +400,21 @@ describe("Zone view", () =>
         assert.equal(materials.fog.heightFog.value.z, 0, "A zone without height fog kept the last zone's");
     });
 
+    it("sets the zone's base level, its colour at full strength scaled to the level", () =>
+    {
+        const floor = materials.stepped.ambientFloor.value;
+        const srgb = () => Object.values(floor.getRGB({}, THREE.SRGBColorSpace)).map((value) => Math.round(value * 1000) / 1000);
+        const lighting = testfield.lighting;
+
+        testfield.lighting = { ...lighting, ambient: { base: "#204080", level: 0.5 } };
+        new ZoneView(testfield, materials).dispose();
+        testfield.lighting = lighting;
+        assert.deepEqual(srgb(), [0.125, 0.25, 0.5]);
+
+        new ZoneView(hearthmere, materials).dispose();
+        assert.deepEqual(srgb(), [0.105, 0.12, 0.18]);
+    });
+
     it("shines the moon, and by day the sun, from where its disc stands in the sky", () =>
     {
         const view = new ZoneView(testfield, materials);
