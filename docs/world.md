@@ -1,6 +1,6 @@
 # World
 
-A zone is content: a folder in [content/zones/](../content/zones/) that holds a zone file and the zone's terrain images. The zone file lists the zone's ground, its lighting, its people and the props placed on it. The props are prefabs, built from blocks by the functions in [content/art/props.js](../content/art/props.js) and listed in [content/props/prefabs.js](../content/props/prefabs.js). The bake checks every zone and prefab, builds each zone's cubes, and writes them to `assets/`. The game loads a zone's baked files, holds its data in [ZoneData](../js/sim/zone-data.js), and draws it with [ZoneView](../js/render/zone-view.js).
+A zone is content: a folder in [content/zones/](../content/zones/) that holds a zone file and the zone's cubes. The zone file lists its lighting, its people and the props placed on it. The props are prefabs, built from blocks by the functions in [content/art/props.js](../content/art/props.js) and listed in [content/props/prefabs.js](../content/props/prefabs.js). The bake checks every zone and prefab, builds each zone's cubes, and writes them to `assets/`. The game loads a zone's baked files, holds its data in [ZoneData](../js/sim/zone-data.js), and draws it with [ZoneView](../js/render/zone-view.js).
 
 Three zones exist: Hearthmere, the village; the Test Field, a small zone that the tests travel to; and the Expanse, a generated zone one kilometre square that tests how far the engine stretches. Hearthmere was rebuilt for the cube world on 25 November 2026 as a walled village 192 metres square, laid out from the owner's plan, with its buildings from the building kit.
 
@@ -12,13 +12,13 @@ The world is built from cubes 1/3 metre on a side, the size of a character's hea
 |---|---|
 | Cell | 1/3 metre; three cells make a metre |
 | Chunk | 32 by 32 by 32 cells, 10 2/3 metres a side; the unit of storage and drawing |
-| Region | 256 by 256 columns of cells, 85 1/3 metres a side; the unit of a terrain image and a baked file |
+| Region | 256 by 256 columns of cells, 85 1/3 metres a side; the unit of a terrain image, a locked file and a baked file |
 
 Each cell holds one block type, or air. [Adding a Block Type](assets.md#adding-a-block-type) describes block types.
 
 ## Zone Folders
 
-A zone folder holds `zone.json` and a `terrain` folder with one image per region, named `<x>-<z>.png` from region `0-0` at the -x, -z corner. A region at the +x or +z edge is as wide or deep as the columns left. The zone file is JSON, with each prop on one line, so a diff shows what changed.
+A zone folder holds `zone.json` and the zone's terrain. Regions are named `<x>-<z>` from region `0-0` at the -x, -z corner; a region at the +x or +z edge is as wide or deep as the columns left. The zone file is JSON, with each prop on one line, so a diff shows what changed.
 
 | Field | Holds |
 |---|---|
@@ -28,18 +28,28 @@ A zone folder holds `zone.json` and a `terrain` folder with one image per region
 | `height` | The height in cells, a whole multiple of 32 up to 256 |
 | `base` | The cell whose bottom is at height 0 in metres |
 | `water` | The cell below which every empty cell of a column fills with water |
-| `ground` | The ground layers `{ top, under }`, two solid block types each, that the terrain images refer to by index |
+| `ground` | Only before the terrain is locked: the ground layers `{ top, under }`, two solid block types each, that the terrain source refers to by index |
 | `lighting` | The sky, fog, hemisphere and moon colours and strengths, and optionally height fog (`fog.height`), the stepped light ramps (`steps`) and daylight (`day`) |
 | `weathering` | Optional. `{ age }`, how weathered the zone is, from 0 (new, the default) to 100; see [Weathering](#weathering) |
 | `spawn` | Where the player arrives, in metres, and the heading they face |
 | `people` | The residents and the crowd; see [People](#people) |
 | `props` | Prefab placements `{ prefab, x, z, angle, scale, age }` and runs `{ run, points }`, in metres; a placement's `age` overrides the zone's over the columns its prefab covers |
 
-A zone folder may hold `terrain.js` in place of the images: a script whose `column(zone, x, z)` returns a column's `[surface, ground]`, drawing its randomness from seeded noise in [content/art/noise.js](../content/art/noise.js). The Expanse is built this way.
+### Terrain Sources and Locked Cubes
+
+A new zone's terrain starts as a source: either `terrain.js`, a script whose `column(zone, x, z)` returns a column's `[surface, ground]` and draws its randomness from seeded noise in [content/art/noise.js](../content/art/noise.js), or a `terrain` folder with one image per region, `<x>-<z>.png`.
+
+Once the terrain is right, a builder locks it in:
+
+```sh
+node tools/lock-terrain.js <zone id>
+```
+
+The command writes the zone's terrain, without its props, to a `regions` folder: one file per region in the region format described in [Baked Zones](#baked-zones), and `blocks.json`, the block ids that the files' block numbers stand for in order. It then deletes the terrain source and the zone file's `ground` list. From then on the cubes are the zone's source: the bake reads them in place of running the script, numbers their blocks as the current bake does, and builds the props over them. Hearthmere, the Expanse and the test field are locked. `node tools/region-text.js <file>` prints a region file as text, one line of block runs per chunk, for review.
 
 A terrain image gives each column two values. Red is the column's surface, the cell above its top solid cell. Green is the index of its ground layer. The bake fills each column from the bottom: rock, then three cells of the ground's `under` block, then its `top` block, then water up to the `water` cell. On high ground, 12 cells or more above the base, and on the face of a drop of more than four cells, the three cells under the top are rock.
 
-A placement stands its prefab on the terrain under it, or a building with a door on the ground in front of its door, turned by `angle` radians about y, to the nearest quarter turn, and scaled by `scale`, which defaults to 1. The bake fails on a missing or wrongly sized terrain image, a column taller than the zone or with an unknown ground index, a ground block that is not solid, an unknown prefab, a prop or spawn outside the zone, and an unknown resident or archetype.
+A placement stands its prefab on the terrain under it, or a building with a door on the ground in front of its door, turned by `angle` radians about y, to the nearest quarter turn, and scaled by `scale`, which defaults to 1. The bake fails on a missing or wrongly sized terrain image, a missing locked region, a locked block id that no longer exists, a zone with both locked cubes and a terrain source, a column taller than the zone or with an unknown ground index, a ground block that is not solid, an unknown prefab, a prop or spawn outside the zone, and an unknown resident or archetype.
 
 ## Baked Zones
 
@@ -193,6 +203,6 @@ A villager file exports `NPCS`, each with a `name`, the `lines` they say, an opt
 1. To add a prop, write a function in [content/art/props.js](../content/art/props.js) that builds with `placed()` and returns its collider, and list it in `PREFABS` in [content/props/prefabs.js](../content/props/prefabs.js). Check it in the workbench's prop viewer.
 2. To place props, add placements to a zone file's `props`.
 3. To add a world texture, follow [Adding a World Texture](assets.md#adding-a-world-texture). To use it as ground, give it a block type and add a ground layer to the zone's `ground`.
-4. To add a zone, make a folder in [content/zones/](../content/zones/) with a zone file and its terrain images.
+4. To add a zone, make a folder in [content/zones/](../content/zones/) with a zone file and a terrain source, then lock its terrain in.
 
 Run `npm run bake`, then `npm run bake -- --accept` once the change looks right, then `npm test` and `node js-tests/browser/run.js --covers zones`.

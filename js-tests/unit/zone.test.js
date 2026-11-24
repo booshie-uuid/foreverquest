@@ -1,10 +1,14 @@
 import * as Pathfinder from "../../js/sim/pathfinder.js";
 import * as RegionCodec from "../../js/sim/region-codec.js";
+import * as RegionText from "../../tools/region-text.js";
 import * as THREE from "three";
 import * as Terrain from "../../tools/bake/terrain.js";
 import * as TestAssets from "../helpers/assets.js";
 import * as Voxelise from "../../tools/bake/voxelise.js";
 import * as assert from "node:assert/strict";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { describe, it } from "node:test";
 import { BlockSet } from "../../js/sim/block-set.js";
 import { ZoneView } from "../../js/render/zone-view.js";
@@ -97,6 +101,50 @@ describe("Region files", () =>
         assert.deepEqual([9, 8].map((y) => cell(1, y, 0)), [1, 9], "The face of a drop of more than four cubes is rock");
         assert.deepEqual([19, 18].map((y) => cell(5, y, 0)), [1, 9], "High ground is rock under its top");
         assert.equal(region.surfaces[5], 20);
+    });
+
+    it("locks terrain into cubes that compose as its columns did, under the props, after the blocks are numbered again", () =>
+    {
+        const zone = { columns: 32, height: 32, base: 4, water: 6 };
+        const surfaces = Uint16Array.from({ length: 32 * 32 }, (value, i) => 4 + (i % 9));
+        const terrain = { surfaces, grounds: new Uint8Array(32 * 32) };
+        const ground = [{ top: 1, under: 2 }];
+        const ids = ["grass", "earth", "rock", "water"];
+        const folder = fs.mkdtempSync(path.join(os.tmpdir(), "locked-"));
+        const placed = { cells: [[3, 20, 4, 3]], solid: new Set([1, 2, 3]) };
+
+        fs.mkdirSync(path.join(folder, Terrain.LOCKED_FOLDER));
+
+        for(const file of Terrain.lockedFiles(zone, terrain, ground, { rock: 3, water: 4 }, ids)) { fs.writeFileSync(path.join(folder, Terrain.LOCKED_FOLDER, file.path), file.bytes); }
+
+        const problems = [];
+        const renumbered = { water: 1, rock: 2, earth: 3, grass: 4 };
+        const locked = Terrain.readLocked(folder, zone, renumbered, "Zone", problems);
+        const fromColumns = Terrain.composeRegion(zone, terrain, ground, { rock: 3, water: 4 }, 0, 0, placed);
+        const fromCubes = Terrain.composeRegion(zone, locked, [], {}, 0, 0, { cells: [[3, 20, 4, 2]], solid: new Set([2, 3, 4]) });
+        const back = [0, 4, 3, 2, 1];
+
+        assert.deepEqual(problems, []);
+        assert.deepEqual(locked.surfaces, surfaces);
+        assert.deepEqual(fromCubes.surfaces, fromColumns.surfaces);
+        assert.deepEqual(fromCubes.chunks.map((chunk) => chunk.cells.map((block) => back[block])), fromColumns.chunks.map((chunk) => chunk.cells));
+
+        fs.writeFileSync(path.join(folder, Terrain.LOCKED_FOLDER, Terrain.PALETTE_FILE), JSON.stringify(["grass", "earth", "slate", "water"]));
+        Terrain.readLocked(folder, zone, renumbered, "Zone", problems);
+        assert.deepEqual(problems, ["Zone has locked cubes of an unknown block: slate"]);
+        fs.rmSync(folder, { recursive: true });
+    });
+
+    it("prints a region as text, one line of runs per chunk", () =>
+    {
+        const cells = new Uint8Array(RegionCodec.CELLS);
+
+        cells.fill(2, 0, 10);
+        cells.fill(1, 10, 12);
+
+        const region = { width: 32, depth: 32, height: 64, chunks: [{ x: 0, y: 0, z: 0, cells: null, uniform: 2 }, { x: 0, y: 1, z: 0, cells, uniform: null }] };
+
+        assert.equal(RegionText.text(region, [null, "grass", "rock"]), "region 32 × 32 columns, 64 cells high, 2 chunks\nchunk 0 0 0: all rock\nchunk 0 1 0: 10 rock, 2 grass, " + (RegionCodec.CELLS - 12) + " air\n");
     });
 });
 

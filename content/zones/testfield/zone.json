@@ -8,24 +8,6 @@
     "height": 64,
     "base": 16,
     "water": 16,
-    "ground": [
-        {
-            "top": "grass",
-            "under": "earth"
-        },
-        {
-            "top": "cobble",
-            "under": "earth"
-        },
-        {
-            "top": "mud",
-            "under": "earth"
-        },
-        {
-            "top": "stone",
-            "under": "rubble"
-        }
-    ],
     "lighting": {
         "sky": {
             "top": "#0e1118",

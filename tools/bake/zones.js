@@ -75,7 +75,8 @@ export async function bakeZone(zone, folder, people, context, where, problems)
 
     if(problems.length > before) { return null; }
 
-    const ground = groundOf(zone, context, where, problems);
+    const isLocked = Terrain.isLocked(folder);
+    const ground = isLocked ? [] : groundOf(zone, context, where, problems);
 
     checkLighting(zone.lighting, where, problems);
     checkPeople(zone, people, where, problems);
@@ -87,7 +88,11 @@ export async function bakeZone(zone, folder, people, context, where, problems)
     if(zone.weathering !== undefined && !isAge(zone.weathering.age)) { problems.push(where + " needs its weathering age to be a whole number from 0 to 100"); }
     if(problems.length > before) { return null; }
 
-    const terrain = await Terrain.readColumns(folder, zone, where, problems);
+    const numbers = Object.fromEntries(context.blocks.map((block, i) => [block.id, i + 1]));
+
+    if(isLocked && (fs.existsSync(path.join(folder, "terrain.js")) || fs.existsSync(path.join(folder, "terrain")))) { problems.push(where + " has locked cubes and a terrain source; delete the terrain source"); }
+
+    const terrain = isLocked ? Terrain.readLocked(folder, zone, numbers, where, problems) : await Terrain.readColumns(folder, zone, where, problems);
 
     if(problems.length > before) { return null; }
 
@@ -133,7 +138,6 @@ export async function bakeZone(zone, folder, people, context, where, problems)
 
     if(problems.length > before) { return null; }
 
-    const numbers = Object.fromEntries(context.blocks.map((block, i) => [block.id, i + 1]));
     const terrainTop = (column, row) => terrain.surfaces[row * zone.columns + column];
     const placed = Voxelise.zoneCells(zone, props, runs, context.prefabs, numbers, where, problems, terrainTop);
 
@@ -160,7 +164,7 @@ function checkShape(zone, where, problems)
     if(!isWhole(water, 0, height)) { problems.push(where + " needs a water cell inside its height"); }
 }
 
-function groundOf(zone, context, where, problems)
+export function groundOf(zone, context, where, problems)
 {
     const solid = new Set(context.blocks.filter((block) => block.kind === "solid").map((block) => block.id));
     const numbers = Object.fromEntries(context.blocks.map((block, i) => [block.id, i + 1]));

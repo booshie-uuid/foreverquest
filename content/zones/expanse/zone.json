@@ -8,28 +8,6 @@
     "height": 128,
     "base": 32,
     "water": 40,
-    "ground": [
-        {
-            "top": "grass",
-            "under": "earth"
-        },
-        {
-            "top": "moss",
-            "under": "earth"
-        },
-        {
-            "top": "mud",
-            "under": "earth"
-        },
-        {
-            "top": "sand",
-            "under": "sand"
-        },
-        {
-            "top": "rock",
-            "under": "rock"
-        }
-    ],
     "lighting": {
         "sky": {
             "top": "#0e1118",

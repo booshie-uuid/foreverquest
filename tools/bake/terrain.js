@@ -141,7 +141,9 @@ export function bakeRegions(zone, terrain, ground, blocks, placed = { cells: new
     });
 }
 
-// `placed.cells` holds [x, y, z, block] in zone cells.
+// `placed.cells` holds [x, y, z, block] in zone cells. A locked zone's
+// `terrain.locked` holds its decoded regions by name, which replace the
+// columns.
 export function composeRegion(zone, terrain, ground, blocks, rx, rz, placed = { cells: [], solid: new Set() }, ages = null)
 {
     const columns = zone.columns;
@@ -163,37 +165,11 @@ export function composeRegion(zone, terrain, ground, blocks, rx, rz, placed = { 
 
     for(let z = 0; z < depth; z++)
     {
-        for(let x = 0; x < width; x++)
-        {
-            const column = rx * REGION + x;
-            const row = rz * REGION + z;
-            const surface = terrain.surfaces[row * columns + column];
-            const layers = ground[terrain.grounds[row * columns + column]];
-            const under = isRocky(zone, terrain.surfaces, column, row) ? blocks.rock : layers.under;
-            const top = Math.max(surface, zone.water);
-            const offset = (z % CHUNK) * CHUNK + (x % CHUNK);
-
-            surfaces[z * width + x] = surface;
-            regionAges[z * width + x] = ages ? ages[row * columns + column] : 0;
-
-            for(let cy = 0; cy * CHUNK < top; cy++)
-            {
-                const cells = cellsOf(Math.floor(x / CHUNK), cy, Math.floor(z / CHUNK));
-
-                for(let y = cy * CHUNK; y < Math.min(top, (cy + 1) * CHUNK); y++)
-                {
-                    const below = surface - 1 - y;
-                    let block = blocks.water;
-
-                    if(below > UNDER_DEPTH) { block = blocks.rock; }
-                    else if(below > 0) { block = under; }
-                    else if(below === 0) { block = layers.top; }
-
-                    cells[(y - cy * CHUNK) * CHUNK * CHUNK + offset] = block;
-                }
-            }
-        }
+        for(let x = 0; x < width; x++) { regionAges[z * width + x] = ages ? ages[(rz * REGION + z) * columns + rx * REGION + x] : 0; }
     }
+
+    if(terrain.locked) { fillLocked(terrain.locked.get(rx + "-" + rz), cellsOf, surfaces); }
+    else { fillColumns(zone, terrain, ground, blocks, rx, rz, cellsOf, surfaces); }
 
     const grounds = surfaces.slice();
 
@@ -215,6 +191,130 @@ export function composeRegion(zone, terrain, ground, blocks, rx, rz, placed = { 
     });
 
     return { width, depth, height: zone.height, surfaces, grounds, ages: regionAges, chunks };
+}
+
+function fillColumns(zone, terrain, ground, blocks, rx, rz, cellsOf, surfaces)
+{
+    const columns = zone.columns;
+    const width = Math.min(REGION, columns - rx * REGION);
+    const depth = Math.min(REGION, columns - rz * REGION);
+
+    for(let z = 0; z < depth; z++)
+    {
+        for(let x = 0; x < width; x++)
+        {
+            const column = rx * REGION + x;
+            const row = rz * REGION + z;
+            const surface = terrain.surfaces[row * columns + column];
+            const layers = ground[terrain.grounds[row * columns + column]];
+            const under = isRocky(zone, terrain.surfaces, column, row) ? blocks.rock : layers.under;
+            const top = Math.max(surface, zone.water);
+            const offset = (z % CHUNK) * CHUNK + (x % CHUNK);
+
+            surfaces[z * width + x] = surface;
+
+            for(let cy = 0; cy * CHUNK < top; cy++)
+            {
+                const cells = cellsOf(Math.floor(x / CHUNK), cy, Math.floor(z / CHUNK));
+
+                for(let y = cy * CHUNK; y < Math.min(top, (cy + 1) * CHUNK); y++)
+                {
+                    const below = surface - 1 - y;
+                    let block = blocks.water;
+
+                    if(below > UNDER_DEPTH) { block = blocks.rock; }
+                    else if(below > 0) { block = under; }
+                    else if(below === 0) { block = layers.top; }
+
+                    cells[(y - cy * CHUNK) * CHUNK * CHUNK + offset] = block;
+                }
+            }
+        }
+    }
+}
+
+function fillLocked(region, cellsOf, surfaces)
+{
+    surfaces.set(region.surfaces);
+
+    for(const chunk of region.chunks) { cellsOf(chunk.x, chunk.y, chunk.z).set(chunk.cells); }
+}
+
+
+/******************************************************************************/
+/* LOCKED TERRAIN                                                             */
+/******************************************************************************/
+
+// A locked zone's cubes are its source: one file per region in the region
+// format, beside a list of the block ids that its block numbers stand for,
+// since the bake numbers blocks in the order content/blocks/ lists them.
+export const LOCKED_FOLDER = "regions";
+export const PALETTE_FILE = "blocks.json";
+
+export function isLocked(folder)
+{
+    return fs.existsSync(path.join(folder, LOCKED_FOLDER));
+}
+
+// `numbers` maps each block id to the bake's number for it. The result's
+// regions hold every chunk's cells, with no uniform chunks.
+export function readLocked(folder, zone, numbers, where, problems)
+{
+    const lockedFolder = path.join(folder, LOCKED_FOLDER);
+    const palette = JSON.parse(fs.readFileSync(path.join(lockedFolder, PALETTE_FILE), "utf8"));
+    const remap = new Uint8Array(256);
+    const surfaces = new Uint16Array(zone.columns * zone.columns);
+    const locked = new Map();
+
+    palette.forEach((id, i) =>
+    {
+        if(numbers[id] === undefined) { problems.push(where + " has locked cubes of an unknown block: " + id); }
+
+        remap[i + 1] = numbers[id] ?? 0;
+    });
+
+    for(const name of regionNames(zone.columns))
+    {
+        const file = path.join(lockedFolder, name + ".bin");
+
+        if(!fs.existsSync(file)) { problems.push(where + " has no locked region " + LOCKED_FOLDER + "/" + name + ".bin"); continue; }
+
+        const region = RegionCodec.decode(new Uint8Array(zlib.inflateSync(fs.readFileSync(file))));
+        const [rx, rz] = name.split("-").map(Number);
+
+        for(const chunk of region.chunks)
+        {
+            const cells = chunk.cells ?? new Uint8Array(CELLS).fill(chunk.uniform);
+
+            for(let i = 0; i < CELLS; i++) { cells[i] = remap[cells[i]]; }
+
+            chunk.cells = cells;
+            chunk.uniform = null;
+        }
+
+        for(let z = 0; z < region.depth; z++) { surfaces.set(region.surfaces.subarray(z * region.width, (z + 1) * region.width), (rz * REGION + z) * zone.columns + rx * REGION); }
+
+        locked.set(name, region);
+    }
+
+    return { surfaces, locked };
+}
+
+// The locked files of a zone's terrain as it is now, with no props: one per
+// region and the palette. `ids` lists the block ids in the bake's order.
+export function lockedFiles(zone, terrain, ground, numbers, ids)
+{
+    const files = regionNames(zone.columns).map((name) =>
+    {
+        const [rx, rz] = name.split("-").map(Number);
+        const region = composeRegion(zone, terrain, ground, numbers, rx, rz);
+
+        return { path: name + ".bin", bytes: zlib.deflateSync(RegionCodec.encode(region), { level: 9 }) };
+    });
+
+    files.push({ path: PALETTE_FILE, bytes: Buffer.from(JSON.stringify(ids, null, 4) + "\n") });
+
+    return files;
 }
 
 function isRocky(zone, surfaces, column, row)
