@@ -200,7 +200,7 @@ const FOG_FRAGMENT = `
 const NO_HEIGHT_FOG = { base: 0, falloff: 1, density: 0 };
 const LEVELS = 16;
 const PLAYER_LIGHT = 7;
-const DEFAULT_AMBIENT = { base: "#1c2030", level: 0.3 };
+const DEFAULT_AMBIENT = { base: "#1c2030", level: 0.4 };
 const DEFAULT_STEPS =
 {
     sky: { dark: "#12141f", bright: "#56607e", curve: 1.4 },
@@ -284,14 +284,15 @@ export class MaterialLibrary
         this.stepped.ambientFloor.value.copy(MaterialLibrary.floorOf(ambient));
     }
 
-    // The base colour at full strength, scaled to the level, in sRGB as the
-    // ramps are, then converted for the shader.
+    // The base colour scaled so its brightness, its luminance in sRGB as the
+    // ramps are written, is the level; then converted for the shader.
     static floorOf({ base, level })
     {
         const colour = new THREE.Color(base).getRGB({}, THREE.SRGBColorSpace);
-        const strongest = Math.max(colour.r, colour.g, colour.b, 1e-6);
+        const brightness = Math.max(colour.r * 0.2126 + colour.g * 0.7152 + colour.b * 0.0722, 1e-6);
+        const scale = level / brightness;
 
-        return new THREE.Color().setRGB(colour.r / strongest * level, colour.g / strongest * level, colour.b / strongest * level, THREE.SRGBColorSpace);
+        return new THREE.Color().setRGB(Math.min(1, colour.r * scale), Math.min(1, colour.g * scale), Math.min(1, colour.b * scale), THREE.SRGBColorSpace);
     }
 
     colours(sky, lamp)

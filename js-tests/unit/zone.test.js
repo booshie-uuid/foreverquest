@@ -400,7 +400,7 @@ describe("Zone view", () =>
         assert.equal(materials.fog.heightFog.value.z, 0, "A zone without height fog kept the last zone's");
     });
 
-    it("sets the zone's base level, its colour at full strength scaled to the level", () =>
+    it("sets the zone's base level, its colour scaled so its brightness is the level", () =>
     {
         const floor = materials.stepped.ambientFloor.value;
         const srgb = () => Object.values(floor.getRGB({}, THREE.SRGBColorSpace)).map((value) => Math.round(value * 1000) / 1000);
@@ -409,10 +409,10 @@ describe("Zone view", () =>
         testfield.lighting = { ...lighting, ambient: { base: "#204080", level: 0.5 } };
         new ZoneView(testfield, materials).dispose();
         testfield.lighting = lighting;
-        assert.deepEqual(srgb(), [0.125, 0.25, 0.5]);
+        assert.deepEqual(srgb(), [0.259, 0.518, 1]);
 
         new ZoneView(hearthmere, materials).dispose();
-        assert.deepEqual(srgb(), [0.175, 0.2, 0.3]);
+        assert.deepEqual(srgb(), [0.347, 0.396, 0.594]);
     });
 
     it("lights a door that fills its doorway by the room beside it", async () =>

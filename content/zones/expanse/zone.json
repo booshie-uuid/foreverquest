@@ -33,7 +33,7 @@
         },
         "ambient": {
             "base": "#1c2030",
-            "level": 0.3
+            "level": 0.4
         }
     },
     "spawn": {

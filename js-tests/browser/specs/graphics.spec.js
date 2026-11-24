@@ -15,6 +15,10 @@ async function enterWorld(page, baseUrl)
     await page.waitFor(() => window.foreverQuest.screen === "game" && window.foreverQuest.renderer.frameCount > 10, { timeout: 20000 });
 }
 
+// The owner's rule: with no light at all, a room is still bright enough to
+// make out, which the base level of 0.4 gives in a stone room at 0.1.
+const MAKE_OUT = 0.08;
+
 // The mean brightness of the frame, from 0 to 1, after drawing it with the
 // player's own light out, so only the zone's light shows.
 function frameBrightness()
@@ -37,7 +41,7 @@ function frameBrightness()
 export const tests =
 [
     {
-        name: "a sealed room that no light reaches draws no darker than the zone's base level",
+        name: "a sealed room with every light out, the player's too, stays bright enough to make out",
         run: async ({ page, baseUrl, screenshot }) =>
         {
             await page.goto(baseUrl + "/index.html?zone=testfield&edit&view=8,1.5,8,0.4,0");
@@ -85,7 +89,7 @@ export const tests =
             }, frameBrightness.toString());
 
             await screenshot("sealed-room");
-            assert.ok(measured.lit > 0.012, "The sealed room draws at " + measured.lit.toFixed(3) + " of full brightness");
+            assert.ok(measured.lit > MAKE_OUT, "The sealed room draws at " + measured.lit.toFixed(3) + " of full brightness, below the " + MAKE_OUT + " needed to make it out");
             assert.ok(measured.lit > measured.unlit * 2.5, "The base level barely lifts the room: " + JSON.stringify(measured));
         },
     },
