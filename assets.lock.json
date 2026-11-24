@@ -253,7 +253,7 @@
         "zones/expanse/9-7.bin": "b3d94557a05547ea937d79fc8f79833027637fadaf21e0a22ca622214ba949f4",
         "zones/expanse/9-8.bin": "bee9763a91c735b145dcdc410600c9410c0c6e2a06aa50935213285cf5d1e59c",
         "zones/expanse/9-9.bin": "d2e154a2bb21c32a423b257ed37b5d2ac04d067840d4726ed9aca1464ceec97d",
-        "zones/expanse/index.json": "8a7347b6a0c70bbf121f8c4c15cb906b32d57490f8d10ef01f6d380e0bdb00b5",
+        "zones/expanse/index.json": "ef217b0178603793626c79d5e052adc5ecf8467480b106c92498be3910559392",
         "zones/hearthmere/0-0.bin": "424a67505e5123301a75e4b8be9f40dc42ed818c34dbb0b159352649f9d26621",
         "zones/hearthmere/0-1.bin": "0f5c8836cb23d1466a46fa784ce5b515b1638ef45ecd6f446c40dc42ee43b930",
         "zones/hearthmere/0-2.bin": "d89599b39bff7c5cf682427bbf6eaf75c9347445955d2383e79a7b0980194e50",
@@ -263,10 +263,10 @@
         "zones/hearthmere/2-0.bin": "b65e059b4945bcfec8713b0b3b42ce7e12877161ef9f3dbf5644908af96f30b6",
         "zones/hearthmere/2-1.bin": "08cb2593c42131f993e3e2782b49e03c0161ba9ce3867738db355599ffb24473",
         "zones/hearthmere/2-2.bin": "261dcadd7baec1fd95eaf1f97ec2f8f042b1ffb5bb5151fe3495c0dbd7644f15",
-        "zones/hearthmere/index.json": "779666f459385bfdbf2c18c6f4aad15cd665d63be19130c86fdd5e2fb4483b4d",
+        "zones/hearthmere/index.json": "0c51105ef3551c1ae39b15c81cc73db5d1518869747b8a3ba4ec55da7e24024b",
         "zones/index.json": "98c62ba879f482b051fdd8e671e51bd0994389043936732dc99ac88cf8ba4035",
         "zones/testfield/0-0.bin": "6d8717b5ee550f76a35343a023c11e5c7755811f310e288ec95f5d896ebb52bc",
-        "zones/testfield/index.json": "ac316c448acbb2c0086cbc7a9ef2c7bdd6936184a6ec86bb75d74feeb5ece8b7"
+        "zones/testfield/index.json": "361b1938ca9a5d652851ce0157258115b02294dc043cd034cf191d39d2b327ab"
     },
     "ids": {
         "action": [
