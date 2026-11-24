@@ -3,7 +3,9 @@ import * as TestAssets from "../helpers/assets.js";
 import * as Voxelise from "../../tools/bake/voxelise.js";
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { Appearance } from "../../js/character/appearance.js";
 import { Movers } from "../../js/sim/movers.js";
+import { Simulation } from "../../js/sim/simulation.js";
 
 const TICK = 1 / 20;
 
@@ -115,6 +117,24 @@ describe("Movers", () =>
         assert.deepEqual([movers.mover("gate").target, movers.mover("nearGate").target], [0, 0]);
         movers.dispose();
         zone.objects.splice(-2);
+    });
+
+    it("walks the player around the fence to a lever, which raises the gate", async () =>
+    {
+        const library = await TestAssets.library();
+        const sim = new Simulation(library, await TestAssets.people());
+        const zone = await TestAssets.zone("testfield");
+        const lever = zone.objects.find((entry) => entry.object === "leverBase");
+
+        sim.setPlayer(new Appearance(library, { name: "Tester" }));
+        sim.enter(zone);
+        sim.player.placeAt(-6, 8.5, zone);
+        sim.command({ type: "use", prop: lever.prop });
+
+        for(let i = 0; i < 200; i++) { sim.tick(); }
+
+        assert.equal(sim.movers.mover("gate").target, 1, "The player never pulled the lever");
+        sim.movers.dispose();
     });
 
     it("turns a cell about its pivot as the view turns the mesh", () =>

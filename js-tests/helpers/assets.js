@@ -34,6 +34,11 @@ export async function objects()
     return (await open()).json("objects.json");
 }
 
+export async function people()
+{
+    return (await open()).json("npcs.json");
+}
+
 export async function prefabs()
 {
     return (await open()).json("props/prefabs.json");

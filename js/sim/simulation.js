@@ -31,6 +31,7 @@ export class Simulation
         this.listeners = [];
         this.talkTarget = null;
         this.useTarget = null;
+        this.isUseRouted = false;
         this.movers = null;
         this.ticks = 0;
         this.nextId = 1;
@@ -145,6 +146,7 @@ export class Simulation
             case "use":
                 this.talkTarget = null;
                 this.useTarget = command.prop;
+                this.isUseRouted = false;
                 break;
             case "wave":
                 this.emit({ type: "waved", id: player.id });
@@ -222,7 +224,11 @@ export class Simulation
 
         if(player.distanceTo({ position: entry }) > USE_RANGE)
         {
-            if(!player.target) { player.moveTo(entry); }
+            if(player.target) { return; }
+            if(this.isUseRouted) { this.useTarget = null; }
+            else { this.route(player, entry); }
+
+            this.isUseRouted = true;
 
             return;
         }
