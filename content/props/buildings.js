@@ -1,5 +1,12 @@
 import * as Kit from "../art/kit.js";
 
+// Places each [object, x, y, z, angle] with its footprint's middle x and z
+// cubes from the building's origin, standing y cubes up.
+function furnish(details, entries)
+{
+    for(const [object, x, y, z, angle = 0] of entries) { details.object({ object, at: [x / 3, y / 3, z / 3], angle }); }
+}
+
 // Buildings from the building kit, in whole cubes; content/art/kit.js
 // describes a spec.
 export const BUILDINGS =
@@ -13,6 +20,14 @@ export const BUILDINGS =
         roof: { texture: "thatch", ridge: "x" },
         doors: [{ at: 0 }],
         windows: [{ side: "front", at: -4 }, { side: "front", at: 6 }, { side: "back", at: 0, isLit: false }],
+        details(cottage)
+        {
+            furnish(cottage,
+            [
+                ["bed", -5.5, 0, -2], ["table", 3, 0, -2.5], ["stool", 5.5, 0, -2.5],
+                ["candlestick", 1.5, 2, -2.5], ["flowerPot", 3.5, 2, -2.5], ["flowerBed", 4, 0, 7],
+            ]);
+        },
     },
     house:
     {
@@ -24,6 +39,14 @@ export const BUILDINGS =
         doors: [{ at: -4 }],
         windows: [{ at: 4 }, { at: -6, storey: 1 }, { at: 5, storey: 1, isLit: false }, { side: "right", at: 0 }, { side: "right", at: 0, storey: 1 }],
         stairs: [{ side: "left", storey: 0, from: -4 }],
+        details(house)
+        {
+            furnish(house,
+            [
+                ["table", 4, 0, -2.5], ["stool", 1.5, 0, -2.5], ["stool", 6.5, 0, -2.5], ["jug", 2.5, 2, -2.5], ["bowl", 4.5, 2, -2.5],
+                ["shelf", 5, 0, -7.5], ["bed", 6.5, 10, -5], ["flowerBed", 4, 0, 10],
+            ]);
+        },
     },
     townhouse:
     {
@@ -35,6 +58,14 @@ export const BUILDINGS =
         doors: [{ at: -3 }],
         windows: [{ at: 4 }, { at: -4, storey: 1 }, { at: 4, storey: 1, isLit: false }, { at: -4, storey: 2, isLit: false }, { at: 4, storey: 2 }],
         lockedStairs: [{ side: "back", storey: 0, at: 2, isFull: true, deep: 8 }],
+        details(townhouse)
+        {
+            furnish(townhouse,
+            [
+                ["table", 2, 0, 0.5], ["stool", -1.5, 0, 0.5], ["stool", 4.5, 0, 0.5], ["books", 0.5, 2, 0.5], ["candlestick", 2.5, 2, 0.5],
+                ["shelf", 6.5, 0, 4, -Math.PI / 2], ["flowerBed", 4, 0, 12],
+            ]);
+        },
     },
     inn:
     {
@@ -56,6 +87,15 @@ export const BUILDINGS =
         {
             inn.box([4, 0, -7], [14, 3, -5], "planks");
             inn.box([4, 3, -7], [14, 4, -5], "oldPlanks");
+            furnish(inn,
+            [
+                ["bottles", 4.5, 4, -6.5], ["mugs", 7.5, 4, -6.5], ["jug", 10.5, 4, -6.5], ["candlestick", 12.5, 4, -6.5],
+                ["shelf", 6, 0, -10.5], ["shelf", 12, 0, -10.5],
+                ["table", -6, 0, 3.5], ["bench", -6, 0, 1.5], ["bench", -6, 0, 5.5], ["mugs", -7.5, 2, 3.5], ["candlestick", -5.5, 2, 3.5],
+                ["table", 6, 0, 3.5], ["bench", 6, 0, 1.5], ["bench", 6, 0, 5.5], ["jug", 4.5, 2, 3.5], ["candlestick", 6.5, 2, 3.5],
+                ["stool", 13.5, 0, 0.5], ["stool", 13.5, 0, -2.5],
+                ["bed", -7.5, 10, -8], ["bed", 1.5, 10, -8], ["bed", 14.5, 10, -2],
+            ]);
             inn.box([15, 0, -3], [17, 32, 3], "stone");
             inn.clear([15, 0, -1], [16, 3, 1]);
             inn.box([16, 0, -1], [17, 1, 1], "glow");
@@ -80,7 +120,12 @@ export const BUILDINGS =
         details(store)
         {
             store.box([-6, 0, -4], [6, 3, -2], "planks");
-            store.box([-11, 0, -8], [-9, 6, 6], "oldPlanks");
+            furnish(store,
+            [
+                ["shelf", -10.5, 0, -5, Math.PI / 2], ["shelf", -10.5, 0, -1, Math.PI / 2], ["shelf", -10.5, 0, 3, Math.PI / 2], ["shelf", 0, 0, -7.5],
+                ["bottles", -4.5, 3, -3.5], ["books", -1.5, 3, -3.5], ["bowl", 1.5, 3, -3.5], ["candlestick", 4.5, 3, -3.5],
+                ["crateLarge", -6, 10, -5], ["crate", -3, 10, -6], ["sacks", 4.5, 10, -6],
+            ]);
         },
     },
     smithy:

@@ -1,3 +1,4 @@
+import * as Buildings from "../../props/buildings.js";
 import * as Noise from "../../art/noise.js";
 
 // Hearthmere, rebuilt: a walled village on flat ground, its roads cobbled and
@@ -23,6 +24,37 @@ const LANES =
     [[30, -6], [30, -50], [36, -53]], [[-0.4, -40], [4, -40]], [[-4, 70], [-60, 70], [-65, 66]],
 ];
 const FIELDS = [[-70, 74, -30, 92], [6, 62, 36, 88]];
+const FLAT = 4;
+const RAMP = 10;
+const ROLL = { village: 2, outside: 5 };
+const CHAPEL = { width: 22, depth: 40 };
+const plotsOf = new WeakMap();
+
+// The footprint of each building placed in the zone, in metres, as
+// [x0, z0, x1, z1].
+function plots(zone)
+{
+    if(!plotsOf.has(zone))
+    {
+        const sized = zone.props.filter((prop) => Buildings.BUILDINGS[prop.prefab] || prop.prefab === "chapel");
+
+        plotsOf.set(zone, sized.map((prop) =>
+        {
+            const { width, depth } = Buildings.BUILDINGS[prop.prefab] ?? CHAPEL;
+            const isTurned = Math.round(Math.abs(prop.angle ?? 0) / (Math.PI / 2)) % 2 === 1;
+            const [across, along] = (isTurned ? [depth, width] : [width, depth]).map((cubes) => cubes / 6);
+
+            return [prop.x - across, prop.z - along, prop.x + across, prop.z + along];
+        }));
+    }
+
+    return plotsOf.get(zone);
+}
+
+function distanceToBox([x0, z0, x1, z1], x, z)
+{
+    return Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1));
+}
 
 function riverX(z)
 {
@@ -62,7 +94,10 @@ export function column(zone, x, z)
     const isVillage = mx >= WALLS.west - 2 && mx <= WALLS.east + 2 && mz >= WALLS.north - 2 && mz <= WALLS.south + 2;
     const river = Math.abs(mx - riverX(mz));
     const hills = Math.max(0, -62 - mz) * 0.55 + Math.max(0, -62 - mz) * Noise.fractal(SEED, x, z, 90, 3) * 0.5;
-    const roll = isVillage ? 0 : Math.round((Noise.fractal(SEED + 3, x, z, 120, 3) - 0.5) * 3);
+    const built = Math.min(distanceTo(ROADS, mx, mz) - 2.5, distanceTo(LANES, mx, mz) - 1, ...plots(zone).map((plot) => distanceToBox(plot, mx, mz)), isInside([SQUARE.west, SQUARE.north, SQUARE.east, SQUARE.south], mx, mz) ? 0 : Infinity);
+    const openness = Math.max(0, Math.min(1, (built - FLAT) / RAMP));
+    const swell = (Noise.fractal(SEED + 3, x, z, 75, 3) - 0.42) * 2;
+    const roll = Math.max(-1, Math.round(swell * openness * (isVillage ? ROLL.village : ROLL.outside)));
     let surface = zone.base + VILLAGE + Math.round(hills) + roll;
     let ground = GRASS;
 
