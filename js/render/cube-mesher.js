@@ -24,7 +24,10 @@ const GLOW_KEEP = 0.82;
 const GLOW_END = 0.05;
 const GLOW_BANDS = 4;
 const HUE_STEPS = 15;
-const CORE = [GLOW_REACH / COARSE - 1, (GLOW_REACH + CHUNK) / COARSE];
+const BAND_STEPS = Math.log(GLOW_END) / Math.log(GLOW_KEEP) / GLOW_BANDS;
+const FILL_STEPS = 6;
+const FILL_KEEP = Math.sqrt(GLOW_KEEP);
+const CORE = [GLOW_REACH / COARSE - 1 - Math.ceil((FILL_STEPS + 1) / COARSE), (GLOW_REACH + CHUNK) / COARSE + Math.ceil((FILL_STEPS + 1) / COARSE)];
 
 // The step through the padded cells along x, y and z.
 const STRIDES = [1, PADDED * PADDED, PADDED];
@@ -150,7 +153,9 @@ function copyChunk(zone, cells, [cx, cy, cz], [left, bottom, back])
 // (y * COARSE_SIDE + z) * COARSE_SIDE + x order: `open` and `lights` as
 // ZoneData.coarseOf gives them, with each light's index into this volume. A
 // neighbour outside the zone or not loaded is closed. Null when no light lies
-// in the volume, as no glow can then reach the chunk.
+// in the volume, as no glow can then reach the chunk. `lights` holds
+// [index, strength, colour] with the lights of one colour together, the
+// brightest first, and those of one colour in one coarse cell joined.
 export function coarseVolume(zone, cx, cy, cz)
 {
     const neighbours = [];
@@ -166,7 +171,7 @@ export function coarseVolume(zone, cx, cy, cz)
     if(!neighbours.some(([, coarse]) => coarse?.lights.length > 0)) { return null; }
 
     const open = new Uint8Array(COARSE_SIDE ** 3);
-    const lights = [];
+    const merged = new Map();
 
     for(const [[ox, oy, oz], coarse] of neighbours.filter(([, entry]) => entry))
     {
@@ -180,16 +185,19 @@ export function coarseVolume(zone, cx, cy, cz)
             }
         }
 
-        for(let i = 0; i < coarse.lights.length; i += 4)
+        for(let i = 0; i < coarse.lights.length; i += 3)
         {
             const index = coarse.lights[i];
             const [x, z, y] = [index % COARSE_SPAN, Math.floor(index / COARSE_SPAN) % COARSE_SPAN, Math.floor(index / (COARSE_SPAN * COARSE_SPAN))];
+            const key = (((oy + y) * COARSE_SIDE + oz + z) * COARSE_SIDE + ox + x) + ":" + coarse.lights[i + 2];
 
-            lights.push(((oy + y) * COARSE_SIDE + oz + z) * COARSE_SIDE + ox + x, coarse.lights[i + 1], coarse.lights[i + 2], coarse.lights[i + 3]);
+            merged.set(key, Math.max(merged.get(key) ?? 0, coarse.lights[i + 1]));
         }
     }
 
-    return { open, lights: Float32Array.from(lights) };
+    const lights = [...merged].map(([key, strength]) => [...key.split(":").map(Number), strength]).sort((a, b) => a[1] - b[1] || b[2] - a[2]);
+
+    return { open, lights: Float64Array.from(lights.flatMap(([at, colour, strength]) => [at, strength, colour])) };
 }
 
 
@@ -256,7 +264,7 @@ export function lightCells(volume, table)
 // Buffers kept between chunks, as each chunk's glow needs them afresh, and
 // each coarse cell's distance in steps from the chunk's own coarse cells and
 // the ring around them, which are all the mesher reads.
-const glowBuffers = { glow: null, queue: new Int32Array(1 << 16), colours: new Float32Array(3 << 16), toCore: null };
+const glowBuffers = { glow: null, level: null, queue: new Int32Array(1 << 16), strengths: new Float32Array(1 << 16), toCore: null, coarseOf: null, fine: null, steps: null, fill: null };
 
 function toCore()
 {
@@ -278,118 +286,231 @@ function toCore()
     return distances;
 }
 
-// The red, green and blue glow of each coarse cell. Each light's colour
-// spreads through open coarse cells whole, keeping GLOW_KEEP of itself a
-// step, so its colour stays the same as it fades; where lights meet, each
-// channel keeps the brightest. A spread stops where it could no longer reach
-// the chunk before it fades out, so cells far from the chunk may stay dark.
-// Each queued entry carries its cell, its colour and the steps it has left,
-// packed as cell * 32 + steps.
+// The red, green and blue glow of each coarse cell. The lights of each colour
+// spread together through open coarse cells, as one strength that keeps
+// GLOW_KEEP of itself a step, and the colours then add, each at its strength:
+// so a glow keeps its colour as it fades, and two colours mix by degrees where
+// they meet. A spread stops where it could no longer reach the chunk before
+// it fades out, so cells far from the chunk may stay dark. Each queued entry
+// is its cell and the steps it has left, packed as cell * 32 + steps.
 export function glowCells({ open, lights })
 {
     glowBuffers.glow ??= new Float32Array(COARSE_SIDE ** 3 * 3);
+    glowBuffers.level ??= new Float32Array(COARSE_SIDE ** 3);
 
     const glow = glowBuffers.glow.fill(0);
+    const { level } = glowBuffers;
     const distances = toCore();
     const layer = COARSE_SIDE * COARSE_SIDE;
-    let { queue, colours } = glowBuffers;
+    let { queue, strengths } = glowBuffers;
     let tail = 0;
 
-    const take = (index, r, g, b, left) =>
+    const take = (index, strength, left) =>
     {
-        const at = index * 3;
+        if(distances[index] > left || strength <= level[index]) { return; }
 
-        if(distances[index] > left || (r <= glow[at] && g <= glow[at + 1] && b <= glow[at + 2])) { return; }
-
-        if(r > glow[at]) { glow[at] = r; }
-        if(g > glow[at + 1]) { glow[at + 1] = g; }
-        if(b > glow[at + 2]) { glow[at + 2] = b; }
+        level[index] = strength;
 
         if(tail === queue.length)
         {
             const grownQueue = new Int32Array(queue.length * 2);
-            const grownColours = new Float32Array(colours.length * 2);
+            const grownStrengths = new Float32Array(strengths.length * 2);
 
             grownQueue.set(queue);
-            grownColours.set(colours);
+            grownStrengths.set(strengths);
             queue = grownQueue;
-            colours = grownColours;
+            strengths = grownStrengths;
             glowBuffers.queue = queue;
-            glowBuffers.colours = colours;
+            glowBuffers.strengths = strengths;
         }
 
         queue[tail] = index * 32 + left;
-        colours[tail * 3] = r;
-        colours[tail * 3 + 1] = g;
-        colours[tail * 3 + 2] = b;
+        strengths[tail] = strength;
         tail++;
     };
 
-    for(let i = 0; i < lights.length; i += 4)
+    for(let first = 0; first < lights.length;)
     {
-        const strongest = Math.max(lights[i + 1], lights[i + 2], lights[i + 3]);
+        const colour = lights[first + 2];
+        let last = first;
 
-        if(strongest >= GLOW_END) { take(lights[i], lights[i + 1], lights[i + 2], lights[i + 3], Math.floor(Math.log(GLOW_END / strongest) / Math.log(GLOW_KEEP))); }
-    }
+        level.fill(0);
+        tail = 0;
 
-    for(let head = 0; head < tail; head++)
-    {
-        const left = queue[head] % 32 - 1;
+        for(; last < lights.length && lights[last + 2] === colour; last += 3)
+        {
+            const strength = lights[last + 1];
 
-        if(left < 0) { continue; }
+            if(strength >= GLOW_END) { take(lights[last], strength, Math.floor(Math.log(GLOW_END / strength) / Math.log(GLOW_KEEP))); }
+        }
 
-        const index = Math.floor(queue[head] / 32);
-        const r = colours[head * 3] * GLOW_KEEP;
-        const g = colours[head * 3 + 1] * GLOW_KEEP;
-        const b = colours[head * 3 + 2] * GLOW_KEEP;
-        const x = index % COARSE_SIDE;
-        const z = Math.floor(index / COARSE_SIDE) % COARSE_SIDE;
-        const y = Math.floor(index / layer);
+        for(let head = 0; head < tail; head++)
+        {
+            const left = queue[head] % 32 - 1;
 
-        if(x > 0 && open[index - 1]) { take(index - 1, r, g, b, left); }
-        if(x < COARSE_SIDE - 1 && open[index + 1]) { take(index + 1, r, g, b, left); }
-        if(z > 0 && open[index - COARSE_SIDE]) { take(index - COARSE_SIDE, r, g, b, left); }
-        if(z < COARSE_SIDE - 1 && open[index + COARSE_SIDE]) { take(index + COARSE_SIDE, r, g, b, left); }
-        if(y > 0 && open[index - layer]) { take(index - layer, r, g, b, left); }
-        if(y < COARSE_SIDE - 1 && open[index + layer]) { take(index + layer, r, g, b, left); }
+            if(left < 0) { continue; }
+
+            const index = Math.floor(queue[head] / 32);
+            const strength = strengths[head] * GLOW_KEEP;
+            const x = index % COARSE_SIDE;
+            const z = Math.floor(index / COARSE_SIDE) % COARSE_SIDE;
+            const y = Math.floor(index / layer);
+
+            if(x > 0 && open[index - 1]) { take(index - 1, strength, left); }
+            if(x < COARSE_SIDE - 1 && open[index + 1]) { take(index + 1, strength, left); }
+            if(z > 0 && open[index - COARSE_SIDE]) { take(index - COARSE_SIDE, strength, left); }
+            if(z < COARSE_SIDE - 1 && open[index + COARSE_SIDE]) { take(index + COARSE_SIDE, strength, left); }
+            if(y > 0 && open[index - layer]) { take(index - layer, strength, left); }
+            if(y < COARSE_SIDE - 1 && open[index + layer]) { take(index + layer, strength, left); }
+        }
+
+        const [r, g, b] = [Math.floor(colour / 65536) / 255, Math.floor(colour / 256) % 256 / 255, colour % 256 / 255];
+
+        for(let i = 0; i < level.length; i++)
+        {
+            if(level[i] === 0) { continue; }
+
+            glow[i * 3] += r * level[i];
+            glow[i * 3 + 1] += g * level[i];
+            glow[i * 3 + 2] += b * level[i];
+        }
+
+        first = last;
     }
 
     return glow;
 }
 
-// The glow of a padded cell, packed as band * 4096 + red * 256 + green * 16 +
-// blue: the band, 1 to GLOW_BANDS, is the glow's strength, and each channel,
-// 0 to HUE_STEPS, its colour at full strength. 0 is no glow. A cell beside a
-// wall shares its coarse cell with the wall, which the glow does not enter,
-// so it takes the brightest of its own coarse cell and the three its sides
-// touch, which lie on its side of the wall.
-function glowCodeOf(glow, index)
+// A glow packed as band * 4096 + red * 256 + green * 16 + blue: each channel,
+// 0 to HUE_STEPS, is its colour at full strength, and the band, 1 to
+// GLOW_BANDS, its strength, in bands of equal distance from the light, as a
+// glow keeps GLOW_KEEP of itself a step. 0 is no glow.
+function glowCode(r, g, b)
 {
-    const fx = index % PADDED - MARGIN + GLOW_REACH;
-    const fy = Math.floor(index / UP) - MARGIN + GLOW_REACH;
-    const fz = Math.floor(index / PADDED) % PADDED - MARGIN + GLOW_REACH;
-    const own = (Math.floor(fy / COARSE) * COARSE_SIDE + Math.floor(fz / COARSE)) * COARSE_SIDE + Math.floor(fx / COARSE);
-    const besides = [own + (fx % COARSE === 0 ? -1 : 1), own + (fy % COARSE === 0 ? -1 : 1) * COARSE_SIDE * COARSE_SIDE, own + (fz % COARSE === 0 ? -1 : 1) * COARSE_SIDE];
-    let best = own;
-    let strongest = Math.max(glow[own * 3], glow[own * 3 + 1], glow[own * 3 + 2]);
-
-    for(const beside of besides)
-    {
-        const strength = Math.max(glow[beside * 3], glow[beside * 3 + 1], glow[beside * 3 + 2]);
-
-        if(strength > strongest)
-        {
-            best = beside;
-            strongest = strength;
-        }
-    }
+    const strongest = Math.max(r, g, b);
 
     if(strongest < GLOW_END) { return 0; }
 
-    const band = Math.min(GLOW_BANDS, Math.ceil(strongest * GLOW_BANDS));
-    const hue = (channel) => Math.round((glow[best * 3 + channel] / strongest) * HUE_STEPS);
+    const steps = Math.log(Math.min(1, strongest)) / Math.log(GLOW_KEEP);
+    const band = Math.max(1, GLOW_BANDS - Math.floor(steps / BAND_STEPS));
 
-    return band * 4096 + hue(0) * 256 + hue(1) * 16 + hue(2);
+    return band * 4096 + Math.round((r / strongest) * HUE_STEPS) * 256 + Math.round((g / strongest) * HUE_STEPS) * 16 + Math.round((b / strongest) * HUE_STEPS);
+}
+
+// Each padded cell's coarse cell in the coarse volume.
+function coarseIndices()
+{
+    if(glowBuffers.coarseOf) { return glowBuffers.coarseOf; }
+
+    const indices = new Int32Array(PADDED ** 3);
+    const coarse = (value) => Math.floor((value - MARGIN + GLOW_REACH) / COARSE);
+
+    for(let y = 0; y < PADDED; y++)
+    {
+        for(let z = 0; z < PADDED; z++)
+        {
+            for(let x = 0; x < PADDED; x++) { indices[(y * PADDED + z) * PADDED + x] = (coarse(y) * COARSE_SIDE + coarse(z)) * COARSE_SIDE + coarse(x); }
+        }
+    }
+
+    glowBuffers.coarseOf = indices;
+
+    return indices;
+}
+
+// The glow of each padded cell, as a function of its index. A cell in an open
+// coarse cell takes that cell's glow. A cell in a closed one, beside a wall,
+// in a corner or in a recess a cube wide, takes the glow that reaches it
+// through open cells from the nearest open coarse cell, up to FILL_STEPS
+// cells away, fading as the glow does; a wall's far side is not reached,
+// as no open cell leads to it.
+function fineGlow(volume, table)
+{
+    const { cells } = volume;
+    const { open } = volume.coarse;
+    const glow = glowCells(volume.coarse);
+    const coarseOf = coarseIndices();
+    const opaque = table.opaque;
+    const size = PADDED ** 3;
+
+    glowBuffers.fine ??= new Float32Array(size * 3);
+    glowBuffers.steps ??= new Uint8Array(size);
+    glowBuffers.fill ??= new Int32Array(size);
+
+    const { fine, fill } = glowBuffers;
+    const steps = glowBuffers.steps.fill(0);
+    const low = Math.max(1, MARGIN - FILL_STEPS - 1);
+    const high = Math.min(PADDED - 1, MARGIN + CHUNK + FILL_STEPS + 1);
+    const around = [1, -1, PADDED, -PADDED, UP, -UP];
+    let tail = 0;
+
+    for(let y = low; y < high; y++)
+    {
+        for(let z = low; z < high; z++)
+        {
+            for(let x = low; x < high; x++)
+            {
+                const index = (y * PADDED + z) * PADDED + x;
+
+                if(opaque[cells[index]] === 1 || open[coarseOf[index]] === 1) { continue; }
+
+                let best = -1;
+                let strongest = GLOW_END;
+
+                for(const step of around)
+                {
+                    const from = coarseOf[index + step];
+
+                    if(opaque[cells[index + step]] === 1 || open[from] !== 1) { continue; }
+
+                    const strength = Math.max(glow[from * 3], glow[from * 3 + 1], glow[from * 3 + 2]);
+
+                    if(strength > strongest)
+                    {
+                        best = from;
+                        strongest = strength;
+                    }
+                }
+
+                if(best < 0) { continue; }
+
+                for(let channel = 0; channel < 3; channel++) { fine[index * 3 + channel] = glow[best * 3 + channel] * FILL_KEEP; }
+
+                steps[index] = 1;
+                fill[tail++] = index;
+            }
+        }
+    }
+
+    for(let head = 0; head < tail; head++)
+    {
+        const index = fill[head];
+
+        if(steps[index] >= FILL_STEPS) { continue; }
+
+        for(const step of around)
+        {
+            const next = index + step;
+            const [x, y, z] = [next % PADDED, Math.floor(next / UP), Math.floor(next / PADDED) % PADDED];
+            const isInside = x >= low && x < high && y >= low && y < high && z >= low && z < high;
+
+            if(!isInside || steps[next] !== 0 || opaque[cells[next]] === 1 || open[coarseOf[next]] === 1) { continue; }
+
+            for(let channel = 0; channel < 3; channel++) { fine[next * 3 + channel] = fine[index * 3 + channel] * FILL_KEEP; }
+
+            steps[next] = steps[index] + 1;
+            fill[tail++] = next;
+        }
+    }
+
+    return (index) =>
+    {
+        const coarse = coarseOf[index];
+
+        if(open[coarse] === 1) { return glowCode(glow[coarse * 3], glow[coarse * 3 + 1], glow[coarse * 3 + 2]); }
+
+        return steps[index] === 0 ? 0 : glowCode(fine[index * 3], fine[index * 3 + 1], fine[index * 3 + 2]);
+    };
 }
 
 // Breadth first, so each cell keeps the brightest level that reaches it.
@@ -457,8 +578,7 @@ export function meshCells(volume, table, origin, frame)
     const out = { positions: [], normals: [], uvs: [], layers: [], colours: [], lights: [], weathers: [], glows: [], indices: [] };
     const masks = { faces: new Int32Array(CHUNK * CHUNK), weathers: new Int32Array(CHUNK * CHUNK), glows: new Int32Array(CHUNK * CHUNK) };
     const light = lightCells(volume, table);
-    const glow = volume.coarse ? glowCells(volume.coarse) : null;
-    const glowOf = glow ? (index) => glowCodeOf(glow, index) : () => 0;
+    const glowOf = volume.coarse ? fineGlow(volume, table) : () => 0;
     const floors = floorLights(volume.cells, light, table, glowOf);
     const context = { cells: volume.cells, ages: volume.ages ?? new Uint8Array(PADDED * PADDED), light, glowOf, table, origin };
 

@@ -229,9 +229,9 @@ export class ZoneData
 
     // A chunk's cells in cubes of COARSE cells a side, for the glow of light:
     // `open` holds 1 for each coarse cell with fewer than half its cells
-    // opaque, and `lights` [coarse index, red, green, blue] for each light
-    // cell, its colour scaled by its level. Null for a chunk outside the zone
-    // or in a region not loaded.
+    // opaque, and `lights` [coarse index, strength, colour] for each light
+    // cell: its level as a share of 15, and its colour as 0xrrggbb. Null for
+    // a chunk outside the zone or in a region not loaded.
     coarseOf(cx, cy, cz)
     {
         if(cx < 0 || cz < 0 || cy < 0 || cx >= this.chunksWide || cz >= this.chunksWide || cy >= this.chunksHigh) { return null; }
@@ -272,7 +272,7 @@ export class ZoneData
                     const light = blocks.light(block);
 
                     if(blocks.isOpaque(block)) { opaque[coarse]++; }
-                    if(light > 0) { lights.push(coarse, ...[0, 1, 2].map((channel) => blocks.glows[block * 3 + channel] * light / 15)); }
+                    if(light > 0) { lights.push(coarse, light / 15, blocks.glowKey(block)); }
                 }
             }
         }

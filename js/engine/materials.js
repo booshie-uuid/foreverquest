@@ -103,7 +103,9 @@ float skyShade = mix(0.55, 1.0, moonLit);
 // A face takes the sum of its sky and lamp colours from the zone's ramps, in
 // place of the scene's lights, with the sky dimmed where the moon does not
 // reach. The player's own light falls off a level a cell from the cell the
-// player stands in.
+// player stands in, and keeps the lamp ramp's colour; each colour channel
+// takes the brighter of it and the cell's lamp light, so the two meet without
+// an edge.
 // A glow is band * 4096 + red * 256 + green * 16 + blue, as the mesher packs
 // it: the band, 1 to 4, is its strength, and each channel, 0 to 15, its
 // colour at full strength in sRGB. 0 is no glow. Where a glow reaches, the
@@ -168,9 +170,8 @@ const STEPPED_FRAGMENT = MOON + `
 vec3 stepCell = floor((vStepPosition + vStepNormal * 0.05) * 3.0);
 float nearPlayer = playerLight.w - floor(distance(stepCell, floor(playerLight.xyz * 3.0)));
 int skyLevel = int(vLight.x * 15.0 + 0.5);
-float ownLamp = floor(vLight.y * 15.0 + 0.5);
-int lampLevel = clamp(int(max(ownLamp, nearPlayer)), 0, 15);
-vec3 lampLight = ownLamp >= nearPlayer ? inGlowColour(lampRamp[lampLevel], vGlow) : lampRamp[lampLevel];
+int ownLamp = int(vLight.y * 15.0 + 0.5);
+vec3 lampLight = max(inGlowColour(lampRamp[ownLamp], vGlow), lampRamp[clamp(int(nearPlayer), 0, 15)]);
 vec3 stepLight = floorLight(fitLight(skyRamp[skyLevel] * skyShade + lampLight + glowLight(vGlow)), glowBase(ambientFloor, vGlow));
 float stepFace = vStepNormal.y > 0.5 ? 1.0 : (vStepNormal.y < -0.5 ? 0.55 : (abs(vStepNormal.x) > 0.5 ? 0.72 : 0.86));
 

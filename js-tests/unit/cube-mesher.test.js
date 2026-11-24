@@ -231,12 +231,24 @@ describe("Cube mesher", () =>
 
         for(let y = 0; y < side; y++) { for(let z = 0; z < side; z++) { open[at(28, y, z)] = 0; } }
 
-        const glow = CubeMesher.glowCells({ open, lights: Float32Array.of(at(20, 24, 24), 1, 0.5, 0.25) });
+        const glow = CubeMesher.glowCells({ open, lights: Float64Array.of(at(20, 24, 24), 1, 0xff8040) });
         const [r, g, b] = colourAt(glow, 23, 24, 24);
 
         assert.ok(Math.abs(r - 0.82 ** 3) < 1e-6, "The glow did not fade to 0.82 a step: " + r);
-        assert.ok(Math.abs(g / r - 0.5) < 1e-6 && Math.abs(b / r - 0.25) < 1e-6, "The glow changed colour as it faded");
+        assert.ok(Math.abs(g / r - 128 / 255) < 1e-6 && Math.abs(b / r - 64 / 255) < 1e-6, "The glow changed colour as it faded");
         assert.deepEqual(colourAt(glow, 29, 24, 24), [0, 0, 0], "The glow passed through the wall");
+    });
+
+    it("adds the glows of two colours where they meet, so the mix changes by degrees between them", () =>
+    {
+        const side = 48;
+        const open = new Uint8Array(side ** 3).fill(1);
+        const at = (x, y, z) => (y * side + z) * side + x;
+        const glow = CubeMesher.glowCells({ open, lights: Float64Array.of(at(18, 24, 24), 1, 0xff0000, at(30, 24, 24), 1, 0x0000ff) });
+        const blueShare = [19, 21, 23, 24, 25, 27, 29].map((x) => glow[at(x, 24, 24) * 3 + 2] / (glow[at(x, 24, 24) * 3] + glow[at(x, 24, 24) * 3 + 2]));
+
+        assert.ok(blueShare.every((share, i) => i === 0 || share > blueShare[i - 1]), "The mix does not turn steadily from red to blue: " + blueShare.map((share) => share.toFixed(2)));
+        assert.ok(Math.abs(blueShare[3] - 0.5) < 1e-6 && blueShare[0] > 0.05 && blueShare[6] < 0.95, "The colours switch rather than mix: " + blueShare.map((share) => share.toFixed(2)));
     });
 
     it("gives a face the glow of the room it faces, though its coarse cell is half wall", () =>
@@ -247,11 +259,34 @@ describe("Cube mesher", () =>
         for(let y = 0; y < 48; y++) { for(let z = 0; z < 48; z++) { open[at(20, y, z)] = 0; } }
 
         const wall = cells((set) => { for(let y = 12; y < 20; y++) { for(let z = 12; z < 20; z++) { set(8, y, z, STONE); } } });
-        const mesh = CubeMesher.meshCells({ ...wall, coarse: { open, lights: Float32Array.of(at(24, 24, 24), 1, 0.2, 0.1) } }, table(), [0, 0, 0], FRAME);
+        const mesh = CubeMesher.meshCells({ ...wall, coarse: { open, lights: Float64Array.of(at(24, 24, 24), 1, 0xff331a) } }, table(), [0, 0, 0], FRAME);
         const facing = [];
 
         for(let i = 0; i < mesh.normals.length / 3; i++) { if(mesh.normals[i * 3] === 1) { facing.push(mesh.glows[i]); } }
 
         assert.ok(facing.length > 0 && facing.every((code) => code >= 4096 && Math.floor(code / 256) % 16 === 15), "The wall's face toward the light does not take its red glow: " + [...new Set(facing)]);
+    });
+    it("carries the glow into a recess one cube wide, where every coarse cell is half wall", () =>
+    {
+        const open = new Uint8Array(48 ** 3).fill(1);
+        const at = (x, y, z) => (y * 48 + z) * 48 + x;
+
+        for(let y = 22; y <= 25; y++) { for(let z = 22; z <= 25; z++) { open[at(20, y, z)] = 0; open[at(21, y, z)] = 0; } }
+
+        const slot = cells((set) =>
+        {
+            for(let y = 12; y < 20; y++) { for(let z = 12; z < 20; z++) { set(8, y, z, STONE); set(10, y, z, STONE); } }
+        });
+        const mesh = CubeMesher.meshCells({ ...slot, coarse: { open, lights: Float64Array.of(at(20, 24, 28), 1, 0xff331a) } }, table(), [0, 0, 0], FRAME);
+        const inside = [];
+
+        for(let i = 0; i < mesh.normals.length / 3; i++)
+        {
+            const isSlotWall = mesh.normals[i * 3] === 1 && Math.abs(mesh.positions[i * 3] - 9 / 3) < 1e-6;
+
+            if(isSlotWall && mesh.positions[i * 3 + 2] >= 14 / 3 - 1e-6) { inside.push(mesh.glows[i]); }
+        }
+
+        assert.ok(inside.length > 0 && inside.every((code) => code >= 4096 && Math.floor(code / 256) % 16 === 15), "The recess's wall does not take the room's glow: " + [...new Set(inside)]);
     });
 });

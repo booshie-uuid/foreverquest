@@ -61,6 +61,14 @@ export class BlockSet
         return this.blocks[number]?.kind === "liquid";
     }
 
+    // The colour of a glowing block's light as 0xrrggbb.
+    glowKey(number)
+    {
+        const channel = (index) => Math.round(this.glows[number * 3 + index] * 255);
+
+        return channel(0) * 65536 + channel(1) * 256 + channel(2);
+    }
+
     light(number)
     {
         return this.lights[number];
