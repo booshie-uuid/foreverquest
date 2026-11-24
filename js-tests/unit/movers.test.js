@@ -95,6 +95,21 @@ describe("Movers", () =>
         movers.dispose();
     });
 
+    it("lets the warehouse's two levers each send its hoist to the other end", async () =>
+    {
+        const zone = await TestAssets.zone("hearthmere");
+        const movers = new Movers(zone);
+        const hoist = movers.movers.find((mover) => mover.id?.startsWith("hoistAt"));
+        const [below, above] = zone.objects.filter((entry) => entry.trigger?.movers.includes(hoist.id)).sort((a, b) => a.y - b.y);
+
+        assert.ok(above.y - below.y > 3, "The loft has no lever of its own");
+        movers.use(below);
+        assert.equal(hoist.target, 1);
+        movers.use(above);
+        assert.equal(hoist.target, 0, "The loft lever did not send the hoist down");
+        movers.dispose();
+    });
+
     it("sends its movers to their far end while an entity stands on a plate, or comes near", async () =>
     {
         const zone = await TestAssets.zone("testfield");

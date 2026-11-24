@@ -166,8 +166,9 @@ function isInside(zone, entity, [x, y, z])
 /* MOVERS                                                                     */
 /******************************************************************************/
 
-// Every mover and trigger of a zone. A lever toggles its movers when used; a
-// plate sends them to end 1 while an entity stands on it. A mover with `near`
+// Every mover and trigger of a zone. A lever sends each of its movers to its
+// other end when used, so two levers can work one mover; a plate sends them
+// to end 1 while an entity stands on it. A mover with `near`
 // goes to end 1 while an entity is within that many metres, and one with
 // `every` goes to its other end after that many seconds at rest.
 export class Movers
@@ -196,8 +197,12 @@ export class Movers
 
         if(!trigger) { return false; }
 
-        trigger.isOn = !trigger.isOn;
-        this.send(trigger);
+        for(const id of entry.trigger.movers)
+        {
+            const mover = this.mover(id);
+
+            mover?.setTarget(1 - mover.target);
+        }
 
         return true;
     }

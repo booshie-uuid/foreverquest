@@ -1,6 +1,6 @@
 {
     "files": {
-        "blocks.json": "300695f8d6cf3f5eb128ca89e87d144b4605424f339434dc8cd54758e683226c",
+        "blocks.json": "c3f31deecc594c4d23b0d781ff94b09994c146d77deb850bf8173d462925f749",
         "migrations.json": "36ca8f2294979382612449f2e06759552b1faf0b1e63acc4930d06d0534623e7",
         "models/appearance.json": "8cf415eb281d3f71d9b89fc40f092eff9f6c23a35b7b23de38916110d483dfd4",
         "models/archetypes.json": "2be2c9e982bea9d46e186a6ea92b6fe9947342c48002d34b68eea53d51ec8604",
@@ -106,7 +106,7 @@
         "models/stamps.preview.png": "a9c183027d00e58e2d2e97b933cb6be62d147363aa4a62bbf94426b6fc60ffef",
         "npcs.json": "9b06f5c5aacaa28191302bb956ccf05b4d2beafab2ac9917b407f3bdc2cb0491",
         "objects.json": "7de7212ea2b897945bfdf5dfc895ceaceffd5f7717b1e6c665fc81096b5c601d",
-        "props/prefabs.json": "3018601fc6e3d9cb1974ab13a93f2bb44248621982114bd10f60bb14f51ed788",
+        "props/prefabs.json": "f8192cd2a532243941db4f1fbd23ca87d793b1d1ff8ea705f7aa9ba7ccc2a49a",
         "textures/world.json": "34c68edad0e1db70455c0559c7b7abd58a1dbeb4dd6cf9ba110b5da6b8b9664b",
         "textures/world.png": "4d4c88b5d6bf2ba672a2be86131531a0c42a0c7580acbed443293dae6ada9104",
         "zones/expanse/0-0.bin": "216ed2a8ac8446f8e690e5c3c40f5e95757a5b3851a65181e6a336bcf28a3dd6",
@@ -258,12 +258,12 @@
         "zones/hearthmere/0-1.bin": "fd4c5f8fcde0f51ece51d33544119c3b4d885178c688add521f02f309efa8cb5",
         "zones/hearthmere/0-2.bin": "74765ec5058b81779bc5963a48a3b8395e6f1f841f4fcf7e1052e20f51c87354",
         "zones/hearthmere/1-0.bin": "627124a151d382ac8eecc770dc0173b515853c29f88b109c2735871869a7d42d",
-        "zones/hearthmere/1-1.bin": "a7d1e83dab1e039cfff129018b3ebae8d7132597deb73dc230f550314922a3a8",
+        "zones/hearthmere/1-1.bin": "88bc3d784d0e45ba9988f35573556d8d91a1f9493415acbf7994887f21f05e6d",
         "zones/hearthmere/1-2.bin": "1a4ff01b74e780676d0ad8e63527dc78e3cdf83f6c665da6e5c29b0f0c01891e",
         "zones/hearthmere/2-0.bin": "723e22a5fc6540c0453f9db2ad174c04cc2aa208e7e9ab507b14146f941d8e62",
         "zones/hearthmere/2-1.bin": "572c3ddbae5e2ffab3b128a542050ab331dfc0ccff37a0ff56d35911a357f183",
         "zones/hearthmere/2-2.bin": "f79bca827358e614bf0476f62e8761468580734893f966b7012f7e01e920a399",
-        "zones/hearthmere/index.json": "03271f6e3b1704f487716ab1090c24f697dff2271f52aa4c3aa59a9386cc73af",
+        "zones/hearthmere/index.json": "b9387cad1df2bd04578aa173c60162f3392f34cd36119567d7e825e443eb224d",
         "zones/index.json": "98c62ba879f482b051fdd8e671e51bd0994389043936732dc99ac88cf8ba4035",
         "zones/testfield/0-0.bin": "118a2c702091cc6f65aa984a54616a3ce575bbd51ad9a2e007c9fc9bb4112707",
         "zones/testfield/index.json": "02a23253f85e8dc4db9830b850a695ef13de78fa095d54346f6d96a731fa589e"

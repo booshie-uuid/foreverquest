@@ -115,6 +115,8 @@ export const BUILDINGS =
             warehouse.object({ object: "liftPlatform", at: [9.5 / 3, 0, -4.5 / 3], id: "hoist", mover: { slide: [0, 9, 0], seconds: 4 } });
             warehouse.object({ object: "leverBase", at: [12.5 / 3, 0, -1.5 / 3], trigger: { lever: true, movers: ["hoist", "hoistLever"] } });
             warehouse.object({ object: "leverHandle", at: [12.5 / 3, 1 / 3, -1.5 / 3], id: "hoistLever", mover: { turn: { axis: "x", pivot: [4, 0, 4], from: -40, degrees: 80 }, seconds: 0.4 } });
+            warehouse.object({ object: "leverBase", at: [12.5 / 3, 10 / 3, -1.5 / 3], trigger: { lever: true, movers: ["hoist", "loftLever"] } });
+            warehouse.object({ object: "leverHandle", at: [12.5 / 3, 11 / 3, -1.5 / 3], id: "loftLever", mover: { turn: { axis: "x", pivot: [4, 0, 4], from: -40, degrees: 80 }, seconds: 0.4 } });
 
             for(const x of [-12, -8, -4]) { warehouse.object({ object: "crateLarge", at: [(x + 1) / 3, 0, -8 / 3] }); }
         },

@@ -14,5 +14,5 @@ export const BLOCKS =
     banner: { faces: { all: "banner" } },
     window: { faces: { all: "glow" }, light: 12 },
     object: { kind: "object" },
-    objectLight: { kind: "object", light: 12 },
+    objectLight: { kind: "object", light: 14 },
 };

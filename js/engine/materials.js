@@ -180,7 +180,7 @@ const PLAYER_LIGHT = 7;
 const DEFAULT_STEPS =
 {
     sky: { dark: "#12141f", bright: "#56607e", curve: 1.4 },
-    lamp: { dark: "#000000", bright: "#ffb466", curve: 1.0 },
+    lamp: { dark: "#000000", bright: "#ffb466", curve: 0.6 },
 };
 
 export class MaterialLibrary

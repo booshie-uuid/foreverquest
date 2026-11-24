@@ -184,8 +184,8 @@ describe("Objects in a zone", () =>
 
         assert.ok(view.objectLight(placed("runner")).lamp > 0, "The aisle's runner is unlit");
         assert.ok(view.objectLight(placed("pew")).lamp > 0);
-        assert.equal(view.objectLight(placed("chandelier")).lamp, 11);
-        assert.equal(view.objectLight(placed("altar")).lamp, 11);
+        assert.equal(view.objectLight(placed("chandelier")).lamp, 13);
+        assert.equal(view.objectLight(placed("altar")).lamp, 13);
         view.dispose();
     });
 
