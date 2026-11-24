@@ -74,7 +74,7 @@ export const IDS =
 | `manifest.json` | Each file's SHA-256 hash and size, and the ids by kind |
 | `textures/world.png` | Every world texture, 64 by 64 texels, stacked top to bottom in atlas order |
 | `textures/world.json` | The texture size, the texels per metre, and each layer's name and glow flag |
-| `blocks.json` | Every block type in baked order, with its kind, its light and the textures of its top, sides and bottom |
+| `blocks.json` | Every block type in baked order, with its kind, its light and glow colour, and the textures of its top, sides and bottom |
 | `models/index.json` | The rig ids, and the body ids in display order |
 | `models/rigs/<id>.json` | A rig, with each pivot and centre compiled into a linear form of box sizes |
 | `models/bodies/<id>.json` | A body, checked against its rig |
@@ -112,10 +112,11 @@ A block type is one world cube's material. The files in [content/blocks/](../con
 | `faces` | World texture names for `top`, `side` and `bottom`; `all` covers the faces that are not named |
 | `kind` | `solid` (the default) blocks movement and hides the faces behind it; `clear` blocks movement and lets the faces behind it show, as leaves do; `liquid` lets entities enter it |
 | `light` | The light the block gives, from 0 (the default) to 15 |
+| `glow` | Optional, for a block with a light. The colour of its light, by name from [content/light-colours.js](../content/light-colours.js): `candle` (the default), `hearth` or `moonstone`. The forge's `embers` glow hearth red |
 | `weathers` | Optional. The ways a solid block weathers: any of `moss`, `grime`, `cracks` and `chips`; see [Weathering](world.md#weathering) |
 | `worn` | Optional. The world texture an old block takes, such as `plasterWorn` |
 
-[BlockSet](../js/sim/block-set.js) numbers the block types from 1 in the baked order, file by file in name order, and keeps 0 for air. The simulation and the views both read it. The bake fails on a repeated id, an unknown texture, face or kind, a block without a texture on every face, a light out of range, an unknown way of weathering or one on a block that is not solid, and an unknown worn texture.
+[BlockSet](../js/sim/block-set.js) numbers the block types from 1 in the baked order, file by file in name order, and keeps 0 for air. The simulation and the views both read it. The bake fails on a repeated id, an unknown texture, face or kind, a block without a texture on every face, a light out of range, an unknown way of weathering or one on a block that is not solid, an unknown worn texture, and a glow on a block with no light or of a colour that light-colours.js does not name.
 
 ## Adding an Object
 
@@ -127,6 +128,7 @@ An object is a thing built from fine cubes, eight to a world cube's edge, such a
 | `build(object)` | Fills fine cubes with `object.box(from, to, block)`, from one corner up to but not including the other, or `object.set(x, y, z, block)`, counted from the object's lower corner |
 | `isSolid` | `false` lets entities walk through the object; it defaults to `true` |
 | `lights` | Optional. A list of the object's cells, each as `[x, y, z]` in world cubes, that give lamp light, such as the cell holding a lamp post's lantern or an altar's candles |
+| `glow` | Optional, for an object with lights. The colour of its light, by name from [content/light-colours.js](../content/light-colours.js); `candle` is the default |
 
 [content/objects/shapes.js](../content/objects/shapes.js) fills discs, rings, ellipsoids and slanted bars of fine cubes, for barrels, sacks and braces. A fine cube takes the textures of its block type, so a timber fine cube shows end grain on top. The bake fails on a fine cube outside the object's cells, so an object never reaches beyond the cubes it claims; on an unknown block; and on a mesh of more than 6,000 triangles. The bake writes the fine cubes to `objects.json`, not the mesh, because the cubes compress to a fraction of the mesh's size. The game builds each object's mesh once at load with [js/render/fine-mesher.js](../js/render/fine-mesher.js), which merges the faces of each texture into rectangles; the bake uses the same module to count the triangles. To place an object, add `{ object, x, z, angle }` to a zone's `props`; [World](world.md#fine-cube-objects) describes placement.
 

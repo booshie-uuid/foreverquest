@@ -209,7 +209,10 @@ describe("Edit sessions", () =>
         const [x, y, z] = cell;
         const chunk = region.chunks.find((entry) => entry.x === Math.floor(x / CHUNK) && entry.y === Math.floor(y / CHUNK) && entry.z === Math.floor(z / CHUNK));
 
-        assert.deepEqual(written.sort(), ["zones/testfield/regions/0-0.bin", "zones/testfield/zone.json"]);
+        const palette = JSON.parse(fs.readFileSync(path.join(CONTENT, "zones", "testfield", "regions", "blocks.json"), "utf8"));
+        const isRenumbered = JSON.stringify(palette) !== JSON.stringify(session.context.blocks.map((block) => block.id));
+
+        assert.deepEqual(written.sort(), ["zones/testfield/regions/0-0.bin", ...(isRenumbered ? ["zones/testfield/regions/blocks.json"] : []), "zones/testfield/zone.json"]);
         assert.equal(chunk.cells[((y % CHUNK) * CHUNK + (z % CHUNK)) * CHUNK + (x % CHUNK)], cobble);
         assert.equal(JSON.parse(fs.readFileSync(path.join(folder, "zone.json"), "utf8")).props[0].x, session.zone.props[0].x);
         assert.equal(session.state.isDirty, false);

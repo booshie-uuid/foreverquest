@@ -366,7 +366,7 @@ describe("Zone view", () =>
         assert.equal(street.sky, 15);
         assert.ok(room.sky < street.sky - 2, "The room is as bright as the street: " + JSON.stringify(room));
         assert.ok(room.lamp >= 4, "The inn's lantern does not light the floor under it: " + JSON.stringify(room));
-        assert.deepEqual(view.lightAt({ x: 0, y: 40, z: 0 }), { sky: 15, lamp: 0 });
+        assert.deepEqual(view.lightAt({ x: 0, y: 40, z: 0 }), { sky: 15, lamp: 0, glow: 0 });
         view.dispose();
     });
 
@@ -413,6 +413,38 @@ describe("Zone view", () =>
 
         new ZoneView(hearthmere, materials).dispose();
         assert.deepEqual(srgb(), [0.173, 0.198, 0.297]);
+    });
+
+    it("tints the floor by the forge red and the house by its candles, and leaves the open street at the sky", () =>
+    {
+        const view = new ZoneView(hearthmere, materials);
+        const hue = (glow) => [Math.floor(glow / 256) % 16, Math.floor(glow / 16) % 16, glow % 16];
+        const smithy = hearthmere.objects.find((entry) => entry.name === "smithy");
+        const embers = [];
+
+        for(let z = smithy.box[2]; z <= smithy.box[5]; z++) { for(let x = smithy.box[0]; x <= smithy.box[3]; x++) { if(hearthmere.blockAt(x, smithy.box[1] + 9, z) === hearthmere.blocks.number("embers")) { embers.push([x, z]); } } }
+
+        const [column, row] = embers[0];
+        const around = [];
+
+        for(let dz = -6; dz <= 6; dz++)
+        {
+            for(let dx = -6; dx <= 6; dx++)
+            {
+                const [x, z] = [(column + dx + 0.5) / 3 - hearthmere.half, (row + dz + 0.5) / 3 - hearthmere.half];
+
+                around.push(view.lightAt({ x, y: hearthmere.groundAt(x, z), z }).glow);
+            }
+        }
+
+        const red = around.filter((glow) => glow > 0 && hue(glow)[0] === 15 && hue(glow)[1] < 8);
+        const house = view.lightAt({ x: -8.7, y: hearthmere.groundAt(-8.7, 14.1), z: 14.1 });
+
+        assert.ok(embers.length > 0, "The smithy has no embers");
+        assert.ok(red.length >= 12, "Only " + red.length + " of the " + around.length + " floors around the forge are red");
+        assert.ok(house.glow > 0 && hue(house.glow)[1] > 8, "The house floor does not take its candles' glow: " + hue(house.glow));
+        assert.equal(view.lightAt({ x: 0, y: 40, z: 0 }).glow, 0);
+        view.dispose();
     });
 
     it("lights a door that fills its doorway by the room beside it", async () =>

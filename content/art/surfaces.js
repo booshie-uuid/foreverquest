@@ -395,6 +395,21 @@ export function banner(raster, target, random, colour)
     }
 }
 
+// Coals: dark lumps with red and orange between them.
+export function embers(raster, target, random)
+{
+    for(let y = 0; y < target.h; y++)
+    {
+        for(let x = 0; x < target.w; x++)
+        {
+            const heat = random.next();
+            const colour = heat < 0.3 ? "#2a1610" : heat < 0.75 ? "#b8361a" : "#f08a2c";
+
+            Pixels.dot(raster, target, x, y, tone(colour, random, 0.18));
+        }
+    }
+}
+
 export function glow(raster, target, random, colour = "#f0a848")
 {
     for(let y = 0; y < target.h; y++)

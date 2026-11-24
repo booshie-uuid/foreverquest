@@ -30,6 +30,7 @@ export const TEXTURES =
     { name: "sacking", seed: 647, paint: (r, a, random) => Surfaces.weave(r, a, random, "#5e5446") },
     { name: "banner", seed: 660, paint: (r, a, random) => Surfaces.banner(r, a, random, "#4a1a18") },
     { name: "glow", seed: 673, glow: true, paint: (r, a, random) => Surfaces.glow(r, a, random) },
+    { name: "embers", seed: 959, glow: true, paint: (r, a, random) => Surfaces.embers(r, a, random) },
     { name: "grassSide", seed: 686, paint: (r, a, random) => Surfaces.edged(r, a, random, Surfaces.earth, "#3f4428") },
     { name: "mossSide", seed: 699, paint: (r, a, random) => Surfaces.edged(r, a, random, Surfaces.earth, "#33381f") },
     { name: "rubble", seed: 712, paint: (r, a, random) => Surfaces.rubble(r, a, random, "#5e5a52") },

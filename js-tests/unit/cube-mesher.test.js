@@ -222,4 +222,36 @@ describe("Cube mesher", () =>
 
         assert.ok(Math.abs(leaves.reduce((total, quad) => total + quad.area * 9, 0) - 9) < 1e-5);
     });
+    it("spreads a light's glow through open coarse cells at its own colour, fading a step at a time, and stops it at a wall", () =>
+    {
+        const side = 48;
+        const open = new Uint8Array(side ** 3).fill(1);
+        const at = (x, y, z) => (y * side + z) * side + x;
+        const colourAt = (glow, x, y, z) => [0, 1, 2].map((channel) => glow[at(x, y, z) * 3 + channel]);
+
+        for(let y = 0; y < side; y++) { for(let z = 0; z < side; z++) { open[at(28, y, z)] = 0; } }
+
+        const glow = CubeMesher.glowCells({ open, lights: Float32Array.of(at(20, 24, 24), 1, 0.5, 0.25) });
+        const [r, g, b] = colourAt(glow, 23, 24, 24);
+
+        assert.ok(Math.abs(r - 0.82 ** 3) < 1e-6, "The glow did not fade to 0.82 a step: " + r);
+        assert.ok(Math.abs(g / r - 0.5) < 1e-6 && Math.abs(b / r - 0.25) < 1e-6, "The glow changed colour as it faded");
+        assert.deepEqual(colourAt(glow, 29, 24, 24), [0, 0, 0], "The glow passed through the wall");
+    });
+
+    it("gives a face the glow of the room it faces, though its coarse cell is half wall", () =>
+    {
+        const open = new Uint8Array(48 ** 3).fill(1);
+        const at = (x, y, z) => (y * 48 + z) * 48 + x;
+
+        for(let y = 0; y < 48; y++) { for(let z = 0; z < 48; z++) { open[at(20, y, z)] = 0; } }
+
+        const wall = cells((set) => { for(let y = 12; y < 20; y++) { for(let z = 12; z < 20; z++) { set(8, y, z, STONE); } } });
+        const mesh = CubeMesher.meshCells({ ...wall, coarse: { open, lights: Float32Array.of(at(24, 24, 24), 1, 0.2, 0.1) } }, table(), [0, 0, 0], FRAME);
+        const facing = [];
+
+        for(let i = 0; i < mesh.normals.length / 3; i++) { if(mesh.normals[i * 3] === 1) { facing.push(mesh.glows[i]); } }
+
+        assert.ok(facing.length > 0 && facing.every((code) => code >= 4096 && Math.floor(code / 256) % 16 === 15), "The wall's face toward the light does not take its red glow: " + [...new Set(facing)]);
+    });
 });

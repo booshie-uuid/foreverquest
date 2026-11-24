@@ -1,3 +1,4 @@
+import * as LightColours from "../../content/light-colours.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as url from "node:url";
@@ -67,9 +68,12 @@ export function bakeBlock(id, block, textures, where, problems)
     if(kind !== "object" && !(top && side && bottom)) { problems.push(where + " needs a texture for its top, sides and bottom"); }
     if(!(weathers.every((weather) => WEATHERS.includes(weather)) && (kind === "solid" || weathers.length === 0))) { problems.push(where + " weathers in an unknown way, or is not solid: " + weathers.join(", ")); }
     if(block.worn !== undefined && !textures.includes(block.worn)) { problems.push(where + " wears to an unknown world texture: " + block.worn); }
+    if(block.glow !== undefined && !(light > 0 && LightColours.LIGHT_COLOURS[block.glow])) { problems.push(where + " needs a light above 0 and a glow from light-colours.js, not " + block.glow); }
     if(problems.length > before) { return null; }
 
-    if(kind === "object") { return { id, kind, light, faces: {} }; }
+    const glow = light > 0 ? { glow: LightColours.LIGHT_COLOURS[block.glow ?? "candle"] } : {};
 
-    return { id, kind, light, faces: { top, side, bottom }, weathers, ...(block.worn ? { worn: block.worn } : {}) };
+    if(kind === "object") { return { id, kind, light, faces: {}, ...glow }; }
+
+    return { id, kind, light, faces: { top, side, bottom }, weathers, ...(block.worn ? { worn: block.worn } : {}), ...glow };
 }

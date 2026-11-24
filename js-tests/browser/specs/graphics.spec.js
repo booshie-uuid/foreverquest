@@ -106,7 +106,7 @@ export const tests =
                 const expected = window.foreverQuest.materials.colours(15, 0).sky;
 
                 return {
-                    hasLevels: game.world.terrainMeshes.every((mesh) => mesh.geometry.getAttribute("light")?.itemSize === 2),
+                    hasLevels: game.world.terrainMeshes.every((mesh) => mesh.geometry.getAttribute("light")?.itemSize === 2 && mesh.geometry.getAttribute("glow")?.itemSize === 1),
                     isOutdoorSky: view.cell.cellSky.value.equals(expected),
                 };
             });

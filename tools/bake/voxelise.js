@@ -94,6 +94,15 @@ class OwnedCells extends Map
     }
 }
 
+// The hidden block of a lit object's light cells: objectLight for a candle,
+// and objectLight with the colour's name after it for any other.
+function lightBlockOf(object)
+{
+    const glow = object.glow ?? "candle";
+
+    return glow === "candle" ? "objectLight" : "objectLight" + glow.charAt(0).toUpperCase() + glow.slice(1);
+}
+
 // Placements stand on a cube corner and turn in quarter turns.
 // The cells of every placed prefab and run, as a map from cell index,
 // (y * columns + z) * columns + x, to block number, where 0 carves air out
@@ -285,7 +294,7 @@ export function placeObjects(cells, zone, placements, objects, numbers, groundOf
             const isLight = (object.lights ?? []).some((cell) => cell.every((value, axis) => value === local[axis]));
             const index = ((floor + local[1]) * zone.columns + row + z) * zone.columns + column + x;
 
-            cells.set(index, isLight ? numbers.objectLight : numbers.object);
+            cells.set(index, isLight ? numbers[lightBlockOf(object)] : numbers.object);
         }
 
         return {

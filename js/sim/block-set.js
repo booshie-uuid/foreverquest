@@ -12,6 +12,14 @@ export class BlockSet
         this.solid = Uint8Array.from(this.blocks, (block) => (block && block.kind !== "liquid" ? 1 : 0));
         this.opaque = Uint8Array.from(this.blocks, (block) => (block?.kind === "solid" ? 1 : 0));
         this.lights = Uint8Array.from(this.blocks, (block) => block?.light ?? 0);
+        this.glows = new Float32Array(this.blocks.length * 3);
+
+        this.blocks.forEach((block, number) =>
+        {
+            if(!block?.glow) { return; }
+
+            for(let channel = 0; channel < 3; channel++) { this.glows[number * 3 + channel] = parseInt(block.glow.slice(1 + channel * 2, 3 + channel * 2), 16) / 255; }
+        });
     }
 
     static async load(source)

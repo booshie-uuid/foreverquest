@@ -28,8 +28,10 @@ diffuseColor *= tileTexel;
 const STEPPED_VERTEX_PARS = `
 attribute vec2 light;
 attribute vec2 weather;
+attribute float glow;
 varying vec2 vLight;
 varying vec2 vWeather;
+varying float vGlow;
 varying vec3 vStepPosition;
 varying vec3 vStepNormal;
 `;
@@ -37,6 +39,7 @@ varying vec3 vStepNormal;
 const STEPPED_VERTEX = `
 vLight = light;
 vWeather = weather;
+vGlow = glow;
 
 #ifdef USE_INSTANCING
     vStepPosition = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
@@ -51,10 +54,12 @@ const STEPPED_FRAGMENT_PARS = `
 uniform vec3 skyRamp[16];
 uniform vec3 lampRamp[16];
 uniform vec3 ambientFloor;
+uniform float glowStrength;
 uniform vec4 playerLight;
 uniform float cubeGrid;
 varying vec2 vLight;
 varying vec2 vWeather;
+varying float vGlow;
 varying vec3 vStepPosition;
 varying vec3 vStepNormal;
 `;
@@ -99,6 +104,45 @@ float skyShade = mix(0.55, 1.0, moonLit);
 // place of the scene's lights, with the sky dimmed where the moon does not
 // reach. The player's own light falls off a level a cell from the cell the
 // player stands in.
+// A glow is band * 4096 + red * 256 + green * 16 + blue, as the mesher packs
+// it: the band, 1 to 4, is its strength, and each channel, 0 to 15, its
+// colour at full strength in sRGB. 0 is no glow. Where a glow reaches, the
+// lamp light and the base take its colour at their own brightness, the base
+// more as the glow strengthens, and the glow itself adds a little light.
+const GLOW = `
+vec3 glowHue(float code)
+{
+    float rest = mod(code, 4096.0);
+
+    return pow(vec3(floor(rest / 256.0), mod(floor(rest / 16.0), 16.0), mod(rest, 16.0)) / 15.0, vec3(2.2));
+}
+
+float glowBand(float code)
+{
+    return floor(code / 4096.0) / 4.0;
+}
+
+vec3 inGlowColour(vec3 light, float code)
+{
+    if(code < 0.5) { return light; }
+
+    vec3 weights = vec3(0.2126, 0.7152, 0.0722);
+    vec3 hue = glowHue(code);
+
+    return hue * dot(light, weights) / max(dot(hue, weights), 1e-4);
+}
+
+vec3 glowBase(vec3 base, float code)
+{
+    return code < 0.5 ? base : mix(base, inGlowColour(base, code), glowBand(code));
+}
+
+vec3 glowLight(float code)
+{
+    return code < 0.5 ? vec3(0.0) : glowHue(code) * pow(glowStrength * glowBand(code), 2.2);
+}
+`;
+
 // The zone's base level raises a face darker than it to its brightness, in
 // the base's own colour. Light brighter than full scales down whole. Raising
 // or capping each colour channel on its own would make colours that neither
@@ -118,14 +162,16 @@ vec3 floorLight(vec3 light, vec3 base)
 
     return light + base * max(0.0, 1.0 - dot(light, weights) / baseBrightness);
 }
-`;
+` + GLOW;
 
 const STEPPED_FRAGMENT = MOON + `
 vec3 stepCell = floor((vStepPosition + vStepNormal * 0.05) * 3.0);
 float nearPlayer = playerLight.w - floor(distance(stepCell, floor(playerLight.xyz * 3.0)));
 int skyLevel = int(vLight.x * 15.0 + 0.5);
-int lampLevel = clamp(int(max(vLight.y * 15.0 + 0.5, nearPlayer)), 0, 15);
-vec3 stepLight = floorLight(fitLight(skyRamp[skyLevel] * skyShade + lampRamp[lampLevel]), ambientFloor);
+float ownLamp = floor(vLight.y * 15.0 + 0.5);
+int lampLevel = clamp(int(max(ownLamp, nearPlayer)), 0, 15);
+vec3 lampLight = ownLamp >= nearPlayer ? inGlowColour(lampRamp[lampLevel], vGlow) : lampRamp[lampLevel];
+vec3 stepLight = floorLight(fitLight(skyRamp[skyLevel] * skyShade + lampLight + glowLight(vGlow)), glowBase(ambientFloor, vGlow));
 float stepFace = vStepNormal.y > 0.5 ? 1.0 : (vStepNormal.y < -0.5 ? 0.55 : (abs(vStepNormal.x) > 0.5 ? 0.72 : 0.86));
 
 outgoingLight = diffuseColor.rgb * stepLight * stepFace + totalEmissiveRadiance;
@@ -146,14 +192,16 @@ if(cubeGrid > 0.5)
 const CHARACTER_FRAGMENT_PARS = `
 uniform vec3 cellSky;
 uniform vec3 cellLamp;
+uniform float cellGlow;
 uniform vec3 ambientFloor;
+uniform float glowStrength;
 ` + AMBIENT;
 
 const CHARACTER_FRAGMENT = MOON + `
 vec3 worldNormal = inverseTransformDirection(geometryNormal, viewMatrix);
 float faceShade = worldNormal.y >= 0.0 ? mix(0.8, 1.0, worldNormal.y) : mix(0.8, 0.55, -worldNormal.y);
 
-outgoingLight = diffuseColor.rgb * floorLight(fitLight(cellSky * skyShade + cellLamp), ambientFloor) * faceShade + totalEmissiveRadiance;
+outgoingLight = diffuseColor.rgb * floorLight(fitLight(cellSky * skyShade + inGlowColour(cellLamp, cellGlow) + glowLight(cellGlow)), glowBase(ambientFloor, cellGlow)) * faceShade + totalEmissiveRadiance;
 `;
 
 const FOG_VERTEX_PARS = `
@@ -200,7 +248,7 @@ const FOG_FRAGMENT = `
 const NO_HEIGHT_FOG = { base: 0, falloff: 1, density: 0 };
 const LEVELS = 16;
 const PLAYER_LIGHT = 7;
-const DEFAULT_AMBIENT = { base: "#1c2030", level: 0.2 };
+const DEFAULT_AMBIENT = { base: "#1c2030", level: 0.2, glow: 0.1 };
 const DEFAULT_STEPS =
 {
     sky: { dark: "#12141f", bright: "#56607e", curve: 1.4 },
@@ -215,7 +263,7 @@ export class MaterialLibrary
         this.atlasTexture = atlas.createTexture();
         this.world = this.worldMaterial();
         this.fog = { heightFog: { value: new THREE.Vector4(NO_HEIGHT_FOG.base, NO_HEIGHT_FOG.falloff, NO_HEIGHT_FOG.density, 0) } };
-        this.stepped = { skyRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.sky) }, lampRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.lamp) }, ambientFloor: { value: MaterialLibrary.floorOf(DEFAULT_AMBIENT) }, playerLight: { value: new THREE.Vector4(0, 0, 0, PLAYER_LIGHT) }, cubeGrid: { value: 0 } };
+        this.stepped = { skyRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.sky) }, lampRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.lamp) }, ambientFloor: { value: MaterialLibrary.floorOf(DEFAULT_AMBIENT) }, glowStrength: { value: DEFAULT_AMBIENT.glow }, playerLight: { value: new THREE.Vector4(0, 0, 0, PLAYER_LIGHT) }, cubeGrid: { value: 0 } };
         this.terrain = this.worldMaterial({ vertexColors: true }, this.stepped);
         this.objects = this.worldMaterial({}, this.stepped);
         this.water = new THREE.MeshPhongMaterial({ color: "#1e2a30", specular: 0x5a6a78, shininess: 80, transparent: true, opacity: 0.82 });
@@ -277,11 +325,12 @@ export class MaterialLibrary
         this.stepped.lampRamp.value = MaterialLibrary.ramp(steps.lamp);
     }
 
-    // `ambient` gives the zone's base colour and its brightness, from 0 to 1;
-    // a zone without one takes the default.
+    // `ambient` gives the zone's base colour, its brightness and the strength
+    // of its glow, each from 0 to 1; a zone without one takes the default.
     setAmbient(ambient = DEFAULT_AMBIENT)
     {
         this.stepped.ambientFloor.value.copy(MaterialLibrary.floorOf(ambient));
+        this.stepped.glowStrength.value = ambient.glow ?? DEFAULT_AMBIENT.glow;
     }
 
     // The base colour scaled so its brightness, its luminance in sRGB as the
@@ -306,7 +355,7 @@ export class MaterialLibrary
     {
         material.onBeforeCompile = (shader) =>
         {
-            Object.assign(shader.uniforms, cell, { ambientFloor: this.stepped.ambientFloor });
+            Object.assign(shader.uniforms, cell, { ambientFloor: this.stepped.ambientFloor, glowStrength: this.stepped.glowStrength });
 
             shader.fragmentShader = shader.fragmentShader
                 .replace("#include <common>", "#include <common>\n" + CHARACTER_FRAGMENT_PARS)

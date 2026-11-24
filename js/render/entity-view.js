@@ -11,7 +11,7 @@ export class EntityView
     constructor(entity, materials = null)
     {
         this.entity = entity;
-        this.cell = { cellSky: { value: new THREE.Color() }, cellLamp: { value: new THREE.Color() } };
+        this.cell = { cellSky: { value: new THREE.Color() }, cellLamp: { value: new THREE.Color() }, cellGlow: { value: 0 } };
         this.model = new CharacterModel(entity.appearance, materials ? (material) => materials.shadeCharacter(material, this.cell) : null);
         this.clips = new ClipPlayer(this.model);
         this.position = new THREE.Vector3();
@@ -23,10 +23,12 @@ export class EntityView
         this.sync(1, 0);
     }
 
-    setLight({ sky, lamp })
+    // `glow` is the cell's glow as the mesher packs it, or 0.
+    setLight({ sky, lamp }, glow = 0)
     {
         this.cell.cellSky.value.copy(sky);
         this.cell.cellLamp.value.copy(lamp);
+        this.cell.cellGlow.value = glow;
     }
 
     get root()

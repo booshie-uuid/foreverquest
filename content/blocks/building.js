@@ -13,6 +13,9 @@ export const BLOCKS =
     sacking: { faces: { all: "sacking" } },
     banner: { faces: { all: "banner" } },
     window: { faces: { all: "glow" }, light: 12 },
+    embers: { faces: { all: "embers" }, light: 13, glow: "hearth" },
     object: { kind: "object" },
     objectLight: { kind: "object", light: 14 },
+    objectLightHearth: { kind: "object", light: 14, glow: "hearth" },
+    objectLightMoonstone: { kind: "object", light: 14, glow: "moonstone" },
 };

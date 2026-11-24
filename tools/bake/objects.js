@@ -1,4 +1,5 @@
 import * as FineMesher from "../../js/render/fine-mesher.js";
+import * as LightColours from "../../content/light-colours.js";
 import * as WorldTextures from "../../content/world-textures.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -61,6 +62,7 @@ export function bakeObject(id, object, blocks, where, problems)
 
     if(grid.count === 0) { problems.push(where + " has no fine cubes"); }
     if(object.lights !== undefined && !(Array.isArray(object.lights) && object.lights.every((cell) => isCellOf(cell, cells)))) { problems.push(where + " needs its lights to be a list of its cells, each as [x, y, z]"); }
+    if(object.glow !== undefined && !(object.lights && LightColours.LIGHT_COLOURS[object.glow])) { problems.push(where + " needs lights and a glow from light-colours.js, not " + object.glow); }
     if(problems.length > before) { return null; }
 
     const mesh = FineMesher.mesh(grid, (block) => blocks.get(block).faces, WorldTextures.TEXELS_PER_METRE / WorldTextures.SIZE);
@@ -71,6 +73,7 @@ export function bakeObject(id, object, blocks, where, problems)
     const baked = { cells, isSolid: object.isSolid !== false, palette: grid.palette, runs: FineMesher.encode(grid.data) };
 
     if(object.lights) { baked.lights = object.lights; }
+    if(object.glow) { baked.glow = object.glow; }
 
     return baked;
 }

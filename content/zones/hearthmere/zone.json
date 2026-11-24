@@ -34,7 +34,8 @@
         },
         "ambient": {
             "base": "#1c2030",
-            "level": 0.2
+            "level": 0.2,
+            "glow": 0.1
         }
     },
     "weathering": {

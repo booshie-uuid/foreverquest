@@ -7,7 +7,9 @@ const CLEARANCE_CELLS = 7;
 const EPSILON = 1e-6;
 const OPEN_GROUND_REACH = 4;
 const CUBES_PER_METRE = 3;
+const COARSE = 2;
 const { CHUNK, REGION } = RegionCodec;
+const COARSE_CHUNK = CHUNK / COARSE;
 
 
 /******************************************************************************/
@@ -18,6 +20,7 @@ export class ZoneData
 {
     static STEP_CELLS = STEP_CELLS;
     static CUBES_PER_METRE = CUBES_PER_METRE;
+    static COARSE = COARSE;
 
     // A placement turns its prefab about y by its angle and scales it about
     // the prefab's origin, which stands on the ground under the placement.
@@ -65,6 +68,7 @@ export class ZoneData
         this.ages = new Uint8Array(zone.columns * zone.columns);
         this.moving = new Map();
         this.movingColumns = new Map();
+        this.coarse = new Map();
         this.listeners = [];
 
         for(const region of regions) { this.addRegion(region); }
@@ -102,6 +106,7 @@ export class ZoneData
         if(this.regions.has(region.name)) { return; }
 
         this.storeRegion(region);
+        this.forgetCoarse(region.name);
         this.emitRegion("added", region.name);
     }
 
@@ -145,6 +150,7 @@ export class ZoneData
         }
 
         this.regions.delete(name);
+        this.forgetCoarse(name);
         this.emitRegion("removed", name);
     }
 
@@ -159,6 +165,7 @@ export class ZoneData
 
         this.regions.delete(region.name);
         this.storeRegion(region);
+        this.forgetCoarse(region.name);
         this.emitRegion("replaced", region.name);
     }
 
@@ -211,9 +218,78 @@ export class ZoneData
             this.surfaces[column] = surface;
         }
 
+        for(const [x, y, z] of set) { this.coarse.delete(this.chunkKey(Math.floor(x / CHUNK), Math.floor(y / CHUNK), Math.floor(z / CHUNK))); }
+
         if(set.length > 0) { this.emitRegion("cells", null, set); }
 
         return set;
+    }
+
+    /* COARSE CELLS ***********************************************************/
+
+    // A chunk's cells in cubes of COARSE cells a side, for the glow of light:
+    // `open` holds 1 for each coarse cell with fewer than half its cells
+    // opaque, and `lights` [coarse index, red, green, blue] for each light
+    // cell, its colour scaled by its level. Null for a chunk outside the zone
+    // or in a region not loaded.
+    coarseOf(cx, cy, cz)
+    {
+        if(cx < 0 || cz < 0 || cy < 0 || cx >= this.chunksWide || cz >= this.chunksWide || cy >= this.chunksHigh) { return null; }
+        if(!this.isColumnLoaded(cx * CHUNK, cz * CHUNK)) { return null; }
+
+        const key = this.chunkKey(cx, cy, cz);
+
+        if(!this.coarse.has(key)) { this.coarse.set(key, this.buildCoarse(this.chunks.get(key) ?? null)); }
+
+        return this.coarse.get(key);
+    }
+
+    buildCoarse(chunk)
+    {
+        const open = new Uint8Array(COARSE_CHUNK * COARSE_CHUNK * COARSE_CHUNK).fill(1);
+        const lights = [];
+        const blocks = this.blocks;
+
+        if(!chunk) { return { open, lights }; }
+
+        if(chunk.cells === null)
+        {
+            if(blocks.isOpaque(chunk.uniform)) { open.fill(0); }
+
+            return { open, lights };
+        }
+
+        const opaque = new Uint8Array(open.length);
+
+        for(let y = 0; y < CHUNK; y++)
+        {
+            for(let z = 0; z < CHUNK; z++)
+            {
+                for(let x = 0; x < CHUNK; x++)
+                {
+                    const block = chunk.cells[(y * CHUNK + z) * CHUNK + x];
+                    const coarse = (Math.floor(y / COARSE) * COARSE_CHUNK + Math.floor(z / COARSE)) * COARSE_CHUNK + Math.floor(x / COARSE);
+                    const light = blocks.light(block);
+
+                    if(blocks.isOpaque(block)) { opaque[coarse]++; }
+                    if(light > 0) { lights.push(coarse, ...[0, 1, 2].map((channel) => blocks.glows[block * 3 + channel] * light / 15)); }
+                }
+            }
+        }
+
+        for(let i = 0; i < open.length; i++) { open[i] = opaque[i] * 2 < COARSE ** 3 ? 1 : 0; }
+
+        return { open, lights };
+    }
+
+    forgetCoarse(name)
+    {
+        for(const key of this.coarse.keys())
+        {
+            const [x, z] = [key % this.chunksWide, Math.floor(key / this.chunksWide) % this.chunksWide];
+
+            if(this.regionOfColumn(x * CHUNK, z * CHUNK) === name) { this.coarse.delete(key); }
+        }
     }
 
     regionOfColumn(column, row)

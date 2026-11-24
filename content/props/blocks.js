@@ -25,4 +25,5 @@ export const BLOCK_FOR_TEXTURE =
     sacking: "sacking",
     banner: "banner",
     glow: "window",
+    embers: "embers",
 };

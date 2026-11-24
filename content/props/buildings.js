@@ -140,7 +140,7 @@ export const BUILDINGS =
         details(smithy)
         {
             smithy.box([-9, 0, -8], [-4, 3, -3], "stone");
-            smithy.box([-8, 3, -7], [-5, 4, -4], "glow");
+            smithy.box([-8, 3, -7], [-5, 4, -4], "embers");
             smithy.box([-8, 4, -8], [-5, 21, -5], "stone");
             smithy.box([2, 0, -4], [5, 2, -3], "iron");
         },

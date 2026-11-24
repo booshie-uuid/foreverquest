@@ -16,6 +16,15 @@ const UP = PADDED * PADDED;
 const FINE = 8;
 const MAX_CHIPS = 48;
 const NOTCH_SHADE = 0.8;
+const COARSE = ZoneData.COARSE;
+const GLOW_REACH = CHUNK;
+const COARSE_SIDE = (CHUNK + GLOW_REACH * 2) / COARSE;
+const COARSE_SPAN = CHUNK / COARSE;
+const GLOW_KEEP = 0.82;
+const GLOW_END = 0.05;
+const GLOW_BANDS = 4;
+const HUE_STEPS = 15;
+const CORE = [GLOW_REACH / COARSE - 1, (GLOW_REACH + CHUNK) / COARSE];
 
 // The step through the padded cells along x, y and z.
 const STRIDES = [1, PADDED * PADDED, PADDED];
@@ -75,8 +84,9 @@ export function faceTable(blocks, atlas)
 /******************************************************************************/
 
 // The chunk's cells with a border of MARGIN cells from its neighbours, in
-// (y * PADDED + z) * PADDED + x order, and the surface and the weathering age
-// of each padded column.
+// (y * PADDED + z) * PADDED + x order, the surface and the weathering age
+// of each padded column, and the coarse cells of the chunk and its 26
+// neighbours for the glow; see coarseVolume.
 // Cells below the zone, and in regions not loaded, count as solid.
 export function paddedCells(zone, cx, cy, cz)
 {
@@ -104,7 +114,7 @@ export function paddedCells(zone, cx, cy, cz)
         }
     }
 
-    return { cells, surfaces, ages, bottom };
+    return { cells, surfaces, ages, bottom, coarse: coarseVolume(zone, cx, cy, cz) };
 }
 
 function copyChunk(zone, cells, [cx, cy, cz], [left, bottom, back])
@@ -134,6 +144,52 @@ function copyChunk(zone, cells, [cx, cy, cz], [left, bottom, back])
             }
         }
     }
+}
+
+// The coarse cells of the chunk and its 26 neighbours, COARSE_SIDE a side in
+// (y * COARSE_SIDE + z) * COARSE_SIDE + x order: `open` and `lights` as
+// ZoneData.coarseOf gives them, with each light's index into this volume. A
+// neighbour outside the zone or not loaded is closed. Null when no light lies
+// in the volume, as no glow can then reach the chunk.
+export function coarseVolume(zone, cx, cy, cz)
+{
+    const neighbours = [];
+
+    for(let dy = -1; dy <= 1; dy++)
+    {
+        for(let dz = -1; dz <= 1; dz++)
+        {
+            for(let dx = -1; dx <= 1; dx++) { neighbours.push([[dx + 1, dy + 1, dz + 1].map((value) => value * COARSE_SPAN), zone.coarseOf?.(cx + dx, cy + dy, cz + dz) ?? null]); }
+        }
+    }
+
+    if(!neighbours.some(([, coarse]) => coarse?.lights.length > 0)) { return null; }
+
+    const open = new Uint8Array(COARSE_SIDE ** 3);
+    const lights = [];
+
+    for(const [[ox, oy, oz], coarse] of neighbours.filter(([, entry]) => entry))
+    {
+        for(let y = 0; y < COARSE_SPAN; y++)
+        {
+            for(let z = 0; z < COARSE_SPAN; z++)
+            {
+                const from = (y * COARSE_SPAN + z) * COARSE_SPAN;
+
+                open.set(coarse.open.subarray(from, from + COARSE_SPAN), ((oy + y) * COARSE_SIDE + oz + z) * COARSE_SIDE + ox);
+            }
+        }
+
+        for(let i = 0; i < coarse.lights.length; i += 4)
+        {
+            const index = coarse.lights[i];
+            const [x, z, y] = [index % COARSE_SPAN, Math.floor(index / COARSE_SPAN) % COARSE_SPAN, Math.floor(index / (COARSE_SPAN * COARSE_SPAN))];
+
+            lights.push(((oy + y) * COARSE_SIDE + oz + z) * COARSE_SIDE + ox + x, coarse.lights[i + 1], coarse.lights[i + 2], coarse.lights[i + 3]);
+        }
+    }
+
+    return { open, lights: Float32Array.from(lights) };
 }
 
 
@@ -193,6 +249,147 @@ export function lightCells(volume, table)
     for(let i = 0; i < light.length; i++) { light[i] = (sky[i] << 4) | lamp[i]; }
 
     return light;
+}
+
+/* GLOW ***********************************************************************/
+
+// Buffers kept between chunks, as each chunk's glow needs them afresh, and
+// each coarse cell's distance in steps from the chunk's own coarse cells and
+// the ring around them, which are all the mesher reads.
+const glowBuffers = { glow: null, queue: new Int32Array(1 << 16), colours: new Float32Array(3 << 16), toCore: null };
+
+function toCore()
+{
+    if(glowBuffers.toCore) { return glowBuffers.toCore; }
+
+    const distances = new Uint8Array(COARSE_SIDE ** 3);
+    const away = (value) => Math.max(0, CORE[0] - value, value - CORE[1]);
+
+    for(let y = 0; y < COARSE_SIDE; y++)
+    {
+        for(let z = 0; z < COARSE_SIDE; z++)
+        {
+            for(let x = 0; x < COARSE_SIDE; x++) { distances[(y * COARSE_SIDE + z) * COARSE_SIDE + x] = Math.min(255, away(x) + away(y) + away(z)); }
+        }
+    }
+
+    glowBuffers.toCore = distances;
+
+    return distances;
+}
+
+// The red, green and blue glow of each coarse cell. Each light's colour
+// spreads through open coarse cells whole, keeping GLOW_KEEP of itself a
+// step, so its colour stays the same as it fades; where lights meet, each
+// channel keeps the brightest. A spread stops where it could no longer reach
+// the chunk before it fades out, so cells far from the chunk may stay dark.
+// Each queued entry carries its cell, its colour and the steps it has left,
+// packed as cell * 32 + steps.
+export function glowCells({ open, lights })
+{
+    glowBuffers.glow ??= new Float32Array(COARSE_SIDE ** 3 * 3);
+
+    const glow = glowBuffers.glow.fill(0);
+    const distances = toCore();
+    const layer = COARSE_SIDE * COARSE_SIDE;
+    let { queue, colours } = glowBuffers;
+    let tail = 0;
+
+    const take = (index, r, g, b, left) =>
+    {
+        const at = index * 3;
+
+        if(distances[index] > left || (r <= glow[at] && g <= glow[at + 1] && b <= glow[at + 2])) { return; }
+
+        if(r > glow[at]) { glow[at] = r; }
+        if(g > glow[at + 1]) { glow[at + 1] = g; }
+        if(b > glow[at + 2]) { glow[at + 2] = b; }
+
+        if(tail === queue.length)
+        {
+            const grownQueue = new Int32Array(queue.length * 2);
+            const grownColours = new Float32Array(colours.length * 2);
+
+            grownQueue.set(queue);
+            grownColours.set(colours);
+            queue = grownQueue;
+            colours = grownColours;
+            glowBuffers.queue = queue;
+            glowBuffers.colours = colours;
+        }
+
+        queue[tail] = index * 32 + left;
+        colours[tail * 3] = r;
+        colours[tail * 3 + 1] = g;
+        colours[tail * 3 + 2] = b;
+        tail++;
+    };
+
+    for(let i = 0; i < lights.length; i += 4)
+    {
+        const strongest = Math.max(lights[i + 1], lights[i + 2], lights[i + 3]);
+
+        if(strongest >= GLOW_END) { take(lights[i], lights[i + 1], lights[i + 2], lights[i + 3], Math.floor(Math.log(GLOW_END / strongest) / Math.log(GLOW_KEEP))); }
+    }
+
+    for(let head = 0; head < tail; head++)
+    {
+        const left = queue[head] % 32 - 1;
+
+        if(left < 0) { continue; }
+
+        const index = Math.floor(queue[head] / 32);
+        const r = colours[head * 3] * GLOW_KEEP;
+        const g = colours[head * 3 + 1] * GLOW_KEEP;
+        const b = colours[head * 3 + 2] * GLOW_KEEP;
+        const x = index % COARSE_SIDE;
+        const z = Math.floor(index / COARSE_SIDE) % COARSE_SIDE;
+        const y = Math.floor(index / layer);
+
+        if(x > 0 && open[index - 1]) { take(index - 1, r, g, b, left); }
+        if(x < COARSE_SIDE - 1 && open[index + 1]) { take(index + 1, r, g, b, left); }
+        if(z > 0 && open[index - COARSE_SIDE]) { take(index - COARSE_SIDE, r, g, b, left); }
+        if(z < COARSE_SIDE - 1 && open[index + COARSE_SIDE]) { take(index + COARSE_SIDE, r, g, b, left); }
+        if(y > 0 && open[index - layer]) { take(index - layer, r, g, b, left); }
+        if(y < COARSE_SIDE - 1 && open[index + layer]) { take(index + layer, r, g, b, left); }
+    }
+
+    return glow;
+}
+
+// The glow of a padded cell, packed as band * 4096 + red * 256 + green * 16 +
+// blue: the band, 1 to GLOW_BANDS, is the glow's strength, and each channel,
+// 0 to HUE_STEPS, its colour at full strength. 0 is no glow. A cell beside a
+// wall shares its coarse cell with the wall, which the glow does not enter,
+// so it takes the brightest of its own coarse cell and the three its sides
+// touch, which lie on its side of the wall.
+function glowCodeOf(glow, index)
+{
+    const fx = index % PADDED - MARGIN + GLOW_REACH;
+    const fy = Math.floor(index / UP) - MARGIN + GLOW_REACH;
+    const fz = Math.floor(index / PADDED) % PADDED - MARGIN + GLOW_REACH;
+    const own = (Math.floor(fy / COARSE) * COARSE_SIDE + Math.floor(fz / COARSE)) * COARSE_SIDE + Math.floor(fx / COARSE);
+    const besides = [own + (fx % COARSE === 0 ? -1 : 1), own + (fy % COARSE === 0 ? -1 : 1) * COARSE_SIDE * COARSE_SIDE, own + (fz % COARSE === 0 ? -1 : 1) * COARSE_SIDE];
+    let best = own;
+    let strongest = Math.max(glow[own * 3], glow[own * 3 + 1], glow[own * 3 + 2]);
+
+    for(const beside of besides)
+    {
+        const strength = Math.max(glow[beside * 3], glow[beside * 3 + 1], glow[beside * 3 + 2]);
+
+        if(strength > strongest)
+        {
+            best = beside;
+            strongest = strength;
+        }
+    }
+
+    if(strongest < GLOW_END) { return 0; }
+
+    const band = Math.min(GLOW_BANDS, Math.ceil(strongest * GLOW_BANDS));
+    const hue = (channel) => Math.round((glow[best * 3 + channel] / strongest) * HUE_STEPS);
+
+    return band * 4096 + hue(0) * 256 + hue(1) * 16 + hue(2);
 }
 
 // Breadth first, so each cell keeps the brightest level that reaches it.
@@ -257,11 +454,13 @@ export function buildChunk(zone, table, atlas, cx, cy, cz)
 
 export function meshCells(volume, table, origin, frame)
 {
-    const out = { positions: [], normals: [], uvs: [], layers: [], colours: [], lights: [], weathers: [], indices: [] };
-    const masks = { faces: new Int32Array(CHUNK * CHUNK), weathers: new Int32Array(CHUNK * CHUNK) };
+    const out = { positions: [], normals: [], uvs: [], layers: [], colours: [], lights: [], weathers: [], glows: [], indices: [] };
+    const masks = { faces: new Int32Array(CHUNK * CHUNK), weathers: new Int32Array(CHUNK * CHUNK), glows: new Int32Array(CHUNK * CHUNK) };
     const light = lightCells(volume, table);
-    const floors = floorLights(volume.cells, light, table);
-    const context = { cells: volume.cells, ages: volume.ages ?? new Uint8Array(PADDED * PADDED), light, table, origin };
+    const glow = volume.coarse ? glowCells(volume.coarse) : null;
+    const glowOf = glow ? (index) => glowCodeOf(glow, index) : () => 0;
+    const floors = floorLights(volume.cells, light, table, glowOf);
+    const context = { cells: volume.cells, ages: volume.ages ?? new Uint8Array(PADDED * PADDED), light, glowOf, table, origin };
 
     context.chips = chipsOf(context);
 
@@ -286,16 +485,18 @@ export function meshCells(volume, table, origin, frame)
         colours: new Float32Array(out.colours),
         lights: new Float32Array(out.lights),
         weathers: new Float32Array(out.weathers),
+        glows: new Float32Array(out.glows),
         indices: new Uint32Array(out.indices),
     };
 }
 
 // Each cube of the chunk that something can stand on, by its index in the
-// chunk, ascending, with the light of the cell above it.
-function floorLights(cells, light, table)
+// chunk, ascending, with the light and the glow of the cell above it.
+function floorLights(cells, light, table, glowOf)
 {
     const indices = [];
     const levels = [];
+    const glows = [];
     const above = PADDED * PADDED;
 
     for(let y = 0; y < CHUNK; y++)
@@ -311,11 +512,12 @@ function floorLights(cells, light, table)
 
                 indices.push((y * CHUNK + z) * CHUNK + x);
                 levels.push(light[index + above]);
+                glows.push(glowOf(index + above));
             }
         }
     }
 
-    return { indices: Uint16Array.from(indices), levels: Uint8Array.from(levels) };
+    return { indices: Uint16Array.from(indices), levels: Uint8Array.from(levels), glows: Uint16Array.from(glows) };
 }
 
 /* MASK ***********************************************************************/
@@ -326,7 +528,7 @@ function floorLights(cells, light, table)
 function fillMask(masks, context, direction, slice)
 {
     const { cells, ages, light, table } = context;
-    const { faces: mask, weathers } = masks;
+    const { faces: mask, weathers, glows } = masks;
     const { axis, sign, u, v, side } = direction;
     const [stepU, stepV, stepAxis] = [STRIDES[u], STRIDES[v], STRIDES[axis]];
     const layers = table[side];
@@ -356,6 +558,7 @@ function fillMask(masks, context, direction, slice)
 
             mask[j * CHUNK + i] = ((layer + 1) << 16) | (light[front] << 8) | shadesOf(cells, table.opaque, front, stepU, stepV);
             weathers[j * CHUNK + i] = age > 0 && table.weathers[block] !== 0 ? weatherOf(context, block, index, front, direction, age / 100) : 0;
+            glows[j * CHUNK + i] = context.glowOf(front);
             hasFace = true;
         }
     }
@@ -519,7 +722,7 @@ function addChip(out, context, chip, frame)
         const direction = DIRECTIONS.find((entry) => entry.axis === axis && entry.sign === sign);
         const layer = wornLayer(context, chip.block, chip.index, context.ages[Math.floor(chip.index / PADDED) % PADDED * PADDED + chip.index % PADDED], context.table[direction.side][chip.block]);
         const age = context.ages[Math.floor(chip.index / PADDED) % PADDED * PADDED + chip.index % PADDED] / 100;
-        const face = { layer, light: context.light[front], weather: weatherOf(context, chip.block, chip.index, front, direction, age) };
+        const face = { layer, light: context.light[front], glow: context.glowOf(front), weather: weatherOf(context, chip.block, chip.index, front, direction, age) };
         const shades = cornerShades(context, front, direction);
         const plane = sign > 0 ? FINE : 0;
         const rest = otherSign > 0 ? [0, FINE - notch[other][1] + notch[other][0]] : [notch[other][1], FINE];
@@ -532,12 +735,13 @@ function addChip(out, context, chip, frame)
 
     const ends = [[from, 1], [to, -1]];
     const light = context.light[chip.index + signA * STRIDES[a]];
+    const glow = context.glowOf(chip.index + signA * STRIDES[a]);
 
     for(const [plane, sign] of ends)
     {
         const direction = DIRECTIONS.find((entry) => entry.axis === along && entry.sign === sign);
 
-        addRect(out, direction, chip.cell, plane, { [a]: notch[a], [b]: notch[b] }, { layer: context.table[direction.side][chip.block], light, weather: 0 }, null, frame);
+        addRect(out, direction, chip.cell, plane, { [a]: notch[a], [b]: notch[b] }, { layer: context.table[direction.side][chip.block], light, glow, weather: 0 }, null, frame);
     }
 }
 
@@ -589,6 +793,7 @@ function addRect(out, direction, cell, plane, span, face, shades, frame)
         out.colours.push(shade, shade, shade);
         out.lights.push((face.light >> 4) / MAX_LIGHT, (face.light & 0xf) / MAX_LIGHT);
         out.weathers.push(face.weather >>> 16, face.weather & 0xffff);
+        out.glows.push(face.glow);
     });
 
     const order = values[0] + values[2] > values[1] + values[3] ? [1, 2, 3, 1, 3, 0] : [0, 1, 2, 0, 2, 3];
@@ -621,7 +826,7 @@ function shadesOf(cells, opaque, front, stepU, stepV)
 
 function mergeMask(out, masks, direction, slice, origin, frame)
 {
-    const { faces: mask, weathers } = masks;
+    const { faces: mask, weathers, glows } = masks;
 
     for(let j = 0; j < CHUNK; j++)
     {
@@ -629,6 +834,7 @@ function mergeMask(out, masks, direction, slice, origin, frame)
         {
             const key = mask[j * CHUNK + i];
             const weather = weathers[j * CHUNK + i];
+            const glow = glows[j * CHUNK + i];
 
             if(key === 0)
             {
@@ -639,25 +845,25 @@ function mergeMask(out, masks, direction, slice, origin, frame)
             let width = 1;
             let height = 1;
 
-            while(i + width < CHUNK && mask[j * CHUNK + i + width] === key && weathers[j * CHUNK + i + width] === weather) { width++; }
-            while(j + height < CHUNK && rowMatches(masks, key, weather, i, j + height, width)) { height++; }
+            while(i + width < CHUNK && mask[j * CHUNK + i + width] === key && weathers[j * CHUNK + i + width] === weather && glows[j * CHUNK + i + width] === glow) { width++; }
+            while(j + height < CHUNK && rowMatches(masks, key, weather, glow, i, j + height, width)) { height++; }
 
             for(let row = j; row < j + height; row++) { mask.fill(0, row * CHUNK + i, row * CHUNK + i + width); }
 
-            addQuad(out, direction, key, weather, [slice, i, j, width, height], origin, frame);
+            addQuad(out, direction, key, weather, glow, [slice, i, j, width, height], origin, frame);
             i += width;
         }
     }
 }
 
-function rowMatches({ faces, weathers }, key, weather, i, j, width)
+function rowMatches({ faces, weathers, glows }, key, weather, glow, i, j, width)
 {
-    for(let k = i; k < i + width; k++) { if(faces[j * CHUNK + k] !== key || weathers[j * CHUNK + k] !== weather) { return false; } }
+    for(let k = i; k < i + width; k++) { if(faces[j * CHUNK + k] !== key || weathers[j * CHUNK + k] !== weather || glows[j * CHUNK + k] !== glow) { return false; } }
 
     return true;
 }
 
-function addQuad(out, direction, key, weather, [slice, i, j, width, height], origin, frame)
+function addQuad(out, direction, key, weather, glow, [slice, i, j, width, height], origin, frame)
 {
     const { axis, sign, u, v } = direction;
     const first = out.positions.length / 3;
@@ -686,6 +892,7 @@ function addQuad(out, direction, key, weather, [slice, i, j, width, height], ori
         out.colours.push(shade, shade, shade);
         out.lights.push((light >> 4) / MAX_LIGHT, (light & 0xf) / MAX_LIGHT);
         out.weathers.push(weather >>> 16, weather & 0xffff);
+        out.glows.push(glow);
     });
 
     out.indices.push(...triangles(shades, (v === (u + 1) % 3) === (sign > 0)).map((index) => first + index));

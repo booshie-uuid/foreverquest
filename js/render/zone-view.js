@@ -343,7 +343,7 @@ export class ZoneView
         const [column, row] = zone.columnOf(position.x, position.z);
         const y = Math.floor(zone.cellY(position.y) + 0.01);
 
-        return this.floorLight(column, y, row) ?? { sky: y >= zone.surface(column, row) ? 15 : 0, lamp: 0 };
+        return this.floorLight(column, y, row) ?? { sky: y >= zone.surface(column, row) ? 15 : 0, lamp: 0, glow: 0 };
     }
 
     // The levels of cell `y` when the cell under it is a floor, or null.
@@ -357,7 +357,7 @@ export class ZoneView
         const index = ((floor % CHUNK) * CHUNK + (row % CHUNK)) * CHUNK + (column % CHUNK);
         const found = floors ? ZoneView.search(floors.indices, index) : -1;
 
-        return found < 0 ? null : { sky: floors.levels[found] >> 4, lamp: floors.levels[found] & 0xf };
+        return found < 0 ? null : { sky: floors.levels[found] >> 4, lamp: floors.levels[found] & 0xf, glow: floors.glows[found] };
     }
 
     static search(sorted, value)
@@ -384,7 +384,7 @@ export class ZoneView
         const joined = {};
         let vertices = 0;
 
-        for(const name of ["positions", "normals", "uvs", "layers", "colours", "lights", "weathers"])
+        for(const name of ["positions", "normals", "uvs", "layers", "colours", "lights", "weathers", "glows"])
         {
             joined[name] = new Float32Array(parts.reduce((total, part) => total + part[name].length, 0));
 
@@ -453,6 +453,7 @@ export class ZoneView
             const geometry = shared.clone();
             const mesh = new THREE.InstancedMesh(geometry, this.materials.objects, entries.length);
             geometry.setAttribute("light", new THREE.InstancedBufferAttribute(new Float32Array(entries.length * 2), 2));
+            geometry.setAttribute("glow", new THREE.InstancedBufferAttribute(new Float32Array(entries.length), 1));
 
             entries.forEach((entry, i) =>
             {
@@ -533,6 +534,7 @@ export class ZoneView
         for(const mesh of this.objectMeshes.values())
         {
             const light = mesh.geometry.getAttribute("light");
+            const glow = mesh.geometry.getAttribute("glow");
             let isChanged = false;
 
             mesh.userData.entries.forEach((entry, i) =>
@@ -540,13 +542,18 @@ export class ZoneView
                 const level = this.objectLight(entry);
                 const [sky, lamp] = [level.sky / 15, level.lamp / 15];
 
-                if(light.getX(i) === sky && light.getY(i) === lamp) { return; }
+                if(light.getX(i) === sky && light.getY(i) === lamp && glow.getX(i) === level.glow) { return; }
 
                 light.setXY(i, sky, lamp);
+                glow.setX(i, level.glow);
                 isChanged = true;
             });
 
-            if(isChanged) { light.needsUpdate = true; }
+            if(isChanged)
+            {
+                light.needsUpdate = true;
+                glow.needsUpdate = true;
+            }
         }
     }
 
@@ -568,7 +575,7 @@ export class ZoneView
         level ??= this.besideLight(entry.box);
         level ??= this.lightAt({ x: entry.x, y: this.zone.metresY(entry.box[4] + 1), z: entry.z });
 
-        return { sky: level.sky, lamp: Math.max(level.lamp, own) };
+        return { sky: level.sky, lamp: Math.max(level.lamp, own), glow: level.glow ?? 0 };
     }
 
     // An object that fills its middle column from floor to ceiling, such as a
@@ -609,6 +616,7 @@ export class ZoneView
         geometry.setAttribute("color", new THREE.BufferAttribute(arrays.colours, 3));
         geometry.setAttribute("light", new THREE.BufferAttribute(arrays.lights, 2));
         geometry.setAttribute("weather", new THREE.BufferAttribute(arrays.weathers, 2));
+        geometry.setAttribute("glow", new THREE.BufferAttribute(arrays.glows, 1));
         geometry.setIndex(new THREE.BufferAttribute(arrays.indices, 1));
         geometry.computeBoundingSphere();
 
