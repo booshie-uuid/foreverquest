@@ -126,6 +126,90 @@
                     11
                 ]
             ]
+        },
+        {
+            "prefab": "archway",
+            "x": -6,
+            "z": 4,
+            "angle": 0
+        },
+        {
+            "object": "portcullis",
+            "x": -6,
+            "z": 3.833333,
+            "id": "gate",
+            "mover": {
+                "slide": [
+                    0,
+                    7,
+                    0
+                ],
+                "seconds": 2.5
+            }
+        },
+        {
+            "object": "leverBase",
+            "x": -3.833333,
+            "z": 4.833333,
+            "trigger": {
+                "lever": true,
+                "movers": [
+                    "gate",
+                    "gateLever"
+                ]
+            }
+        },
+        {
+            "object": "leverHandle",
+            "x": -3.833333,
+            "z": 4.833333,
+            "on": "top",
+            "id": "gateLever",
+            "mover": {
+                "turn": {
+                    "axis": "x",
+                    "pivot": [
+                        4,
+                        0,
+                        4
+                    ],
+                    "from": -40,
+                    "degrees": 80
+                },
+                "seconds": 0.4
+            }
+        },
+        {
+            "prefab": "landing",
+            "x": 12,
+            "z": 1,
+            "angle": 0
+        },
+        {
+            "object": "liftPlatform",
+            "x": 10.5,
+            "z": 1,
+            "id": "lift",
+            "mover": {
+                "slide": [
+                    0,
+                    9,
+                    0
+                ],
+                "seconds": 4,
+                "every": 5
+            }
+        },
+        {
+            "object": "millWheel",
+            "x": -5,
+            "z": -12,
+            "mover": {
+                "spin": {
+                    "axis": "x",
+                    "seconds": 10
+                }
+            }
         }
     ]
 }

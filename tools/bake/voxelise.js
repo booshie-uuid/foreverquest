@@ -185,7 +185,27 @@ export function placeObjects(cells, zone, placements, objects, numbers, groundOf
 
         if(!occupied.has(placement.object)) { occupied.set(placement.object, occupiedCells(object)); }
 
-        for(const local of object.isSolid ? occupied.get(placement.object) : [])
+        const solid = object.isSolid ? occupied.get(placement.object) : [];
+        const toWorld = (local) =>
+        {
+            const [x, z] = turnedCell(local, object.cells, turns);
+
+            return [column + x, floor + local[1], row + z];
+        };
+
+        if(placement.mover)
+        {
+            return {
+                ...placed(placement, column, floor, row, turns, [across, height, along], zone),
+                id: placement.id,
+                mover: placement.mover,
+                cells: trackEnd(solid, placement.mover, 0).map(toWorld),
+                cellsMoved: trackEnd(solid, placement.mover, 1).map(toWorld).map((cell) => moved(cell, placement.mover)),
+                ...(placement.trigger ? { trigger: placement.trigger } : {}),
+            };
+        }
+
+        for(const local of solid)
         {
             const [x, z] = turnedCell(local, object.cells, turns);
             const isLight = (object.lights ?? []).some((cell) => cell.every((value, axis) => value === local[axis]));
@@ -195,16 +215,27 @@ export function placeObjects(cells, zone, placements, objects, numbers, groundOf
         }
 
         return {
-            prop: placement.index,
-            name: "object " + placement.object,
-            object: placement.object,
-            x: (column + across / 2) / CUBES - half,
-            y: (floor - zone.base) / CUBES,
-            z: (row + along / 2) / CUBES - half,
-            turns,
-            box: [column, floor, row, column + across - 1, floor + height - 1, row + along - 1],
+            ...placed(placement, column, floor, row, turns, [across, height, along], zone),
+            ...(placement.id ? { id: placement.id } : {}),
+            ...(placement.trigger ? { trigger: placement.trigger } : {}),
         };
     });
+}
+
+function placed(placement, column, floor, row, turns, [across, height, along], zone)
+{
+    const half = zone.columns / CUBES / 2;
+
+    return {
+        prop: placement.index,
+        name: "object " + placement.object,
+        object: placement.object,
+        x: (column + across / 2) / CUBES - half,
+        y: (floor - zone.base) / CUBES,
+        z: (row + along / 2) / CUBES - half,
+        turns,
+        box: [column, floor, row, column + across - 1, floor + height - 1, row + along - 1],
+    };
 }
 
 function isFilled(cells, zone, [column, row], y, groundOf)
@@ -275,6 +306,39 @@ export function turnedCell([x, , z], [width, , depth], turns)
     const [tu, tv] = [[u, v], [v, -u], [-u, -v], [-v, u]][turns];
 
     return [Math.floor(across / 2 + tu), Math.floor(along / 2 + tv)];
+}
+
+// The object's solid cells, as local cells, at one end of a mover's track:
+// a turn rotates them about its pivot to its start or end angle.
+function trackEnd(locals, mover, end)
+{
+    if(!mover.turn) { return locals; }
+
+    const { axis, pivot, from = 0, degrees } = mover.turn;
+    const angle = ((from + degrees * end) * Math.PI) / 180;
+
+    return locals.map((local) => rotateCell(local, axis, pivot, angle));
+}
+
+// Rotated about the axis through `pivot`, in fine cubes, the way
+// THREE.Matrix4.makeRotationAxis turns the view's mesh.
+export function rotateCell(local, axis, pivot, angle)
+{
+    const centre = local.map((value, i) => (value + 0.5) * FineMesher.FINE - pivot[i]);
+    const [cos, sin] = [Math.round(Math.cos(angle) * 1e9) / 1e9, Math.round(Math.sin(angle) * 1e9) / 1e9];
+    const [a, b] = { x: [1, 2], y: [2, 0], z: [0, 1] }[axis];
+    const turned = [...centre];
+
+    turned[a] = centre[a] * cos - centre[b] * sin;
+    turned[b] = centre[a] * sin + centre[b] * cos;
+
+    return turned.map((value, i) => Math.floor((value + pivot[i]) / FineMesher.FINE + 1e-6));
+}
+
+// A slide's end cells are the start cells moved along it, in world cubes.
+function moved(cell, mover)
+{
+    return mover.slide ? cell.map((value, i) => value + mover.slide[i]) : cell;
 }
 
 export function carve(cells, zone, box, carved = null)

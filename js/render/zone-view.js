@@ -45,6 +45,7 @@ export class ZoneView
         this.frame = { half: zone.half, base: zone.base, perCell: materials.atlas.uvPerMetre / ZoneData.CUBES_PER_METRE };
         this.scene = new THREE.Scene();
         this.objectMeshes = new Map();
+        this.objectSlots = new Map();
         this.objectGeometries = new Map(Object.entries(objects).map(([id, object]) => [id, ZoneView.objectGeometry(object, materials.atlas, zone.blocks)]));
         this.chunkArrays = new Map();
         this.floors = new Map();
@@ -403,7 +404,11 @@ export class ZoneView
             const mesh = new THREE.InstancedMesh(geometry, this.materials.objects, entries.length);
             geometry.setAttribute("light", new THREE.InstancedBufferAttribute(new Float32Array(entries.length * 2), 2));
 
-            entries.forEach((entry, i) => mesh.setMatrixAt(i, ZoneView.objectMatrix(entry, shared.userData.size)));
+            entries.forEach((entry, i) =>
+            {
+                mesh.setMatrixAt(i, ZoneView.objectMatrix(entry, shared.userData.size));
+                this.objectSlots.set(entry.prop, { mesh, index: i, entry, size: shared.userData.size });
+            });
 
             mesh.name = "objects";
             mesh.castShadow = true;
@@ -421,11 +426,55 @@ export class ZoneView
         {
             if(!key.startsWith(name + "/")) { continue; }
 
+            for(const entry of mesh.userData.entries) { this.objectSlots.delete(entry.prop); }
+
             mesh.geometry.dispose();
             mesh.dispose();
             this.scene.remove(mesh);
             this.objectMeshes.delete(key);
         }
+    }
+
+    // Each pose is a mover's slide `offset` in metres, or its `angle` about
+    // `axis` through `pivot`, in metres from its lower corner, or through its
+    // middle when `pivot` is null.
+    poseMovers(poses)
+    {
+        const moved = new Set();
+
+        for(const pose of poses)
+        {
+            const slot = this.objectSlots.get(pose.prop);
+
+            if(!slot) { continue; }
+
+            const matrix = ZoneView.objectMatrix(slot.entry, slot.size);
+
+            if(pose.offset) { matrix.premultiply(new THREE.Matrix4().makeTranslation(...pose.offset)); }
+            else
+            {
+                const pivot = new THREE.Vector3(...(pose.pivot ?? slot.size.map((metres) => metres / 2)));
+                const axis = new THREE.Vector3(pose.axis === "x" ? 1 : 0, pose.axis === "y" ? 1 : 0, pose.axis === "z" ? 1 : 0);
+
+                matrix.multiply(new THREE.Matrix4().makeTranslation(pivot.x, pivot.y, pivot.z))
+                    .multiply(new THREE.Matrix4().makeRotationAxis(axis, pose.angle))
+                    .multiply(new THREE.Matrix4().makeTranslation(-pivot.x, -pivot.y, -pivot.z));
+            }
+
+            slot.mesh.setMatrixAt(slot.index, matrix);
+            moved.add(slot.mesh);
+        }
+
+        for(const mesh of moved)
+        {
+            mesh.instanceMatrix.needsUpdate = true;
+            mesh.computeBoundingSphere();
+        }
+    }
+
+    objectOf(mesh, index)
+    {
+        return mesh.userData.entries?.[index] ?? null;
     }
 
     // Each object takes the light of the cell above its top.

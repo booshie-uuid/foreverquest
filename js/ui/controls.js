@@ -100,12 +100,19 @@ export function graphicsToggles(graphics)
 {
     const group = element("div", "toggle-group");
     const day = button("Day", () => graphics.toggleDay(), "toggle");
-    const refresh = () => day.classList.toggle("is-active", graphics.isDay);
+    const grid = button("Grid", () => graphics.toggleGrid(), "toggle");
+    const refresh = () =>
+    {
+        day.classList.toggle("is-active", graphics.isDay);
+        grid.classList.toggle("is-active", graphics.isGrid);
+    };
 
     day.dataset.action = "day";
     day.title = "Show the world by day";
+    grid.dataset.action = "grid";
+    grid.title = "Outline every cube, with a brighter line every metre";
     refresh();
-    group.append(day);
+    group.append(day, grid);
 
     return { element: group, dispose: graphics.onChange(refresh) };
 }

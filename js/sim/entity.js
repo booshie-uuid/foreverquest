@@ -18,6 +18,7 @@ export class Entity
         this.target = null;
         this.route = [];
         this.fallSpeed = 0;
+        this.riding = null;
         this.direction = { x: 0, z: 0 };
         this.brain = null;
     }
@@ -111,8 +112,16 @@ export class Entity
 
     /* TICK *******************************************************************/
 
+    // An entity that rides a mover goes where the mover carries it.
     tick(delta, zone)
     {
+        if(this.riding)
+        {
+            this.speed = 0;
+            this.turn(delta);
+            return;
+        }
+
         const velocity = this.desiredVelocity();
         const isMoving = velocity.x !== 0 || velocity.z !== 0;
         const length = Math.hypot(velocity.x, velocity.z);

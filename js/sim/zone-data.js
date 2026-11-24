@@ -63,6 +63,8 @@ export class ZoneData
         this.surfaces = new Uint16Array(zone.columns * zone.columns);
         this.grounds = new Uint16Array(zone.columns * zone.columns);
         this.ages = new Uint8Array(zone.columns * zone.columns);
+        this.moving = new Map();
+        this.movingColumns = new Map();
         this.listeners = [];
 
         for(const region of regions) { this.addRegion(region); }
@@ -176,12 +178,39 @@ export class ZoneData
     {
         if(!this.isCell(x, y, z)) { return BlockSet.AIR; }
 
+        if(this.moving.size > 0)
+        {
+            const moving = this.moving.get((y * this.columns + z) * this.columns + x);
+
+            if(moving !== undefined) { return moving; }
+        }
+
         const chunk = this.chunkAt(Math.floor(x / CHUNK), Math.floor(y / CHUNK), Math.floor(z / CHUNK));
 
         if(!chunk) { return BlockSet.AIR; }
         if(chunk.cells === null) { return chunk.uniform; }
 
         return chunk.cells[((y % CHUNK) * CHUNK + (z % CHUNK)) * CHUNK + (x % CHUNK)];
+    }
+
+    // Movers claim cells over the baked ones; `block` 0 frees them.
+    setMoving(cells, block)
+    {
+        for(const [x, y, z] of cells)
+        {
+            const key = (y * this.columns + z) * this.columns + x;
+            const column = z * this.columns + x;
+            const count = this.movingColumns.get(column) ?? 0;
+
+            if(block === 0 && this.moving.delete(key))
+            {
+                if(count > 1) { this.movingColumns.set(column, count - 1); }
+                else { this.movingColumns.delete(column); }
+            }
+
+            if(block !== 0 && !this.moving.has(key)) { this.movingColumns.set(column, count + 1); }
+            if(block !== 0) { this.moving.set(key, block); }
+        }
     }
 
     // The smallest placed object whose box holds the cell, or null.
@@ -385,12 +414,14 @@ export class ZoneData
     }
 
     // The top of the highest solid cell in a column whose top is at or below
-    // `limit`, or 0.
+    // `limit`, or 0. A column a mover claims is searched, as its surface leaves
+    // the mover out.
     topBelow(column, row, limit)
     {
         const surface = this.surface(column, row);
+        const isMoving = this.movingColumns.has(row * this.columns + column);
 
-        if(surface <= limit) { return surface; }
+        if(surface <= limit && !isMoving) { return surface; }
 
         for(let y = limit - 1; y >= 0; y--) { if(this.isSolid(column, y, row)) { return y + 1; } }
 

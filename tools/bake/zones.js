@@ -126,6 +126,8 @@ export async function bakeZone(zone, folder, people, context, where, problems)
         props.push({ ...prop, index: i, y: Voxelise.standingHeight(prop, context.prefabs[prop.prefab], heightAt) });
     }
 
+    checkMotion(objects, context.objects, where, problems);
+
     if(problems.length > before) { return null; }
 
     const numbers = Object.fromEntries(context.blocks.map((block, i) => [block.id, i + 1]));
@@ -173,6 +175,53 @@ function groundOf(zone, context, where, problems)
 
         return { top: numbers[layers.top], under: numbers[layers.under] };
     });
+}
+
+const AXES = ["x", "y", "z"];
+
+function isPositive(value)
+{
+    return Number.isFinite(value) && value > 0;
+}
+
+// A solid object turns only by quarter turns, so its cells stay on the grid.
+function checkMotion(objects, baked, where, problems)
+{
+    const ids = new Set();
+
+    for(const object of objects)
+    {
+        const at = where + " prop " + object.index;
+        const { mover, trigger } = object;
+
+        if(object.id !== undefined && !(ID_PATTERN.test(object.id) && !ids.has(object.id))) { problems.push(at + " needs an id that is valid and not used before"); }
+
+        ids.add(object.id);
+
+        if(mover !== undefined)
+        {
+            const tracks = ["slide", "turn", "spin"].filter((track) => mover[track] !== undefined);
+            const turn = mover.turn;
+            const isQuarter = (degrees) => Number.isInteger((degrees ?? 0) / 90);
+
+            if(tracks.length !== 1) { problems.push(at + " needs one track: slide, turn or spin"); }
+            if(mover.slide !== undefined && !(Array.isArray(mover.slide) && mover.slide.length === 3 && mover.slide.every(Number.isInteger))) { problems.push(at + " needs a slide of three whole numbers of cubes"); }
+            if(turn !== undefined && !(AXES.includes(turn.axis) && Array.isArray(turn.pivot) && turn.pivot.length === 3 && turn.pivot.every(Number.isFinite) && Number.isFinite(turn.degrees) && turn.degrees !== 0)) { problems.push(at + " needs a turn of { axis, pivot, degrees, from }"); }
+            if(turn !== undefined && baked[object.object]?.isSolid && !(isQuarter(turn.degrees) && isQuarter(turn.from))) { problems.push(at + " is solid, so it turns only by quarter turns"); }
+            if(mover.spin !== undefined && !(AXES.includes(mover.spin.axis) && isPositive(mover.spin.seconds))) { problems.push(at + " needs a spin of { axis, seconds }"); }
+            if(mover.spin === undefined && !isPositive(mover.seconds)) { problems.push(at + " needs the seconds its move takes"); }
+            if(!(mover.every === undefined || isPositive(mover.every)) || !(mover.near === undefined || isPositive(mover.near))) { problems.push(at + " needs every and near to be above 0"); }
+        }
+
+        if(trigger !== undefined && !((trigger.lever === true) !== (trigger.plate === true) && Array.isArray(trigger.movers))) { problems.push(at + " needs a trigger that is a lever or a plate, with a list of movers"); }
+    }
+
+    const movers = new Set(objects.filter((object) => object.mover).map((object) => object.id));
+
+    for(const object of objects.filter((each) => each.trigger))
+    {
+        for(const id of object.trigger.movers ?? []) { if(!movers.has(id)) { problems.push(where + " prop " + object.index + " works an unknown mover: " + id); } }
+    }
 }
 
 function isAge(age)

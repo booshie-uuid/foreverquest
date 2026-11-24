@@ -96,6 +96,31 @@ export const tests =
         },
     },
     {
+        name: "the Grid toggle outlines the cubes in the terrain's shader",
+        run: async ({ page, baseUrl, screenshot }) =>
+        {
+            await enterWorld(page, baseUrl);
+            await page.click(".hud [data-action=grid]");
+
+            const start = await page.evaluate(() => window.foreverQuest.renderer.frameCount);
+
+            await page.waitFor("window.foreverQuest.renderer.frameCount > " + (start + 3), { timeout: 20000 });
+            await screenshot("grid");
+
+            const grid = await page.evaluate(() =>
+            {
+                const { renderer, materials } = window.foreverQuest;
+                const gl = renderer.webgl.getContext();
+                const program = renderer.webgl.properties.get(materials.terrain).currentProgram.program;
+                const sources = gl.getAttachedShaders(program).map((shader) => gl.getShaderSource(shader)).join("\n");
+
+                return { isOn: materials.stepped.cubeGrid.value, hasLines: sources.includes("cubeGrid"), isActive: document.querySelector(".hud [data-action=grid]").classList.contains("is-active") };
+            });
+
+            assert.deepEqual(grid, { isOn: 1, hasLines: true, isActive: true });
+        },
+    },
+    {
         name: "the moonlight casts shadows in the world",
         run: async ({ page, baseUrl }) =>
         {

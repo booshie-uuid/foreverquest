@@ -294,6 +294,32 @@ export function cart(builder, x, y, z, angle)
     return { collider: { x, z, halfWidth: 1.4, halfDepth: 1.0, angle } };
 }
 
+// An opening 4 cubes wide and 7 tall through a wall 2 cubes deep, with a
+// lintel deep enough to hide a raised portcullis.
+export function archway(builder, x, y, z, angle)
+{
+    const put = placed(builder, x, y, z, angle);
+
+    cubes(put, [-5, 0, -1], [-2, 14, 1], "stone");
+    cubes(put, [2, 0, -1], [5, 14, 1], "stone");
+    cubes(put, [-2, 7, -1], [2, 14, 1], "stone");
+    cubes(put, [-6, 14, -2], [6, 15, 2], "darkStone");
+
+    return { collider: { x, z, halfWidth: 1.7, halfDepth: 0.4, angle } };
+}
+
+// A tower 10 cubes tall, with a stair of 9 steps down its +z side.
+export function landing(builder, x, y, z, angle)
+{
+    const put = placed(builder, x, y, z, angle);
+
+    cubes(put, [-3, 0, -3], [3, 10, 3], "stone");
+
+    for(let step = 0; step < 9; step++) { cubes(put, [1, 0, 3 + step], [3, 9 - step, 4 + step], "stone"); }
+
+    return { collider: { x, z, halfWidth: 1, halfDepth: 2.5, angle } };
+}
+
 export function fence(builder, points, heightAt)
 {
     const colliders = [];

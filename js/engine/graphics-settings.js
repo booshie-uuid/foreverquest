@@ -3,12 +3,19 @@ export class GraphicsSettings
     constructor()
     {
         this.isDay = false;
+        this.isGrid = false;
         this.listeners = [];
     }
 
     toggleDay()
     {
         this.isDay = !this.isDay;
+        this.emitChange();
+    }
+
+    toggleGrid()
+    {
+        this.isGrid = !this.isGrid;
         this.emitChange();
     }
 

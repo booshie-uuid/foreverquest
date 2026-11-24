@@ -105,8 +105,8 @@
         "models/stamps.png": "7b25eec578d4cb6aa538ccf2e6b6194a10aa90bc46f908de41f3a40363fcc8ec",
         "models/stamps.preview.png": "a9c183027d00e58e2d2e97b933cb6be62d147363aa4a62bbf94426b6fc60ffef",
         "npcs.json": "9b06f5c5aacaa28191302bb956ccf05b4d2beafab2ac9917b407f3bdc2cb0491",
-        "objects.json": "2eb164a7e41d4161927e1bfccc2d52d6c77e298cc101ead055dd18215d2c39a9",
-        "props/prefabs.json": "6ff17c92877e7d80d0eb5c2393336ae0638dddb0fc9621a0a29872ecac69f6c6",
+        "objects.json": "d6516b73827b99cc7c257a40d7022f4ebde3653c92d9eae5ae7f5ab5e16676c6",
+        "props/prefabs.json": "c1d26b18ffb92615797d9bda7831250412c992324d05b4dd3260f5dbdcc37dc3",
         "textures/world.json": "34c68edad0e1db70455c0559c7b7abd58a1dbeb4dd6cf9ba110b5da6b8b9664b",
         "textures/world.png": "4d4c88b5d6bf2ba672a2be86131531a0c42a0c7580acbed443293dae6ada9104",
         "zones/expanse/0-0.bin": "216ed2a8ac8446f8e690e5c3c40f5e95757a5b3851a65181e6a336bcf28a3dd6",
@@ -260,8 +260,8 @@
         "zones/hearthmere/1-1.bin": "ed1044fde4fbe656c682203fa374738aa6499b16770f57bc9520c989b89ea36d",
         "zones/hearthmere/index.json": "b18cfa66f26b11de6128d2a816dfb3806da2c824a1f6ec7a252c44226c2aa417",
         "zones/index.json": "98c62ba879f482b051fdd8e671e51bd0994389043936732dc99ac88cf8ba4035",
-        "zones/testfield/0-0.bin": "515825a7cc9ddcd9391d07a9499373cd563310e483a4d4bf58806f366450c022",
-        "zones/testfield/index.json": "ed17cebf04d40cfc99f080c0393c54a21169ecf3f4cd94c21c0b8d5573970f73"
+        "zones/testfield/0-0.bin": "118a2c702091cc6f65aa984a54616a3ce575bbd51ad9a2e007c9fc9bb4112707",
+        "zones/testfield/index.json": "02a23253f85e8dc4db9830b850a695ef13de78fa095d54346f6d96a731fa589e"
     },
     "ids": {
         "action": [
@@ -344,7 +344,12 @@
             "cross",
             "lampPost",
             "lectern",
+            "leverBase",
+            "leverHandle",
+            "liftPlatform",
+            "millWheel",
             "pew",
+            "portcullis",
             "runner",
             "sacks",
             "sconce",
@@ -437,6 +442,7 @@
             "offHand/none"
         ],
         "prefab": [
+            "archway",
             "barrel",
             "bush.0",
             "bush.1",
@@ -475,6 +481,7 @@
             "house.slate",
             "house.thatch",
             "lampPost",
+            "landing",
             "oak.0",
             "oak.1",
             "oak.2",

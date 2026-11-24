@@ -53,6 +53,8 @@ export const PREFABS =
     signpost: (b) => Props.signpost(b, 0, 0, 0, 0),
     gibbet: (b) => Props.gibbet(b, 0, 0, 0, 0),
     chapel: (b) => Props.chapel(b, 0, 0, 0, 0),
+    archway: (b) => Props.archway(b, 0, 0, 0, 0),
+    landing: (b) => Props.landing(b, 0, 0, 0, 0),
     pedestal,
 };
 

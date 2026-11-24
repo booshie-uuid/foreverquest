@@ -1,11 +1,13 @@
 import * as Pathfinder from "./pathfinder.js";
 import { Appearance } from "../character/appearance.js";
 import { Entity } from "./entity.js";
+import { Movers } from "./movers.js";
 import { NpcBrain } from "./npc-brain.js";
 import { Random } from "../util/random.js";
 
 const TICK = 1 / 20;
 const TALK_RANGE = 2.2;
+const USE_RANGE = 2.2;
 
 
 /******************************************************************************/
@@ -13,7 +15,7 @@ const TALK_RANGE = 2.2;
 /******************************************************************************/
 
 // Commands queue until the next tick. Events go to every listener as they
-// happen: "entered", "said", "waved" and "running".
+// happen: "entered", "said", "waved", "running" and "used".
 export class Simulation
 {
     static TICK = TICK;
@@ -28,6 +30,8 @@ export class Simulation
         this.commands = [];
         this.listeners = [];
         this.talkTarget = null;
+        this.useTarget = null;
+        this.movers = null;
         this.ticks = 0;
         this.nextId = 1;
     }
@@ -55,8 +59,11 @@ export class Simulation
     {
         const spawn = zone.spawn;
 
+        this.movers?.dispose();
         this.zone = zone;
+        this.movers = new Movers(zone);
         this.talkTarget = null;
+        this.useTarget = null;
         this.commands = [];
         this.player.stop();
         this.player.placeAt(spawn.x, spawn.z, zone, spawn.heading);
@@ -116,6 +123,7 @@ export class Simulation
         {
             case "moveTo":
                 this.talkTarget = null;
+                this.useTarget = null;
                 this.route(player, command);
                 break;
             case "steer":
@@ -134,6 +142,10 @@ export class Simulation
                 this.talkTarget = command.id;
                 player.moveTo(this.entity(command.id).position);
                 break;
+            case "use":
+                this.talkTarget = null;
+                this.useTarget = command.prop;
+                break;
             case "wave":
                 this.emit({ type: "waved", id: player.id });
                 break;
@@ -149,9 +161,15 @@ export class Simulation
         for(const command of this.commands.splice(0)) { this.apply(command); }
 
         this.talk();
+        this.use();
 
-        for(const npc of this.npcs.filter((entity) => this.isAwake(entity))) { npc.brain.tick(TICK, this.zone); }
-        for(const entity of this.entities.filter((each) => this.isAwake(each))) { entity.tick(TICK, this.zone); }
+        const awake = this.entities.filter((each) => this.isAwake(each));
+
+        for(const npc of awake.filter((entity) => entity !== this.player)) { npc.brain.tick(TICK, this.zone); }
+
+        this.movers.tick(TICK, awake);
+
+        for(const entity of awake) { entity.tick(TICK, this.zone); }
 
         this.ticks++;
     }
@@ -193,6 +211,27 @@ export class Simulation
 
         this.emit({ type: "said", id: npc.id, name: npc.name, line, role: npc.brain.role });
         this.emit({ type: "waved", id: npc.id });
+    }
+
+    use()
+    {
+        const entry = this.zone.objects.find((object) => object.prop === this.useTarget);
+        const player = this.player;
+
+        if(!entry) { return; }
+
+        if(player.distanceTo({ position: entry }) > USE_RANGE)
+        {
+            if(!player.target) { player.moveTo(entry); }
+
+            return;
+        }
+
+        this.useTarget = null;
+        player.stop();
+        player.face(entry);
+
+        if(this.movers.use(entry.prop)) { this.emit({ type: "used", prop: entry.prop, name: entry.object }); }
     }
 
     /* EVENTS *****************************************************************/

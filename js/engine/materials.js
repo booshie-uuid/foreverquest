@@ -51,6 +51,7 @@ const STEPPED_FRAGMENT_PARS = `
 uniform vec3 skyRamp[16];
 uniform vec3 lampRamp[16];
 uniform vec4 playerLight;
+uniform float cubeGrid;
 varying vec2 vLight;
 varying vec2 vWeather;
 varying vec3 vStepPosition;
@@ -106,6 +107,18 @@ vec3 stepLight = min(skyRamp[skyLevel] * skyShade + lampRamp[lampLevel], vec3(1.
 float stepFace = vStepNormal.y > 0.5 ? 1.0 : (vStepNormal.y < -0.5 ? 0.55 : (abs(vStepNormal.x) > 0.5 ? 0.72 : 0.86));
 
 outgoingLight = diffuseColor.rgb * stepLight * stepFace + totalEmissiveRadiance;
+
+if(cubeGrid > 0.5)
+{
+    vec3 cubeLines = abs(fract(vStepPosition * 3.0 + 0.5) - 0.5) / max(fwidth(vStepPosition * 3.0), vec3(1e-4));
+    vec3 metreLines = abs(fract(vStepPosition + 0.5) - 0.5) / max(fwidth(vStepPosition), vec3(1e-4));
+    vec3 away = abs(vStepNormal) * 1e4;
+    float cubeEdge = 1.0 - clamp(min(min(cubeLines.x + away.x, cubeLines.y + away.y), cubeLines.z + away.z), 0.0, 1.0);
+    float metreEdge = 1.0 - clamp(min(min(metreLines.x + away.x, metreLines.y + away.y), metreLines.z + away.z) - 0.5, 0.0, 1.0);
+
+    outgoingLight = mix(outgoingLight, vec3(1.0), cubeEdge * 0.3);
+    outgoingLight = mix(outgoingLight, vec3(1.0, 0.78, 0.3), metreEdge * 0.85);
+}
 `;
 
 const CHARACTER_FRAGMENT_PARS = `
@@ -178,7 +191,7 @@ export class MaterialLibrary
         this.atlasTexture = atlas.createTexture();
         this.world = this.worldMaterial();
         this.fog = { heightFog: { value: new THREE.Vector4(NO_HEIGHT_FOG.base, NO_HEIGHT_FOG.falloff, NO_HEIGHT_FOG.density, 0) } };
-        this.stepped = { skyRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.sky) }, lampRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.lamp) }, playerLight: { value: new THREE.Vector4(0, 0, 0, PLAYER_LIGHT) } };
+        this.stepped = { skyRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.sky) }, lampRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.lamp) }, playerLight: { value: new THREE.Vector4(0, 0, 0, PLAYER_LIGHT) }, cubeGrid: { value: 0 } };
         this.terrain = this.worldMaterial({ vertexColors: true }, this.stepped);
         this.objects = this.worldMaterial({}, this.stepped);
         this.water = new THREE.MeshPhongMaterial({ color: "#1e2a30", specular: 0x5a6a78, shininess: 80, transparent: true, opacity: 0.82 });
@@ -261,6 +274,11 @@ export class MaterialLibrary
         };
 
         material.customProgramCacheKey = () => "character-stepped";
+    }
+
+    setGrid(isOn)
+    {
+        this.stepped.cubeGrid.value = isOn ? 1 : 0;
     }
 
     setPlayerLight(position)

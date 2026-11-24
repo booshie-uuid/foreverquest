@@ -6,6 +6,7 @@ import { EntityView } from "../render/entity-view.js";
 import { Hud } from "./hud.js";
 import { Input } from "./input.js";
 import { Simulation } from "../sim/simulation.js";
+import { ZoneData } from "../sim/zone-data.js";
 import { ZoneView } from "../render/zone-view.js";
 
 const ORBIT_SPEED = 1.8;
@@ -112,6 +113,7 @@ export class GameScreen
     applyGraphics()
     {
         this.world.setDaylight(this.graphics.isDay);
+        this.materials.setGrid(this.graphics.isGrid);
     }
 
     leaveZone()
@@ -170,12 +172,32 @@ export class GameScreen
             return;
         }
 
+        const lever = this.pickLever();
+
+        if(lever !== null)
+        {
+            this.sim.command({ type: "use", prop: lever });
+
+            return;
+        }
+
         const hits = this.raycaster.intersectObjects([...this.world.terrainMeshes, this.world.water.mesh], false);
 
         if(hits.length === 0) { return; }
 
         this.sim.command({ type: "moveTo", x: hits[0].point.x, z: hits[0].point.z });
         this.hud.marker(x, y);
+    }
+
+    // The prop number of the lever nearest the pointer, when nothing is in
+    // front of it, or null.
+    pickLever()
+    {
+        const hits = this.raycaster.intersectObjects([...this.world.objectMeshes.values(), ...this.world.terrainMeshes], false);
+        const first = hits[0];
+        const entry = first?.object.isInstancedMesh ? this.world.objectOf(first.object, first.instanceId) : null;
+
+        return entry?.trigger?.lever ? entry.prop : null;
     }
 
     onInspect(x, y)
@@ -214,7 +236,11 @@ export class GameScreen
             return;
         }
 
-        this.hud.system("That is prop " + object.prop + ": " + object.name + " at " + object.x.toFixed(1) + ", " + object.z.toFixed(1) + ", turned " + object.turns * 90 + "°, block " + block + where + ".");
+        const [x0, y0, z0, x1, y1, z1] = object.box;
+        const cubes = [x1 - x0 + 1, y1 - y0 + 1, z1 - z0 + 1];
+        const size = cubes.join(" × ") + " cubes (" + cubes.map((count) => (count / ZoneData.CUBES_PER_METRE).toFixed(1)).join(" × ") + " m)";
+
+        this.hud.system("That is prop " + object.prop + ": " + object.name + " at " + object.x.toFixed(1) + ", " + object.z.toFixed(1) + ", turned " + object.turns * 90 + "°, " + size + ", block " + block + where + ".");
     }
 
     pickNpc()
@@ -361,6 +387,7 @@ export class GameScreen
         this.streamer.update(this.player.position.x, this.player.position.z);
         this.rig.update(delta, player.position, player.model.plan.height * EYE_HEIGHT, (origin, direction, distance) => this.zone.raycast(origin, direction, distance));
         player.root.visible = !this.rig.isFirstPerson;
+        this.world.poseMovers(this.sim.movers.poses(alpha));
         this.world.update(delta, this.camera, player.position);
         this.hud.update(delta, this.camera, [...this.views.values()], player, this.size);
     }
