@@ -21,7 +21,6 @@ After a change to the Three.js version in `package.json`, run `npm install` and 
 | Creator | Drag the preview | Turns the character |
 | Creator | Idle, Walk, Run, Wave | Plays an animation on the preview |
 | Creator | Body, Face | Frames the whole body or the face |
-| World | Click the ground | Walks to that spot |
 | World | Click a villager | Walks to the villager and talks |
 | World | Click a lever | Walks to the lever and pulls it |
 | World | Right-click | Names the villager, prop or ground under the pointer, with the prop's number and its size in cubes and metres |
@@ -33,6 +32,7 @@ After a change to the Three.js version in `package.json`, run `npm install` and 
 | World | E | Waves |
 | World | Appearance button | Opens the creator |
 | World | Day | Switches between night, the default, and day |
+| World | Zone picker | Travels to the zone chosen |
 | World | Grid | Outlines every cube of the ground, buildings and objects, with a gold line every metre |
 
 Two address options help testing: `?zone=testfield` or `?zone=expanse` starts in another zone (the test field holds a portcullis with its lever, a lift to a landing and a mill wheel), and `?stats` shows the frame rate, the triangles and draw calls of the last frame, and the regions loaded.

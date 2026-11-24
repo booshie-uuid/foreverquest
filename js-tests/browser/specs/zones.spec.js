@@ -41,6 +41,29 @@ export const tests =
         },
     },
     {
+        name: "the zone picker takes the player to the zone chosen",
+        run: async ({ page, baseUrl }) =>
+        {
+            await enter(page, baseUrl, "");
+
+            const options = await page.evaluate(() => [...document.querySelectorAll(".hud [data-action=zone] option")].map((option) => option.value));
+
+            await page.evaluate(() =>
+            {
+                const picker = document.querySelector(".hud [data-action=zone]");
+
+                picker.value = "testfield";
+                picker.dispatchEvent(new Event("change"));
+            });
+            await page.waitFor(() => window.foreverQuest.game.zone.id === "testfield", { timeout: 20000 });
+
+            const picked = await page.evaluate(() => document.querySelector(".hud [data-action=zone]").value);
+
+            assert.deepEqual(options, ["expanse", "hearthmere", "testfield"]);
+            assert.equal(picked, "testfield");
+        },
+    },
+    {
         name: "travelling loads the next zone, frees the last, and keeps the player",
         run: async ({ page, baseUrl }) =>
         {

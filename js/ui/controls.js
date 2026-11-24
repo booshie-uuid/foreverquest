@@ -94,6 +94,26 @@ export function textInput(label, value, onChange, key)
     return row(label, control, key);
 }
 
+// A drop-down of [value, label] options.
+export function picker(label, options, onPick)
+{
+    const control = element("select", "picker");
+
+    control.setAttribute("aria-label", label);
+
+    for(const [value, text] of options)
+    {
+        const option = element("option", "", text);
+
+        option.value = value;
+        control.append(option);
+    }
+
+    control.addEventListener("change", () => onPick(control.value));
+
+    return control;
+}
+
 // Returns the toggles' element, and a dispose function that stops them
 // following the settings.
 export function graphicsToggles(graphics)

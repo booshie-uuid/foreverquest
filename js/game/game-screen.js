@@ -21,7 +21,8 @@ const INSPECT_RANGE = 60;
 
 export class GameScreen
 {
-    constructor(container, canvas, appearance, materials, graphics, onAppearance, content, streamer)
+    // `onTravel(id)` takes the player to another zone.
+    constructor(container, canvas, appearance, materials, graphics, onAppearance, content, streamer, onTravel)
     {
         this.materials = materials;
         this.content = content;
@@ -44,7 +45,8 @@ export class GameScreen
         {
             onToggleRun: () => this.toggleRun(),
             onAppearance: () => this.onAppearance(),
-        });
+            onTravel,
+        }, content.zones);
 
         this.unsubscribers =
         [
@@ -106,6 +108,7 @@ export class GameScreen
         }
 
         this.applyGraphics();
+        this.hud.setZone(zone.id);
 
         for(const line of zone.welcome) { this.hud.system(line); }
     }
@@ -174,19 +177,7 @@ export class GameScreen
 
         const lever = this.pickLever();
 
-        if(lever !== null)
-        {
-            this.sim.command({ type: "use", prop: lever });
-
-            return;
-        }
-
-        const hits = this.raycaster.intersectObjects([...this.world.terrainMeshes, this.world.water.mesh], false);
-
-        if(hits.length === 0) { return; }
-
-        this.sim.command({ type: "moveTo", x: hits[0].point.x, z: hits[0].point.z });
-        this.hud.marker(x, y);
+        if(lever !== null) { this.sim.command({ type: "use", prop: lever }); }
     }
 
     // The prop number of the lever nearest the pointer, when nothing is in

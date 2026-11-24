@@ -80,7 +80,7 @@ An entity is an upright cylinder of its body's radius. `ZoneData.standAt(x, z, f
 
 ## Pathfinding
 
-Clicking the ground asks [Pathfinder](../js/sim/pathfinder.js) for a route. It searches the zone's columns with A*, one node per column an entity can stand in, moving to the eight neighbouring columns by the same rules as a step, and dropping at most one metre. A diagonal move needs both columns beside it open, so a route never cuts a corner. The search stops after 6,000 columns; when it does not reach the goal, the route ends at the column it reached nearest the goal. The route is then straightened: each point that a straight walk from the last kept point can skip is dropped. When no route leaves the start, the player walks straight at the point instead. Villagers still walk straight to the places they choose.
+Clicking the ground does nothing, so clicks are free for villagers and levers. Walking to a lever, and the simulation's `moveTo` command, ask [Pathfinder](../js/sim/pathfinder.js) for a route. It searches the zone's columns with A*, one node per column an entity can stand in, moving to the eight neighbouring columns by the same rules as a step, and dropping at most one metre. A diagonal move needs both columns beside it open, so a route never cuts a corner. The search stops after 6,000 columns; when it does not reach the goal, the route ends at the column it reached nearest the goal. The route is then straightened: each point that a straight walk from the last kept point can skip is dropped. When no route leaves the start, the player walks straight at the point instead. Villagers still walk straight to the places they choose.
 
 ## Streaming
 

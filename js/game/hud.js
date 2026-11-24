@@ -6,7 +6,8 @@ const LABEL_RANGE = 32;
 
 export class Hud
 {
-    constructor(container, graphics, actions)
+    // `zones` lists the zone ids the picker offers.
+    constructor(container, graphics, actions, zones = [])
     {
         this.element = Controls.element("div", "hud");
         this.labels = Controls.element("div", "label-layer");
@@ -18,7 +19,7 @@ export class Hud
 
         const help = Controls.element("div", "panel hud-help");
 
-        help.innerHTML = "<kbd>Click</kbd> move / talk &nbsp; <kbd>W A S D</kbd> walk<br>"
+        help.innerHTML = "<kbd>Click</kbd> talk / use &nbsp; <kbd>W A S D</kbd> walk<br>"
             + "<kbd>Right-drag</kbd> or <kbd>← →</kbd> camera &nbsp; <kbd>Wheel</kbd> zoom<br>"
             + "<kbd>R</kbd> run &nbsp; <kbd>E</kbd> wave";
 
@@ -30,7 +31,9 @@ export class Hud
         const settings = Controls.element("div", "panel hud-settings");
 
         this.toggles = Controls.graphicsToggles(graphics);
-        settings.append(this.toggles.element);
+        this.zonePicker = Controls.picker("Zone", zones.map((id) => [id, id.charAt(0).toUpperCase() + id.slice(1)]), (id) => actions.onTravel?.(id));
+        this.zonePicker.dataset.action = "zone";
+        settings.append(this.zonePicker, this.toggles.element);
         buttons.append(settings, this.runButton, appearanceButton);
 
         this.element.append(this.labels, this.nameCard, help, this.chat, buttons);
@@ -111,14 +114,9 @@ export class Hud
         this.bubbles.set(actor, { node, time: seconds });
     }
 
-    marker(x, y)
+    setZone(id)
     {
-        const node = Controls.element("div", "click-marker");
-
-        node.style.left = x + "px";
-        node.style.top = y + "px";
-        node.addEventListener("animationend", () => node.remove());
-        this.labels.append(node);
+        this.zonePicker.value = id;
     }
 
     /* LABELS *****************************************************************/

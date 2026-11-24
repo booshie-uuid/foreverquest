@@ -138,7 +138,7 @@ export const tests =
         },
     },
     {
-        name: "clicking the ground walks the player to that spot",
+        name: "clicking the ground leaves the player where they stand",
         run: async ({ page, baseUrl }) =>
         {
             await enterWorld(page, baseUrl);
@@ -153,30 +153,16 @@ export const tests =
                 target.y = game.zone.heightAt(target.x, target.z);
                 target.project(game.camera);
 
-                return { x: (target.x * 0.5 + 0.5) * game.size.width, y: (-target.y * 0.5 + 0.5) * game.size.height, goal: game.player.position.x - 2.5 };
+                return { x: (target.x * 0.5 + 0.5) * game.size.width, y: (-target.y * 0.5 + 0.5) * game.size.height };
             });
+            const before = await page.evaluate(playerPosition);
 
             await page.clickAt(point.x, point.y);
+            await page.evaluate(() => window.foreverQuest.game.stepTicks(40));
 
-            const ticks = await page.evaluate(() =>
-            {
-                const game = window.foreverQuest.game;
-                let count = 0;
-
-                do
-                {
-                    game.stepTicks(1);
-                    count++;
-                }
-                while((game.player.target !== null || game.player.speed >= 0.05) && count < 200);
-
-                return count;
-            });
             const after = await page.evaluate(playerPosition);
 
-            assert.ok(ticks < 200, "The player was still walking after 10 s of ticks");
-
-            assert.ok(Math.abs(after.x - point.goal) < 0.6, "The player stopped at x " + after.x + ", not near " + point.goal);
+            assert.deepEqual(after, before);
         },
     },
     {

@@ -329,6 +329,17 @@ button
     cursor: pointer;
 }
 
+.picker
+{
+    padding: 4px 6px;
+    border: 1px solid var(--panel-edge-soft);
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--ink);
+    font: inherit;
+    cursor: pointer;
+}
+
 .toggle.is-active
 {
     border-color: var(--accent);
@@ -490,23 +501,6 @@ button
     color: #2a2116;
     font-size: 13px;
     text-align: center;
-}
-
-.click-marker
-{
-    position: absolute;
-    width: 14px;
-    height: 14px;
-    margin: -7px 0 0 -7px;
-    border: 2px solid var(--accent);
-    border-radius: 50%;
-    animation: marker 0.6s ease-out forwards;
-}
-
-@keyframes marker
-{
-    from { transform: scale(0.4); opacity: 1; }
-    to { transform: scale(1.6); opacity: 0; }
 }
 
 @media (max-width: 760px)

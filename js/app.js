@@ -44,7 +44,7 @@ export class App
         {
             this.library = await Library.load(this.assets);
             this.materials = new MaterialLibrary(await WorldAtlas.load(this.assets));
-            this.content = { prefabs: await this.assets.json("props/prefabs.json"), objects: await this.assets.json("objects.json"), people: await this.assets.json("npcs.json"), blocks: await BlockSet.load(this.assets) };
+            this.content = { prefabs: await this.assets.json("props/prefabs.json"), objects: await this.assets.json("objects.json"), people: await this.assets.json("npcs.json"), zones: await this.assets.json("zones/index.json"), blocks: await BlockSet.load(this.assets) };
             this.streamer = await this.loadZone(this.startZone);
         }
         finally
@@ -108,7 +108,7 @@ export class App
     {
         if(!this.game)
         {
-            this.game = new GameScreen(this.container, this.renderer.canvas, this.appearance, this.materials, this.graphics, () => this.showCreator("edit"), this.content, this.streamer);
+            this.game = new GameScreen(this.container, this.renderer.canvas, this.appearance, this.materials, this.graphics, () => this.showCreator("edit"), this.content, this.streamer, (id) => this.travel(id));
         }
 
         this.renderer.setScreen(this.game);
