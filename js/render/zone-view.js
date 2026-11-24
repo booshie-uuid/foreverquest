@@ -565,9 +565,35 @@ export class ZoneView
             level = this.floorLight(column, y, row);
         }
 
+        level ??= this.besideLight(entry.box);
         level ??= this.lightAt({ x: entry.x, y: this.zone.metresY(entry.box[4] + 1), z: entry.z });
 
         return { sky: level.sky, lamp: Math.max(level.lamp, own) };
+    }
+
+    // An object that fills its middle column from floor to ceiling, such as a
+    // door in its doorway, has no floor in that column, so it takes the
+    // brightest floor in the columns around its box, or null.
+    besideLight([x0, y0, z0, x1, y1, z1])
+    {
+        let best = null;
+
+        for(let z = z0 - 1; z <= z1 + 1; z++)
+        {
+            for(let x = x0 - 1; x <= x1 + 1; x++)
+            {
+                if(x >= x0 && x <= x1 && z >= z0 && z <= z1) { continue; }
+
+                for(let y = y0; y <= y1 + 1; y++)
+                {
+                    const level = this.floorLight(x, y, z);
+
+                    if(level && (!best || level.sky + level.lamp > best.sky + best.lamp)) { best = level; }
+                }
+            }
+        }
+
+        return best;
     }
 
     /* PROPS ******************************************************************/

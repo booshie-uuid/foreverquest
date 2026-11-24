@@ -305,7 +305,7 @@ function floorLights(cells, light, table)
             for(let x = 0; x < CHUNK; x++)
             {
                 const index = ((y + MARGIN) * PADDED + z + MARGIN) * PADDED + x + MARGIN;
-                const isFloor = table.standable[cells[index]] && !table.standable[cells[index + above]];
+                const isFloor = table.standable[cells[index]] && !table.standable[cells[index + above]] && !table.opaque[cells[index + above]];
 
                 if(!isFloor) { continue; }
 

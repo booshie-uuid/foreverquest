@@ -200,7 +200,7 @@ const FOG_FRAGMENT = `
 const NO_HEIGHT_FOG = { base: 0, falloff: 1, density: 0 };
 const LEVELS = 16;
 const PLAYER_LIGHT = 7;
-const DEFAULT_AMBIENT = { base: "#1c2030", level: 0.18 };
+const DEFAULT_AMBIENT = { base: "#1c2030", level: 0.3 };
 const DEFAULT_STEPS =
 {
     sky: { dark: "#12141f", bright: "#56607e", curve: 1.4 },

@@ -412,7 +412,16 @@ describe("Zone view", () =>
         assert.deepEqual(srgb(), [0.125, 0.25, 0.5]);
 
         new ZoneView(hearthmere, materials).dispose();
-        assert.deepEqual(srgb(), [0.105, 0.12, 0.18]);
+        assert.deepEqual(srgb(), [0.175, 0.2, 0.3]);
+    });
+
+    it("lights a door that fills its doorway by the room beside it", async () =>
+    {
+        const view = new ZoneView(hearthmere, materials, null, await TestAssets.objects());
+        const door = hearthmere.objects.find((entry) => entry.object === "lockedDoor" && hearthmere.objects[hearthmere.objects.findIndex((other) => other.prop === entry.prop && other.part === undefined)].name === "townhouse");
+
+        assert.ok(view.objectLight(door).lamp >= 6, "The townhouse's locked door takes lamp light " + view.objectLight(door).lamp);
+        view.dispose();
     });
 
     it("shines the moon, and by day the sun, from where its disc stands in the sky", () =>

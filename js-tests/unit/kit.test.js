@@ -44,6 +44,16 @@ describe("Building kit", () =>
         assert.ok(recorded.objects.filter((entry) => entry.object === "lantern").every((entry) => Math.round(entry.at[1] * 3) % 10 === 7), "A lantern hangs lower than 7 cubes");
     });
 
+    it("hangs every lantern of the grid, moving one that falls over a stair to the nearest clear spot", () =>
+    {
+        const lanterns = (spec) => PropBaker.record(Kit.building(spec)).objects.filter((entry) => entry.object === "lantern");
+        const house = Buildings.BUILDINGS.house;
+        const ground = lanterns(house).filter((entry) => entry.at[1] < 10 / 3);
+
+        assert.equal(ground.length, 4, "The house's ground floor lost a lantern to its stair");
+        assert.equal(new Set(ground.map((entry) => entry.at.join(","))).size, 4);
+    });
+
     it("lets an entity walk up every stair of every kit building in Hearthmere and the Expanse", async () =>
     {
         const library = await TestAssets.library();

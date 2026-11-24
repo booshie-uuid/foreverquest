@@ -16,6 +16,7 @@ const FOUNDATION = 5;
 const CUPBOARD = { length: 12, deep: 6 };
 const WINDOW = { width: 2, bottom: 3, height: 3 };
 const LAMP_SPACING = 9;
+const KEEP_CLEAR = 2;
 
 
 /******************************************************************************/
@@ -411,7 +412,9 @@ function cupboardOf(spec, entry)
 }
 
 // The boxes a lantern must keep out of on a storey: a stair on it or below
-// it, a lift shaft, and a locked stair cupboard, each with a cube to spare.
+// it with the floor before its first step, a lift shaft, and a locked stair
+// cupboard, each with KEEP_CLEAR cubes to spare. A climber stepping onto a
+// stair still overlaps the column behind it, under the lantern's bottom.
 function keptClear(spec, storey)
 {
     const flights = (spec.stairs ?? []).filter((flight) => flight.storey === storey || flight.storey === storey - 1);
@@ -423,28 +426,35 @@ function keptClear(spec, storey)
     });
     const shafts = (spec.lifts ?? []).filter((lift) => lift.box && storey <= lift.storey).map(({ box }) => [[box[0], 0, box[1]], [box[2], 1, box[3]]]);
 
-    return [...flights.map((flight) => spanBox(spec, flight.side, flight.from + 1, STEPS, [0, 1], STAIR_WIDTH + 1)), ...cupboards, ...shafts];
+    return [...flights.map((flight) => spanBox(spec, flight.side, flight.from + 1 - STAIR_ENTRY, STEPS + STAIR_ENTRY, [0, 1], STAIR_WIDTH + 1)), ...cupboards, ...shafts];
 }
 
 // Lanterns hung from a storey's ceiling, their bottoms HEADROOM cubes up,
 // every LAMP_SPACING cubes each way. A lantern that would hang over a stair,
-// a lift shaft or a cupboard moves towards the front until it is clear.
+// a lift shaft or a cupboard moves to the nearest clear spot within half the
+// spacing, the front first when two are as near.
 function lamps(spec, storey, result)
 {
     const boxes = keptClear(spec, storey);
-    const isKept = (x, z) => boxes.some(([from, to]) => x >= from[0] - 1 && x < to[0] + 1 && z >= from[2] - 1 && z < to[2] + 1);
+    const isKept = (x, z) => boxes.some(([from, to]) => x >= from[0] - KEEP_CLEAR && x < to[0] + KEEP_CLEAR && z >= from[2] - KEEP_CLEAR && z < to[2] + KEEP_CLEAR);
+    const isInside = (x, z) => x >= -spec.width / 2 + 1 && x < spec.width / 2 - 2 && z >= -spec.depth / 2 + 1 && z < spec.depth / 2 - 2;
+    const reach = Math.floor(LAMP_SPACING / 2);
+    const offsets = [];
+
+    for(let dx = -reach; dx <= reach; dx++) { for(let dz = -reach; dz <= reach; dz++) { offsets.push([dx, dz]); } }
+
+    offsets.sort(([ax, az], [bx, bz]) => Math.hypot(ax, az) - Math.hypot(bx, bz) || bz - az);
 
     for(let x = -spec.width / 2 + LAMP_SPACING / 2; x < spec.width / 2 - 2; x += LAMP_SPACING)
     {
         for(let z = -spec.depth / 2 + LAMP_SPACING / 2; z < spec.depth / 2 - 2; z += LAMP_SPACING)
         {
-            let at = Math.round(z);
+            const [column, row] = [Math.round(x), Math.round(z)];
+            const clear = offsets.map(([dx, dz]) => [column + dx, row + dz]).find(([at, along]) => isInside(at, along) && !isKept(at, along));
 
-            while(at < spec.depth / 2 - 2 && isKept(Math.round(x), at)) { at++; }
+            if(!clear) { continue; }
 
-            if(at >= spec.depth / 2 - 2) { continue; }
-
-            result.objects.push({ object: "lantern", at: [(Math.round(x) + 0.5) * CUBE, (storey * STOREY + HEADROOM) * CUBE, (at + 0.5) * CUBE], angle: 0 });
+            result.objects.push({ object: "lantern", at: [(clear[0] + 0.5) * CUBE, (storey * STOREY + HEADROOM) * CUBE, (clear[1] + 0.5) * CUBE], angle: 0 });
         }
     }
 }
