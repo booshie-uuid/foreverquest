@@ -14,12 +14,15 @@ import { WorldAtlas } from "./engine/world-atlas.js";
 
 export class App
 {
-    constructor(container, storage, assets, { zone = "hearthmere", showStats = false } = {})
+    // `edit` opens the game in the editor, with the camera at `edit.view`
+    // when it is given.
+    constructor(container, storage, assets, { zone = "hearthmere", showStats = false, edit = null } = {})
     {
         this.container = container;
         this.assets = assets;
         this.startZone = zone;
         this.showStats = showStats;
+        this.edit = edit;
         this.stats = null;
         this.content = null;
         this.streamer = null;
@@ -67,6 +70,12 @@ export class App
         this.renderer.start();
 
         if(this.showStats) { this.stats = new StatsOverlay(this.container, this); }
+
+        if(this.edit)
+        {
+            this.showGame();
+            await this.game.editMode.enter(this.edit.view);
+        }
 
         this.isReady = true;
     }

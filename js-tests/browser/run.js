@@ -1,11 +1,13 @@
 import * as Server from "../../tools/serve.js";
 import * as childProcess from "node:child_process";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
 import * as util from "node:util";
 
 import { Browser } from "./cdp.js";
+import { EditorRoutes } from "../../tools/editor/routes.js";
 import { Log } from "../../js/log.js";
 
 const PROJECT_ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), "..", "..");
@@ -220,7 +222,8 @@ function readOptions()
 
 async function runSpecs(specs, options)
 {
-    const server = await Server.startServer({ root: PROJECT_ROOT, port: 0 });
+    const notesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "notes-"));
+    const server = await Server.startServer({ root: PROJECT_ROOT, port: 0, editor: new EditorRoutes({ shouldBake: false, notesRoot }) });
 
     let browser = null;
 
@@ -241,6 +244,7 @@ async function runSpecs(specs, options)
     {
         await browser?.close();
         await server.close();
+        fs.rmSync(notesRoot, { recursive: true, force: true });
     }
 }
 

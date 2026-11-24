@@ -2,6 +2,7 @@ import * as CubeMesher from "../render/cube-mesher.js";
 import * as THREE from "three";
 import { CameraRig } from "./camera-rig.js";
 import { ChunkWorkers } from "../render/chunk-workers.js";
+import { EditMode } from "../editor/edit-mode.js";
 import { EntityView } from "../render/entity-view.js";
 import { Hud } from "./hud.js";
 import { Input } from "./input.js";
@@ -48,16 +49,22 @@ export class GameScreen
             onTravel,
         }, content.zones);
 
+        this.editMode = new EditMode(this, container);
+
+        const editing = () => this.editMode.isActive;
+
         this.unsubscribers =
         [
             this.sim.onEvent((event) => this.onEvent(event)),
             graphics.onChange(() => this.applyGraphics()),
             appearance.onChange(() => this.hud.setPlayer(appearance)),
-            this.input.on("click", (x, y) => this.onClick(x, y)),
+            this.input.on("click", (x, y) => (editing() ? this.editMode.click(x, y) : this.onClick(x, y))),
             this.input.on("inspect", (x, y) => this.onInspect(x, y)),
-            this.input.on("orbit", (dx, dy) => this.rig.orbit(-dx * 0.008, dy * 0.006)),
-            this.input.on("zoom", (factor) => this.rig.zoom(factor)),
-            this.input.on("key", (code) => this.onKey(code)),
+            this.input.on("pick", (x, y) => { if(editing()) { this.editMode.pick(x, y); } }),
+            this.input.on("hover", (x, y) => { if(editing()) { this.editMode.hover(x, y); } }),
+            this.input.on("orbit", (dx, dy) => (editing() ? this.editMode.look(dx, dy) : this.rig.orbit(-dx * 0.008, dy * 0.006))),
+            this.input.on("zoom", (factor) => (editing() ? this.editMode.wheel(factor) : this.rig.zoom(factor))),
+            this.input.on("key", (code, event) => this.onKey(code, event)),
         ];
 
         this.graphics = graphics;
@@ -92,6 +99,8 @@ export class GameScreen
     enterZone(streamer)
     {
         const zone = streamer.zone;
+
+        this.editMode?.close();
 
         if(this.world) { this.leaveZone(); }
 
@@ -250,8 +259,21 @@ export class GameScreen
         return null;
     }
 
-    onKey(code)
+    onKey(code, event)
     {
+        if(this.editMode.isActive)
+        {
+            this.editMode.key(code, event);
+            return;
+        }
+
+        if(code === "F8")
+        {
+            event?.preventDefault();
+            this.editMode.enter();
+            return;
+        }
+
         if(code === "KeyR") { this.toggleRun(); }
         if(code === "KeyE") { this.sim.command({ type: "wave" }); }
     }
@@ -360,6 +382,12 @@ export class GameScreen
 
     update(delta)
     {
+        if(this.editMode.isActive)
+        {
+            this.updateEditing(delta);
+            return;
+        }
+
         this.steerFromKeys(delta);
         this.advance(delta);
 
@@ -383,6 +411,26 @@ export class GameScreen
         this.hud.update(delta, this.camera, [...this.views.values()], player, this.size);
     }
 
+    updateEditing(delta)
+    {
+        const focus = this.camera.position;
+
+        this.editMode.update(delta);
+
+        for(const view of this.views.values())
+        {
+            view.sync(1, 0);
+
+            const light = this.world.lightAt(view.position);
+
+            view.setLight(this.materials.colours(light.sky, light.lamp));
+        }
+
+        this.playerView.root.visible = true;
+        this.streamer.update(focus.x, focus.z);
+        this.world.update(delta, this.camera, focus);
+    }
+
     render(webgl)
     {
         webgl.render(this.world.scene, this.camera);
@@ -393,6 +441,7 @@ export class GameScreen
         for(const unsubscribe of this.unsubscribers) { unsubscribe(); }
 
         this.input.detach();
+        this.editMode.dispose();
         this.leaveZone();
         this.workers.dispose();
         this.hud.dispose();

@@ -1,6 +1,6 @@
 # Workbench
 
-The workbench is a page for looking at baked assets outside the game. It reads the same files the game reads, so it shows what the game will show. It holds a model viewer and a prop viewer, which the buttons at the top right switch between; a zone editor is planned.
+The workbench is a page for looking at baked assets outside the game. It reads the same files the game reads, so it shows what the game will show. It holds a model viewer and a prop viewer, which the buttons at the top right switch between. The [zone editor](editor.md) is a mode of the game itself.
 
 ## Opening the Workbench
 

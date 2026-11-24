@@ -96,7 +96,7 @@ export class ZoneView
 
     /* TERRAIN ****************************************************************/
 
-    onRegion({ type, name })
+    onRegion({ type, name, cells })
     {
         if(type === "added")
         {
@@ -109,13 +109,62 @@ export class ZoneView
             this.dropRegion(name);
             this.removeObjects(name);
         }
+
+        if(type === "replaced") { this.queueRegion(name, true); }
+        if(type === "cells") { this.queueCells(cells); }
+
+        if(type === "objects")
+        {
+            for(const region of this.zone.regions.keys())
+            {
+                this.removeObjects(region);
+                this.addObjects(region);
+            }
+        }
+    }
+
+    // A changed cell changes the light of every chunk within the mesher's
+    // margin of it, and the sky light of every chunk below those.
+    queueCells(cells)
+    {
+        const zone = this.zone;
+        const columns = new Set();
+
+        for(const [x, , z] of cells)
+        {
+            for(const dz of [-1, 0, 1])
+            {
+                for(const dx of [-1, 0, 1])
+                {
+                    const [cx, cz] = [Math.floor(x / CHUNK) + dx, Math.floor(z / CHUNK) + dz];
+
+                    if(cx >= 0 && cz >= 0 && cx < zone.chunksWide && cz < zone.chunksWide) { columns.add(cz * zone.chunksWide + cx); }
+                }
+            }
+        }
+
+        for(const column of columns)
+        {
+            for(let cy = 0; cy < zone.chunksHigh; cy++)
+            {
+                const key = zone.chunkKey(column % zone.chunksWide, cy, Math.floor(column / zone.chunksWide));
+
+                if(zone.chunks.has(key) || this.chunkArrays.has(key)) { this.waiting.add(key); }
+            }
+        }
     }
 
     // The loaded chunks on the region's border join it, because their faces
-    // toward it change.
-    queueRegion(name)
+    // toward it change. A region baked again also meshes the chunks it lost,
+    // which leaves them empty.
+    queueRegion(name, isReplaced = false)
     {
-        for(const key of this.chunkKeys(name, 1)) { if(this.zone.chunks.has(key) && !this.isBuried(key)) { this.waiting.add(key); } }
+        for(const key of this.chunkKeys(name, 1))
+        {
+            const isLost = isReplaced && this.chunkArrays.has(key);
+
+            if(isLost || (this.zone.chunks.has(key) && !this.isBuried(key))) { this.waiting.add(key); }
+        }
     }
 
     isBuried(key)

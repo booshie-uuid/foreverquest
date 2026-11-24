@@ -33,7 +33,7 @@ A zone folder holds `zone.json` and the zone's terrain. Regions are named `<x>-<
 | `weathering` | Optional. `{ age }`, how weathered the zone is, from 0 (new, the default) to 100; see [Weathering](#weathering) |
 | `spawn` | Where the player arrives, in metres, and the heading they face |
 | `people` | The residents and the crowd; see [People](#people) |
-| `props` | Prefab placements `{ prefab, x, z, angle, scale, age }` and runs `{ run, points }`, in metres; a placement's `age` overrides the zone's over the columns its prefab covers |
+| `props` | Prefab placements `{ prefab, x, z, angle, scale, age, parts }` and runs `{ run, points }`, in metres; a placement's `age` overrides the zone's over the columns its prefab covers, and its `parts` change the objects a building places, as [Building Parts and Layouts](editor.md#building-parts-and-layouts) describes |
 
 ### Terrain Sources and Locked Cubes
 
@@ -106,7 +106,7 @@ A kit building stands on a stone foundation 5 cubes deep, which shows where the 
 | `lifts` | `{ storey, box }`: a storey that a lift in the building's details reaches, and the shaft `[x0, z0, x1, z1]` in cubes that the kit opens through the floors below it |
 | `details` | A function given `{ box, clear, object }` that adds hand detail in cubes, and objects such as furniture |
 
-The kit reports a building that breaks rule 3 or 4, has a footprint with an odd side, or has a stair that does not fit along its wall, and the bake fails on it. A kit prefab also clears its footprint of terrain before its blocks are placed, and places its objects with it: the bake turns them with the building, stands them on the storey they name, and gives each mover `id` the building's prop number, so a building placed twice keeps its movers apart. A cottage, a two-storey house with a stair and a three-storey townhouse with a locked stair door stand north of the Expanse's spawn.
+The kit reports a building that breaks rule 3 or 4, has a footprint with an odd side, or has a stair that does not fit along its wall, and the bake fails on it. A kit prefab also clears its footprint of terrain before its blocks are placed, and places its objects with it: the bake turns them with the building, stands them on the storey they name, and gives each mover `id` the building's prop number, so a building placed twice keeps its movers apart. The zone's index gives each such object its `part` number, and the bake records which placement set each cell, which the [zone editor](editor.md#owned-cubes) uses. A cottage, a two-storey house with a stair and a three-storey townhouse with a locked stair door stand north of the Expanse's spawn.
 
 ## Collision and Movement
 

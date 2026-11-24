@@ -72,6 +72,14 @@ export class Simulation
         this.emit({ type: "entered", zone });
     }
 
+    // After the zone's objects change, as the editor changes them.
+    reloadMovers()
+    {
+        this.movers.dispose();
+        this.movers = new Movers(this.zone);
+        this.useTarget = null;
+    }
+
     populate(people)
     {
         const random = new Random(people.seed);

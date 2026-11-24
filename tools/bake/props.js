@@ -1,14 +1,24 @@
 import * as Prefabs from "../../content/props/prefabs.js";
+import * as Voxelise from "./voxelise.js";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 const FACES = ["front", "back", "left", "right", "top", "bottom"];
+const LAYOUTS = path.resolve(import.meta.dirname, "..", "..", "content", "props", "layouts.json");
 
 export function bake(problems, context)
 {
     const prefabs = {};
+    const layouts = fs.existsSync(LAYOUTS) ? JSON.parse(fs.readFileSync(LAYOUTS, "utf8")) : {};
+
+    for(const id of Object.keys(layouts).filter((name) => !Prefabs.PREFABS[name])) { problems.push("Layouts in props/layouts.json name an unknown prefab: " + id); }
 
     for(const [id, build] of Object.entries(Prefabs.PREFABS))
     {
         const recorded = record(build);
+
+        if(layouts[id] && !Voxelise.areParts(layouts[id])) { problems.push("The layout of prefab " + id + " in props/layouts.json needs parts that map a part number to null or { at, angle, on }"); }
+        if(layouts[id]) { recorded.layout = layouts[id]; }
 
         checkFaces(recorded.blocks, context.worldTextures, "Prefab " + id, problems);
 

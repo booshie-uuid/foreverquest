@@ -80,9 +80,10 @@ export class ZoneData
         return () => { this.listeners = this.listeners.filter((entry) => entry !== listener); };
     }
 
-    emitRegion(type, name)
+    // `cells` lists the [x, y, z] cells of a "cells" change.
+    emitRegion(type, name, cells = null)
     {
-        for(const listener of this.listeners) { listener({ type, name }); }
+        for(const listener of this.listeners) { listener({ type, name, cells }); }
     }
 
     hasRegion(name)
@@ -100,6 +101,12 @@ export class ZoneData
     {
         if(this.regions.has(region.name)) { return; }
 
+        this.storeRegion(region);
+        this.emitRegion("added", region.name);
+    }
+
+    storeRegion(region)
+    {
         const [left, top] = ZoneData.regionCorner(region.name);
         const keys = [];
 
@@ -119,7 +126,6 @@ export class ZoneData
         }
 
         this.regions.set(region.name, { width: region.width, depth: region.depth, keys });
-        this.emitRegion("added", region.name);
     }
 
     removeRegion(name)
@@ -140,6 +146,74 @@ export class ZoneData
 
         this.regions.delete(name);
         this.emitRegion("removed", name);
+    }
+
+    // A region the editor baked again replaces the loaded one in place.
+    replaceRegion(region)
+    {
+        const old = this.regions.get(region.name);
+
+        if(!old) { return; }
+
+        for(const key of old.keys) { this.chunks.delete(key); }
+
+        this.regions.delete(region.name);
+        this.storeRegion(region);
+        this.emitRegion("replaced", region.name);
+    }
+
+    setObjects(objects)
+    {
+        this.objects = objects;
+        this.emitRegion("objects", null);
+    }
+
+    // Sets [x, y, z, block] cells in loaded regions, as the editor shows a
+    // change before the server bakes it, and returns the cells set.
+    setCells(cells)
+    {
+        const set = [];
+
+        for(const [x, y, z, block] of cells)
+        {
+            if(!this.isCell(x, y, z) || !this.isColumnLoaded(x, z)) { continue; }
+
+            const [cx, cy, cz] = [Math.floor(x / CHUNK), Math.floor(y / CHUNK), Math.floor(z / CHUNK)];
+            const key = this.chunkKey(cx, cy, cz);
+            let chunk = this.chunks.get(key);
+
+            if(!chunk)
+            {
+                const [rx, rz] = [Math.floor(x / REGION), Math.floor(z / REGION)];
+
+                chunk = { x: cx - rx * REGION / CHUNK, y: cy, z: cz - rz * REGION / CHUNK, uniform: null, cells: new Uint8Array(CHUNK * CHUNK * CHUNK) };
+                this.chunks.set(key, chunk);
+                this.regions.get(this.regionOfColumn(x, z)).keys.push(key);
+            }
+
+            if(chunk.cells === null)
+            {
+                chunk.cells = new Uint8Array(CHUNK * CHUNK * CHUNK).fill(chunk.uniform);
+                chunk.uniform = null;
+            }
+
+            chunk.cells[((y % CHUNK) * CHUNK + (z % CHUNK)) * CHUNK + (x % CHUNK)] = block;
+            set.push([x, y, z]);
+        }
+
+        for(const column of new Set(set.map(([x, , z]) => z * this.columns + x)))
+        {
+            const [x, z] = [column % this.columns, Math.floor(column / this.columns)];
+            let surface = this.height;
+
+            while(surface > 0 && !this.isSolid(x, surface - 1, z)) { surface--; }
+
+            this.surfaces[column] = surface;
+        }
+
+        if(set.length > 0) { this.emitRegion("cells", null, set); }
+
+        return set;
     }
 
     regionOfColumn(column, row)
@@ -399,6 +473,42 @@ export class ZoneData
             next[axis] += across[axis];
 
             if(this.isSolid(...cell)) { return travelled; }
+        }
+    }
+
+    // The first cell that is not air a ray from `origin` along the unit
+    // `direction` enters within `distance` metres, with the normal of the face
+    // it enters through, or null. A ray that starts inside a cell gives that
+    // cell, with no normal.
+    pick(origin, direction, distance)
+    {
+        const start = [(origin.x + this.half) * CUBES_PER_METRE, this.cellY(origin.y), (origin.z + this.half) * CUBES_PER_METRE];
+        const along = [direction.x, direction.y, direction.z].map((value) => value * CUBES_PER_METRE);
+        const cell = start.map(Math.floor);
+        const step = along.map(Math.sign);
+        const across = along.map((value) => (value === 0 ? Infinity : 1 / Math.abs(value)));
+        const next = [0, 1, 2].map((axis) => (along[axis] === 0 ? Infinity : (step[axis] > 0 ? cell[axis] + 1 - start[axis] : start[axis] - cell[axis]) * across[axis]));
+
+        if(this.blockAt(...cell) !== BlockSet.AIR) { return { cell, normal: null, distance: 0 }; }
+
+        for(;;)
+        {
+            const axis = next[0] < next[1] ? (next[0] < next[2] ? 0 : 2) : (next[1] < next[2] ? 1 : 2);
+            const travelled = next[axis];
+
+            if(travelled > distance) { return null; }
+
+            cell[axis] += step[axis];
+            next[axis] += across[axis];
+
+            if(this.blockAt(...cell) !== BlockSet.AIR)
+            {
+                const normal = [0, 0, 0];
+
+                normal[axis] = -step[axis];
+
+                return { cell: [...cell], normal, distance: travelled };
+            }
         }
     }
 

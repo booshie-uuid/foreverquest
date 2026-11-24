@@ -45,7 +45,7 @@ export async function bake(problems, context)
     return { files, ids: { zone: ids, npc: Object.keys(people.npcs) } };
 }
 
-async function loadPeople()
+export async function loadPeople()
 {
     const people = { npcs: {}, lines: {} };
 
@@ -65,7 +65,10 @@ async function loadPeople()
 /* ZONES                                                                      */
 /******************************************************************************/
 
-export async function bakeZone(zone, folder, people, context, where, problems)
+// `options.terrain` replaces the terrain read from the folder,
+// `options.only(objects)` names the regions to compose, from the placed
+// objects, and `options.level` is the deflate level of the region files.
+export async function bakeZone(zone, folder, people, context, where, problems, options = {})
 {
     const before = problems.length;
 
@@ -92,7 +95,7 @@ export async function bakeZone(zone, folder, people, context, where, problems)
 
     if(isLocked && (fs.existsSync(path.join(folder, "terrain.js")) || fs.existsSync(path.join(folder, "terrain")))) { problems.push(where + " has locked cubes and a terrain source; delete the terrain source"); }
 
-    const terrain = isLocked ? Terrain.readLocked(folder, zone, numbers, where, problems) : await Terrain.readColumns(folder, zone, where, problems);
+    const terrain = options.terrain ?? (isLocked ? Terrain.readLocked(folder, zone, numbers, where, problems) : await Terrain.readColumns(folder, zone, where, problems));
 
     if(problems.length > before) { return null; }
 
@@ -129,6 +132,7 @@ export async function bakeZone(zone, folder, people, context, where, problems)
         if(prop.age !== undefined && !isAge(prop.age)) { problems.push(where + " prop " + i + " needs an age that is a whole number from 0 to 100"); }
 
         if(prop.y !== undefined && !Number.isFinite(prop.y)) { problems.push(where + " prop " + i + " needs a height in metres"); }
+        if(prop.parts !== undefined && !Voxelise.areParts(prop.parts)) { problems.push(where + " prop " + i + " needs parts that map a part number to null or { at, angle, on }"); }
 
         props.push({ ...prop, index: i, y: prop.y ?? Voxelise.standingHeight(prop, context.prefabs[prop.prefab], heightAt) });
         objects.push(...Voxelise.prefabObjects(props.at(-1), context.prefabs[prop.prefab]));
@@ -141,16 +145,17 @@ export async function bakeZone(zone, folder, people, context, where, problems)
     const terrainTop = (column, row) => terrain.surfaces[row * zone.columns + column];
     const placed = Voxelise.zoneCells(zone, props, runs, context.prefabs, numbers, where, problems, terrainTop);
 
-    placed.objects.push(...Voxelise.placeObjects(placed.cells, zone, objects, context.objects, numbers, terrainTop));
+    placed.objects.push(...Voxelise.placeObjects(placed.cells, zone, objects, context.objects, numbers, terrainTop, placed.objects.length));
 
     if(problems.length > before) { return null; }
 
     const solid = new Set(context.blocks.flatMap((block, i) => (block.kind === "liquid" ? [] : [i + 1])));
-    const regions = Terrain.bakeRegions(zone, terrain, ground, numbers, { cells: placed.cells, solid }, agesOf(zone, props, placed.objects));
+    const only = options.only?.(placed.objects) ?? null;
+    const regions = Terrain.bakeRegions(zone, terrain, ground, numbers, { cells: placed.cells, solid }, agesOf(zone, props, placed.objects), { only, level: options.level });
     const { id, name, welcome, columns, height, base, water, lighting, spawn } = zone;
-    const index = { id, name, welcome, columns, height, base, water, lighting, spawn, people: zone.people, objects: placed.objects, regions: regions.map((region) => region.name) };
+    const index = { id, name, welcome, columns, height, base, water, lighting, spawn, people: zone.people, objects: placed.objects, regions: Terrain.regionNames(zone.columns) };
 
-    return { index, regions };
+    return { index, regions, placed: placed.cells };
 }
 
 function checkShape(zone, where, problems)

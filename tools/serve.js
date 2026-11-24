@@ -25,13 +25,15 @@ const MIME_TYPES =
 /* SERVER                                                                     */
 /******************************************************************************/
 
-export function startServer({ root = PROJECT_ROOT, port = 0 } = {})
+// `editor`, when given, answers the zone editor's routes and serves the
+// zone assets its sessions have baked.
+export function startServer({ root = PROJECT_ROOT, port = 0, editor = null } = {})
 {
     const rootPath = path.resolve(root);
 
     const server = http.createServer((request, response) =>
     {
-        handleRequest(rootPath, request, response).catch((error) =>
+        handleRequest(rootPath, request, response, editor).catch((error) =>
         {
             Log.error("Could not serve " + request.url, error);
 
@@ -66,8 +68,12 @@ function closeServer(server)
 
 /* REQUESTS *******************************************************************/
 
-async function handleRequest(rootPath, request, response)
+async function handleRequest(rootPath, request, response, editor)
 {
+    const pathname = pathOf(request.url);
+
+    if(editor && pathname !== null && await editor.handle(request, response, pathname)) { return; }
+
     if(request.method !== "GET" && request.method !== "HEAD")
     {
         response.setHeader("Allow", "GET, HEAD");
@@ -80,6 +86,15 @@ async function handleRequest(rootPath, request, response)
     if(!filePath)
     {
         sendStatus(response, 403);
+        return;
+    }
+
+    const baked = editor?.overlay(pathname) ?? null;
+
+    if(baked)
+    {
+        response.writeHead(200, { "Content-Type": MIME_TYPES[path.extname(filePath).toLowerCase()] ?? "application/octet-stream", "Content-Length": baked.length, "Cache-Control": "no-store" });
+        response.end(request.method === "HEAD" ? undefined : baked);
         return;
     }
 
@@ -114,20 +129,23 @@ async function handleRequest(rootPath, request, response)
         .pipe(response);
 }
 
-function resolveFilePath(rootPath, requestUrl)
+function pathOf(requestUrl)
 {
-    let pathname;
-
     try
     {
-        pathname = decodeURIComponent(new URL(requestUrl, "http://" + HOST).pathname);
+        return decodeURIComponent(new URL(requestUrl, "http://" + HOST).pathname);
     }
     catch
     {
         return null;
     }
+}
 
-    if(pathname.includes("\0")) { return null; }
+function resolveFilePath(rootPath, requestUrl)
+{
+    let pathname = pathOf(requestUrl);
+
+    if(pathname === null || pathname.includes("\0")) { return null; }
 
     if(pathname.endsWith("/")) { pathname += "index.html"; }
 
@@ -183,7 +201,8 @@ async function main()
 
     try
     {
-        const server = await startServer({ root: PROJECT_ROOT, port });
+        const { EditorRoutes } = await import("./editor/routes.js");
+        const server = await startServer({ root: PROJECT_ROOT, port, editor: new EditorRoutes() });
 
         Log.info("Serving " + PROJECT_ROOT + " at " + server.url + "/");
     }

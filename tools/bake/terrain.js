@@ -116,8 +116,9 @@ export function heightsOf(zone, surfaces)
 
 // `ground` holds the { top, under } block numbers of each ground index,
 // `placed` the cells of the zone's props, which replace the ground's, and
-// `ages` the weathering age of each of the zone's columns.
-export function bakeRegions(zone, terrain, ground, blocks, placed = { cells: new Map(), solid: new Set() }, ages = null)
+// `ages` the weathering age of each of the zone's columns. `only` limits the
+// result to a set of region names.
+export function bakeRegions(zone, terrain, ground, blocks, placed = { cells: new Map(), solid: new Set() }, ages = null, { only = null, level = 9 } = {})
 {
     const byRegion = new Map();
 
@@ -132,12 +133,12 @@ export function bakeRegions(zone, terrain, ground, blocks, placed = { cells: new
         byRegion.get(name).push([x, Math.floor(index / (zone.columns * zone.columns)), z, block]);
     }
 
-    return regionNames(zone.columns).map((name) =>
+    return regionNames(zone.columns).filter((name) => !only || only.has(name)).map((name) =>
     {
         const [rx, rz] = name.split("-").map(Number);
         const region = composeRegion(zone, terrain, ground, blocks, rx, rz, { cells: byRegion.get(name) ?? [], solid: placed.solid }, ages);
 
-        return { name, bytes: zlib.deflateSync(RegionCodec.encode(region), { level: 9 }) };
+        return { name, bytes: zlib.deflateSync(RegionCodec.encode(region), { level }) };
     });
 }
 

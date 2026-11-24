@@ -160,7 +160,7 @@ export default [
         rules: { "no-restricted-imports": ["error", { patterns: [GAME_IMPORTS] }] },
     },
     {
-        files: ["js-tests/browser/**/*.js", "tools/workbench/capture.js"],
+        files: ["js-tests/browser/**/*.js", "tools/workbench/capture.js", "tools/notes.js"],
         languageOptions: { globals: { ...NODE_GLOBALS, ...BROWSER_GLOBALS } },
     },
     {

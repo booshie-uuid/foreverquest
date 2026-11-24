@@ -16,6 +16,17 @@ function readStorage()
     }
 }
 
+// `?edit` opens the editor; `view=x,y,z,yaw,pitch` sets its camera.
+function editOf(params)
+{
+    if(!params.has("edit")) { return null; }
+
+    const values = (params.get("view") ?? "").split(",").map(Number);
+    const isView = values.length === 5 && values.every(Number.isFinite);
+
+    return { view: isView ? { x: values[0], y: values[1], z: values[2], yaw: values[3], pitch: values[4] } : null };
+}
+
 async function start()
 {
     const container = document.getElementById("app");
@@ -23,7 +34,7 @@ async function start()
     try
     {
         const params = new URLSearchParams(location.search);
-        const app = new App(container, readStorage(), await AssetSource.http("assets/"), { zone: params.get("zone") ?? undefined, showStats: params.has("stats") });
+        const app = new App(container, readStorage(), await AssetSource.http("assets/"), { zone: params.get("zone") ?? undefined, showStats: params.has("stats"), edit: editOf(params) });
 
         window.foreverQuest = app;
         await app.start();

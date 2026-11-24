@@ -43,6 +43,7 @@ const NAMED_KEYS =
     Backspace: { code: "Backspace", keyCode: 8 },
     Enter: { code: "Enter", keyCode: 13, text: "\r" },
     Escape: { code: "Escape", keyCode: 27 },
+    F8: { code: "F8", keyCode: 119 },
     Shift: { code: "ShiftLeft", keyCode: 16, location: 1 },
     Tab: { code: "Tab", keyCode: 9 },
 };

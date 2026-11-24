@@ -9,7 +9,7 @@ export class Input
         this.keys = new Set();
         this.drag = null;
         this.buttons = 0;
-        this.listeners = { click: [], inspect: [], orbit: [], zoom: [], key: [] };
+        this.listeners = { click: [], inspect: [], pick: [], hover: [], orbit: [], zoom: [], key: [] };
         this.handlers = [];
     }
 
@@ -70,9 +70,9 @@ export class Input
 
     onKeyDown(event)
     {
-        if(event.target instanceof HTMLInputElement) { return; }
+        if(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) { return; }
 
-        if(!this.keys.has(event.code)) { this.emit("key", event.code); }
+        if(!this.keys.has(event.code)) { this.emit("key", event.code, event); }
 
         this.keys.add(event.code);
 
@@ -81,8 +81,11 @@ export class Input
 
     // A second button pressed or released while one is held reports itself in
     // a pointer move, not a pointer down or up.
+    // The middle button would otherwise start the browser's autoscroll.
     onPointerDown(event)
     {
+        if(event.button === 1) { event.preventDefault(); }
+
         this.buttons = event.buttons;
         this.drag = { button: event.button, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, hasMoved: false };
     }
@@ -92,6 +95,10 @@ export class Input
         const drag = this.drag;
 
         this.buttons = event.buttons;
+
+        const bounds = this.canvas.getBoundingClientRect();
+
+        this.emit("hover", event.clientX - bounds.left, event.clientY - bounds.top);
 
         if(!drag) { return; }
 
@@ -119,6 +126,7 @@ export class Input
         const bounds = this.canvas.getBoundingClientRect();
 
         if(drag.button === 0) { this.emit("click", event.clientX - bounds.left, event.clientY - bounds.top); }
+        if(drag.button === 1) { this.emit("pick", event.clientX - bounds.left, event.clientY - bounds.top); }
         if(drag.button === 2) { this.emit("inspect", event.clientX - bounds.left, event.clientY - bounds.top); }
     }
 

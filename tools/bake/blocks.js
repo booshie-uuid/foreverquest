@@ -30,7 +30,7 @@ export async function bake(problems, context)
 
             const baked = bakeBlock(id, block, context.worldTextures, where, problems);
 
-            if(baked) { blocks.push(baked); }
+            if(baked) { blocks.push({ ...baked, group: file.replace(/\.js$/, "") }); }
         }
     }
 

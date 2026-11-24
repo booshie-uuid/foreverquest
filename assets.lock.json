@@ -1,6 +1,6 @@
 {
     "files": {
-        "blocks.json": "50ab429b494c4a472803a677f552379baade857cd2889b11cc585e2ffad08fad",
+        "blocks.json": "7e787f8059a1c4ab45e105f83507c6006bbc76432c3ce33c156612f4d5fc4917",
         "migrations.json": "36ca8f2294979382612449f2e06759552b1faf0b1e63acc4930d06d0534623e7",
         "models/appearance.json": "8cf415eb281d3f71d9b89fc40f092eff9f6c23a35b7b23de38916110d483dfd4",
         "models/archetypes.json": "2be2c9e982bea9d46e186a6ea92b6fe9947342c48002d34b68eea53d51ec8604",
@@ -253,7 +253,7 @@
         "zones/expanse/9-7.bin": "bf68b322547753325c4e5fdc858ef5301d0c5ea4b54eb7bf2f445491a1a5adbc",
         "zones/expanse/9-8.bin": "0d817dcbe01e35666ec00be7b0e1e2bc4b5f5915b063ebaa8364dfda58326026",
         "zones/expanse/9-9.bin": "008c46e3dcb76c3313a8b1fef5c3eef20e61696e6420d2285a9dc13c79621bdf",
-        "zones/expanse/index.json": "4ddf79ce55444f4241ccec4d9d31e6e780ca3acd59741c85f16b68cc479d1503",
+        "zones/expanse/index.json": "1d06d4b10618df9b5f2737101cdcc5119c3137d313443d67f2e1fd91f64e7316",
         "zones/hearthmere/0-0.bin": "fcb3572515b194f4395836ffc4883caa6e9b6be6a97aeea9027a5639929f6bf6",
         "zones/hearthmere/0-1.bin": "e1337ad900df7d7a2aeeafd4f1a1463951435bd380e34c426980c5eebd038685",
         "zones/hearthmere/0-2.bin": "9433effa65ec32ed8ae07630f54b463c6b2c12a29db2ecf2b89cba4ec6ab1eff",
@@ -263,7 +263,7 @@
         "zones/hearthmere/2-0.bin": "1215ad7ef85604c4ea1d9588aecebf050363efcfad12be98f6339398c86dd2a0",
         "zones/hearthmere/2-1.bin": "c379abf00f8535f26b96744ae39c9aa577ed662470d6d2154f438b8d0f0257ee",
         "zones/hearthmere/2-2.bin": "3f264771feef5ad12cac83d5efa06e5117c30d53ab707cb63f7beb9d58594eb7",
-        "zones/hearthmere/index.json": "c6ef18c19c871ef53dd7645d017e81e458c427eebf4ed574401bc59f6088b175",
+        "zones/hearthmere/index.json": "ed54a746e1333adf25447dde44715d2b0a309703505afcdb32b8a47f5ca96e58",
         "zones/index.json": "98c62ba879f482b051fdd8e671e51bd0994389043936732dc99ac88cf8ba4035",
         "zones/testfield/0-0.bin": "118a2c702091cc6f65aa984a54616a3ce575bbd51ad9a2e007c9fc9bb4112707",
         "zones/testfield/index.json": "02a23253f85e8dc4db9830b850a695ef13de78fa095d54346f6d96a731fa589e"

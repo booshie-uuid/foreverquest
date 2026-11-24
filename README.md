@@ -7,10 +7,10 @@ The game runs on HTML5 and WebGL. Its only runtime library is [Three.js](https:/
 ## Running the Game
 
 1. Install [Node.js](https://nodejs.org/) 24 or later.
-2. Run `npm start` in the project folder. The command bakes the assets into `assets/`, then starts [tools/serve.js](tools/serve.js), a static file server with no dependencies, on port 8080.
+2. Run `npm start` in the project folder. The command bakes the assets into `assets/`, then starts [tools/serve.js](tools/serve.js), the development server, on port 8080. It serves the files and the zone editor's routes.
 3. Open `http://localhost:8080` in a browser.
 
-The page loads its scripts as ES modules, and browsers do not load modules from `file://` addresses, so opening `index.html` straight from disk does not work. Any static file server works in place of `npm start`, once `npm run bake` has built the assets.
+The page loads its scripts as ES modules, and browsers do not load modules from `file://` addresses, so opening `index.html` straight from disk does not work. Any static file server works in place of `npm start` once `npm run bake` has built the assets, without the zone editor.
 
 After a change to the Three.js version in `package.json`, run `npm install` and then `npm run vendor`, which copies the new build into `libs/three/`.
 
@@ -34,8 +34,9 @@ After a change to the Three.js version in `package.json`, run `npm install` and 
 | World | Day | Switches between night, the default, and day |
 | World | Zone picker | Travels to the zone chosen |
 | World | Grid | Outlines every cube of the ground, buildings and objects, with a gold line every metre |
+| World | F8 | Opens the zone editor, when the game runs from the development server; [docs/editor.md](docs/editor.md) lists its keys |
 
-Two address options help testing: `?zone=testfield` or `?zone=expanse` starts in another zone (the test field holds a portcullis with its lever, a lift to a landing and a mill wheel), and `?stats` shows the frame rate, the triangles and draw calls of the last frame, and the regions loaded.
+Three address options help testing: `?zone=testfield` or `?zone=expanse` starts in another zone (the test field holds a portcullis with its lever, a lift to a landing and a mill wheel), `?stats` shows the frame rate, the triangles and draw calls of the last frame, and the regions loaded, and `?edit` opens the zone editor at once.
 
 Mirelle, the tailor in the village square, also opens the creator. The creator saves the character to the browser's `localStorage` when the player enters the world or saves changes.
 
@@ -137,17 +138,18 @@ Characters can step up one cube at a time, and cannot enter the river. Fifteen v
 | [js/sim/](js/sim/) | The simulation: entities, villager behaviour, a zone's data and collision, on a fixed tick and without a renderer |
 | [js/render/](js/render/) | The views: a zone's chunked terrain and prop meshes, water, sky and lights, and each entity's model between ticks |
 | [js/game/](js/game/) | The game screen, camera, input and the in-game HUD |
+| [js/editor/](js/editor/) | The zone editor, a mode of the game screen |
 | [js/ui/](js/ui/) | The character creator and its controls |
 | [js/engine/](js/engine/) | The WebGL renderer loop, the asset source and PNG decoder, the world atlas and material, the raster and the graphics settings |
 | [content/](content/) | Authoring code and data that the bake turns into assets: painters, stamps, rigs, bodies, parts, palettes, archetypes and the id migrations |
 | `assets/` | The baked asset files, which the bake rebuilds and Git ignores |
 | [js-tests/](js-tests/) | The unit and browser test suites |
 | [lint/](lint/) | The project's ESLint rules |
-| [tools/](tools/) | The bake, the workbench, the static file server, the Three.js copy script, the command that locks a zone's terrain into cubes and the command that prints a region as text |
+| [tools/](tools/) | The bake, the workbench, the development server and its editor routes, the Three.js copy script, the command that locks a zone's terrain into cubes, the command that prints a region as text, and the notes command |
 
 ## Documentation
 
-The [docs/](docs/) folder describes the architecture, the assets and the bake, the character kit, the workbench and the world in more depth.
+The [docs/](docs/) folder describes the architecture, the assets and the bake, the character kit, the workbench, the zone editor and the world in more depth.
 
 ## Tests and Lint
 
@@ -165,7 +167,7 @@ The [docs/](docs/) folder describes the architecture, the assets and the bake, t
 
 The project is a proof of concept, and it leaves out most of a game.
 
-- Villagers walk in straight lines and stop at the first obstacle. The player's click-to-move finds a route, but only within about 6,000 columns of searching.
+- Villagers walk in straight lines and stop at the first obstacle. The player's walk to a villager or a lever finds a route, but only within about 6,000 columns of searching.
 - Characters walk through each other.
 - Equipment is cosmetic. The game has no combat, inventory or stats.
 - The game has no server, so it has no other players.

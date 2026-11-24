@@ -35,22 +35,63 @@ export function standingHeight(prop, prefab, heightAt)
 
 // The objects a placed prefab places, in the zone's frame, at the prefab's
 // prop number. Each id gains "At" and the prop number.
+// A building's parts are the objects its prefab places, by their number in
+// the prefab's list.
+export function areParts(parts)
+{
+    if(typeof parts !== "object" || parts === null) { return false; }
+
+    return Object.entries(parts).every(([key, part]) => /^\d+$/.test(key) && isPart(part));
+}
+
+function isPart(part)
+{
+    if(part === null) { return true; }
+    if(typeof part !== "object") { return false; }
+
+    const isAt = part.at === undefined || (Array.isArray(part.at) && part.at.length === 3 && part.at.every(Number.isFinite));
+    const isAngle = part.angle === undefined || Number.isFinite(part.angle);
+
+    return isAt && isAngle && [undefined, null, "top", "ceiling"].includes(part.on);
+}
+
+// The prefab type's `layout` and then the placement's `parts` change or
+// remove parts, by their number in the prefab's list of objects.
 export function prefabObjects(prop, prefab)
 {
     const placement = { x: Math.round(prop.x * CUBES) / CUBES, y: prop.y, z: Math.round(prop.z * CUBES) / CUBES, angle: quarterTurn(prop.angle ?? 0), scale: 1 };
     const named = (id) => (id === undefined ? undefined : id + "At" + prop.index);
+    const changed = (part) => [prefab.layout?.[part], prop.parts?.[part]];
 
-    return (prefab.objects ?? []).map((entry) =>
+    return (prefab.objects ?? []).flatMap((base, part) =>
     {
+        if(changed(part).includes(null)) { return []; }
+
+        const entry = Object.assign({ ...base }, ...changed(part).filter(Boolean));
         const [x, y, z] = ZoneData.toWorld(entry.at, placement);
-        const placed = { ...entry, x, y, z, angle: placement.angle + (entry.angle ?? 0), index: prop.index, id: named(entry.id) };
+        const placed = { ...entry, x, y, z, angle: placement.angle + (entry.angle ?? 0), index: prop.index, part, id: named(entry.id), isOverride: prop.parts?.[part] !== undefined };
 
         if(entry.trigger) { placed.trigger = { ...entry.trigger, movers: entry.trigger.movers.map(named) }; }
 
         delete placed.at;
 
-        return placed;
+        return [placed];
     });
+}
+
+// A map of cells that also records, in `owners`, the index among the placed
+// objects of the placement that set each cell last.
+class OwnedCells extends Map
+{
+    owner = -1;
+    owners = new Map();
+
+    set(key, value)
+    {
+        this.owners.set(key, this.owner);
+
+        return super.set(key, value);
+    }
 }
 
 // Placements stand on a cube corner and turn in quarter turns.
@@ -60,11 +101,13 @@ export function prefabObjects(prop, prefab)
 // `groundOf(column, row)` gives the terrain's surface.
 export function zoneCells(zone, props, runs, prefabs, numbers, where, problems, groundOf)
 {
-    const cells = new Map();
+    const cells = new OwnedCells();
     const objects = [];
 
     for(const prop of props)
     {
+        cells.owner = objects.length;
+
         const placement = { x: Math.round(prop.x * CUBES) / CUBES, y: prop.y, z: Math.round(prop.z * CUBES) / CUBES, angle: quarterTurn(prop.angle ?? 0), scale: prop.scale ?? 1 };
         const prefab = prefabs[prop.prefab];
         const box = new Box();
@@ -91,6 +134,8 @@ export function zoneCells(zone, props, runs, prefabs, numbers, where, problems, 
     for(const run of runs)
     {
         const box = new Box();
+
+        cells.owner = objects.length;
 
         for(const block of run.blocks) { box.add(rasterise(cells, zone, block, blockOf(block, numbers, where + " run", problems))); }
 
@@ -189,13 +234,16 @@ class Box
 // An object's `x` and `z` give the middle of its footprint. `numbers` maps
 // block ids to block numbers, and `groundOf(column, row)` gives the terrain's
 // surface.
-export function placeObjects(cells, zone, placements, objects, numbers, groundOf)
+// The cells of the objects join `cells`, owned from `firstOwner` on.
+export function placeObjects(cells, zone, placements, objects, numbers, groundOf, firstOwner = 0)
 {
     const half = zone.columns / CUBES / 2;
     const occupied = new Map();
 
-    return placements.map((placement) =>
+    return placements.map((placement, i) =>
     {
+        cells.owner = firstOwner + i;
+
         const object = objects[placement.object];
         const turns = ((Math.round((placement.angle ?? 0) / QUARTER) % 4) + 4) % 4;
         const [width, height, depth] = object.cells;
@@ -251,6 +299,8 @@ function placed(placement, column, floor, row, turns, [across, height, along], z
 
     return {
         prop: placement.index,
+        ...(placement.part === undefined ? {} : { part: placement.part }),
+        ...(placement.isOverride ? { isOverride: true } : {}),
         name: "object " + placement.object,
         object: placement.object,
         x: (column + across / 2) / CUBES - half,

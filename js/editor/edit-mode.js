@@ -1,0 +1,450 @@
+import * as RegionCodec from "../sim/region-codec.js";
+import * as THREE from "three";
+import { CubeTool } from "./cube-tool.js";
+import { EditorClient } from "./editor-client.js";
+import { EditorPanel } from "./editor-panel.js";
+import { FlyCamera } from "./fly-camera.js";
+import { Marks } from "./marks.js";
+import { NoteTool } from "./note-tool.js";
+import { SelectTool } from "./select-tool.js";
+import { ZoneData } from "../sim/zone-data.js";
+
+const CUBES = ZoneData.CUBES_PER_METRE;
+const RANGE = 90;
+const SWATCH_SIZE = 16;
+
+
+/******************************************************************************/
+/* EDIT MODE                                                                  */
+/******************************************************************************/
+
+export class EditMode
+{
+    // `screen` is the game screen whose zone, view and camera the editor uses.
+    constructor(screen, container)
+    {
+        this.screen = screen;
+        this.panel = new EditorPanel(container);
+        this.fly = new FlyCamera(screen.camera);
+        this.blocks = screen.content.blocks;
+        this.blockNumbers = [];
+        this.blockGroups = [];
+        this.swatches = new Map();
+        this.client = null;
+        this.marks = null;
+        this.tools = null;
+        this.tool = null;
+        this.state = { isDirty: false, canUndo: false, canRedo: false, steps: 0 };
+        this.pointer = null;
+        this.hit = null;
+        this.pending = null;
+        this.isBusy = false;
+        this.isActive = false;
+        this.raycaster = new THREE.Raycaster();
+
+        for(let number = 1; number <= this.blocks.count; number++)
+        {
+            const block = this.blocks.block(number);
+
+            if(block.kind === "object") { continue; }
+
+            this.blockNumbers.push(number);
+
+            if(!this.blockGroups.includes(block.group)) { this.blockGroups.push(block.group); }
+        }
+    }
+
+    get zone()
+    {
+        return this.screen.zone;
+    }
+
+    get content()
+    {
+        return this.screen.content;
+    }
+
+    /* ENTER AND LEAVE ********************************************************/
+
+    // `view` sets the camera, as a note's link does; otherwise the camera
+    // starts where it is.
+    async enter(view = null)
+    {
+        if(this.isActive) { return; }
+
+        if(!(await EditorClient.isAvailable(this.zone.id)))
+        {
+            this.screen.hud.system("The editor needs the development server: run npm start and open the game from it.");
+            return;
+        }
+
+        this.client = new EditorClient(this.zone.id);
+
+        try
+        {
+            this.state = await this.client.open();
+        }
+        catch(error)
+        {
+            this.screen.hud.system("The editor could not open " + this.zone.id + ": " + error.message);
+            return;
+        }
+
+        this.isActive = true;
+        this.marks = new Marks(this.screen.world.scene, this.zone);
+        this.tools = { cubes: new CubeTool(this), select: new SelectTool(this), notes: new NoteTool(this) };
+        this.tool = this.tools.cubes;
+        this.screen.pause();
+        this.screen.hud.hide();
+        this.panel.show();
+
+        if(view) { this.fly.setView(view); }
+        else { this.fly.takeOver(); }
+
+        await this.tools.notes.load();
+        this.redraw();
+    }
+
+    // The character lands where the camera looks, when that is in reach.
+    leave()
+    {
+        if(!this.isActive) { return; }
+
+        const forward = new THREE.Vector3();
+
+        this.screen.camera.getWorldDirection(forward);
+
+        const hit = this.zone.pick(this.screen.camera.position, forward, RANGE);
+        const [x, z] = hit ? [(hit.cell[0] + 0.5) / CUBES - this.zone.half, (hit.cell[2] + 0.5) / CUBES - this.zone.half] : [this.fly.position.x, this.fly.position.z];
+
+        this.screen.sim.player.placeAt(x, z, this.zone, this.fly.yaw);
+        this.screen.rig.yaw = this.fly.yaw;
+        this.close();
+    }
+
+    // Leaves without moving the character, as travel to another zone does.
+    close()
+    {
+        if(!this.isActive) { return; }
+
+        this.isActive = false;
+        this.marks.dispose();
+        this.marks = null;
+        this.panel.setCard(null);
+        this.panel.hide();
+        this.screen.hud.show();
+        this.screen.resume();
+    }
+
+    dispose()
+    {
+        this.close();
+        this.panel.dispose();
+    }
+
+    setTool(name)
+    {
+        this.tool = this.tools[name];
+        this.marks.hideGhost();
+        this.redraw();
+    }
+
+    /* DRAWING ****************************************************************/
+
+    redraw()
+    {
+        if(!this.isActive) { return; }
+
+        const modes = [["cubes", "Cubes", "1"], ["select", "Select", "2"], ["notes", "Note", "3"]].map(([name, label, key]) => ({ label, key, isOn: this.tool.name === name, action: "mode-" + name, onClick: () => this.setTool(name) }));
+        const history =
+        [
+            { label: "Undo", key: "Ctrl+Z", isDisabled: !this.state.canUndo, action: "undo", onClick: () => this.undo() },
+            { label: "Redo", key: "Ctrl+Y", isDisabled: !this.state.canRedo, action: "redo", onClick: () => this.redo() },
+            { label: "Grid", key: "G", isOn: this.screen.graphics.isGrid, action: "grid", onClick: () => this.screen.graphics.toggleGrid() },
+        ];
+        const files =
+        [
+            { label: "Save", key: "Ctrl+S", isDisabled: !this.state.isDirty, action: "save", onClick: () => this.save() },
+            { label: "Play", key: "F8", action: "play", onClick: () => this.leave() },
+        ];
+
+        this.panel.setToolbar([modes, ...this.tool.toolbar(), history, files]);
+        this.panel.setPalette(this.tool.palette());
+        this.panel.setInspector(this.tool === this.tools.select ? this.tools.select.inspector() : null);
+
+        const selected = this.tools.select.entry;
+
+        if(selected) { this.marks.showOutline(selected.box); }
+        else { this.marks.hideOutline(); }
+
+        this.drawStatus();
+    }
+
+    drawStatus()
+    {
+        const parts = [];
+        const hit = this.hit;
+
+        if(hit)
+        {
+            const [x, y, z] = hit.cell;
+            const ground = this.zone.grounds[z * this.zone.columns + x];
+
+            parts.push("Cell " + x + ", " + y + ", " + z, ((y + 1 - ground) / CUBES).toFixed(1) + " m above the ground", "Region " + this.zone.regionOfColumn(x, z), "Age " + this.zone.age(x, z));
+        }
+
+        parts.push(this.zone.name);
+
+        const count = this.state.steps;
+
+        this.panel.setStatus(parts, this.state.isDirty ? "● " + count + " change" + (count === 1 ? "" : "s") + " not saved" : "");
+    }
+
+    swatch(number)
+    {
+        if(this.swatches.has(number)) { return this.swatches.get(number); }
+
+        const atlas = this.screen.materials.atlas;
+        const layer = atlas.layer(this.blocks.block(number).faces.top);
+        const canvas = document.createElement("canvas");
+        const size = atlas.size;
+        const bytes = size * size * 4;
+
+        canvas.width = size;
+        canvas.height = size;
+        canvas.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(atlas.upload.subarray(layer * bytes, (layer + 1) * bytes)), size, size), 0, 0);
+
+        const scaled = document.createElement("canvas");
+
+        scaled.width = SWATCH_SIZE;
+        scaled.height = SWATCH_SIZE;
+        scaled.getContext("2d").drawImage(canvas, 0, 0, SWATCH_SIZE, SWATCH_SIZE);
+        this.swatches.set(number, scaled.toDataURL());
+
+        return this.swatches.get(number);
+    }
+
+    // The selected placement's name, for a note.
+    selectedName()
+    {
+        const entry = this.tools.select.entry;
+
+        return entry ? (entry.object ?? entry.name) + " (prop " + entry.prop + ")" : null;
+    }
+
+    /* POINTER ****************************************************************/
+
+    ray(x, y)
+    {
+        const size = this.screen.size;
+
+        this.raycaster.setFromCamera(new THREE.Vector2((x / size.width) * 2 - 1, -(y / size.height) * 2 + 1), this.screen.camera);
+
+        return this.raycaster.ray;
+    }
+
+    pickCell(x, y)
+    {
+        const { origin, direction } = this.ray(x, y);
+
+        return this.zone.pick(origin, direction, RANGE);
+    }
+
+    // Objects that are not solid have no cells, so only their meshes find them.
+    pickObject(x, y)
+    {
+        this.ray(x, y);
+
+        const hit = this.raycaster.intersectObjects([...this.screen.world.objectMeshes.values()], false)[0];
+        const entry = hit ? this.screen.world.objectOf(hit.object, hit.instanceId) : null;
+
+        return entry ? { entry, distance: hit.distance } : null;
+    }
+
+    hover(x, y)
+    {
+        this.pointer = { x, y };
+    }
+
+    // The target follows the click, which may come before a frame has
+    // followed the pointer there.
+    async click(x, y)
+    {
+        const hit = this.pickCell(x, y);
+
+        this.pointer = { x, y };
+        this.hit = hit;
+        this.tool.hover(hit);
+        await this.tool.click(hit, this.tool === this.tools.select ? this.pickObject(x, y) : null);
+    }
+
+    pick(x, y)
+    {
+        this.tool.pick?.(this.pickCell(x, y));
+    }
+
+    wheel(factor)
+    {
+        this.tool.wheel(factor);
+    }
+
+    look(dx, dy)
+    {
+        this.fly.look(dx, dy);
+    }
+
+    key(code, event)
+    {
+        const isControl = event?.ctrlKey || event?.metaKey;
+        const modes = { Digit1: "cubes", Digit2: "select", Digit3: "notes" };
+
+        if(code === "F8") { this.leave(); }
+        else if(isControl && code === "KeyZ") { this.undo(); }
+        else if(isControl && code === "KeyY") { this.redo(); }
+        else if(isControl && code === "KeyS") { this.save(); }
+        else if(this.tool.key(code, event)) { this.redraw(); }
+        else if(modes[code] && !isControl) { this.setTool(modes[code]); }
+        else if(code === "KeyG" && !isControl) { this.screen.graphics.toggleGrid(); }
+        else { return; }
+
+        event?.preventDefault();
+    }
+
+    update(delta)
+    {
+        this.fly.update(delta, this.screen.input);
+
+        if(this.pointer)
+        {
+            this.hit = this.pickCell(this.pointer.x, this.pointer.y);
+            this.tool.hover(this.hit);
+            this.drawStatus();
+        }
+
+        this.panel.setPins(this.tools.notes.pins(this.screen.camera, this.screen.size));
+    }
+
+    /* CHANGES ****************************************************************/
+
+    // Shows the cubes at once, then sends them; the server refuses those that
+    // belong to a placement, which go back as they were.
+    async placeCubes(cells)
+    {
+        const old = cells.map(([x, y, z]) => [x, y, z, this.zone.blockAt(x, y, z)]);
+
+        this.zone.setCells(cells);
+
+        const answer = await this.send([{ type: "cubes", cells }]);
+
+        if(!answer) { this.zone.setCells(old); }
+        if(!answer?.refused?.length) { return; }
+
+        const refused = new Set(answer.refused.map(([x, y, z]) => x + "," + y + "," + z));
+        const owner = answer.refused.find((cell) => cell[3] !== null)?.[3];
+        const name = owner === undefined ? null : this.zone.objects[owner]?.name;
+
+        this.zone.setCells(old.filter(([x, y, z]) => refused.has(x + "," + y + "," + z)));
+        this.panel.say(name ? answer.refused.length + " cubes belong to " + name + ". Select it and break it apart to change them." : answer.refused.length + " cubes are outside the zone.");
+    }
+
+    // Moves of one placement while a change is on its way join into one.
+    queueMove(move)
+    {
+        const pending = this.pending;
+
+        if(pending && pending.prop === move.prop && pending.part === move.part)
+        {
+            pending.by = pending.by.map((value, axis) => value + move.by[axis]);
+            pending.turns += move.turns;
+        }
+        else
+        {
+            if(pending) { this.send([{ type: "move", ...pending }]); }
+
+            this.pending = { ...move };
+        }
+
+        this.flush();
+    }
+
+    async flush()
+    {
+        if(this.isBusy || !this.pending) { return; }
+
+        const move = this.pending;
+
+        this.pending = null;
+        await this.send([{ type: "move", ...move }]);
+        this.flush();
+    }
+
+    // Resolves to the server's answer, or null when it failed.
+    async send(operations)
+    {
+        return this.run(() => this.client.apply(operations));
+    }
+
+    undo()
+    {
+        return this.run(() => this.client.undo());
+    }
+
+    redo()
+    {
+        return this.run(() => this.client.redo());
+    }
+
+    async save()
+    {
+        if(!this.state.isDirty) { return; }
+
+        this.panel.say("Saving, then baking the assets…");
+
+        const answer = await this.run(() => this.client.save());
+
+        if(answer) { this.panel.say("Saved " + answer.written.length + " file" + (answer.written.length === 1 ? "" : "s") + " to content/."); }
+    }
+
+    async run(request)
+    {
+        this.isBusy = true;
+
+        try
+        {
+            const answer = await request();
+
+            this.state = answer;
+
+            if(Array.isArray(answer.regions)) { await this.refresh(answer.regions); }
+            for(const message of answer.messages ?? []) { this.panel.say(message); }
+
+            return answer;
+        }
+        catch(error)
+        {
+            this.panel.say(error.message);
+
+            return null;
+        }
+        finally
+        {
+            this.isBusy = false;
+            this.redraw();
+        }
+    }
+
+    async refresh(regions)
+    {
+        const source = this.screen.streamer.source;
+        const id = this.zone.id;
+        const index = await source.json("zones/" + id + "/index.json");
+
+        for(const name of regions.filter((region) => this.zone.hasRegion(region)))
+        {
+            this.zone.replaceRegion({ name, ...RegionCodec.decode(await source.inflated("zones/" + id + "/" + name + ".bin")) });
+        }
+
+        this.zone.setObjects(index.objects);
+        this.screen.sim.reloadMovers();
+    }
+}
