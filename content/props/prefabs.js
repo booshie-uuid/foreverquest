@@ -1,3 +1,4 @@
+import * as Buildings from "./buildings.js";
 import * as Props from "../art/props.js";
 import { Random } from "../../js/util/random.js";
 
@@ -55,6 +56,7 @@ export const PREFABS =
     chapel: (b) => Props.chapel(b, 0, 0, 0, 0),
     archway: (b) => Props.archway(b, 0, 0, 0, 0),
     landing: (b) => Props.landing(b, 0, 0, 0, 0),
+    ...Buildings.PREFABS,
     pedestal,
 };
 

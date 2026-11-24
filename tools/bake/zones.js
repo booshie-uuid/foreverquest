@@ -124,6 +124,7 @@ export async function bakeZone(zone, folder, people, context, where, problems)
         if(prop.age !== undefined && !isAge(prop.age)) { problems.push(where + " prop " + i + " needs an age that is a whole number from 0 to 100"); }
 
         props.push({ ...prop, index: i, y: Voxelise.standingHeight(prop, context.prefabs[prop.prefab], heightAt) });
+        objects.push(...Voxelise.prefabObjects(props.at(-1), context.prefabs[prop.prefab]));
     }
 
     checkMotion(objects, context.objects, where, problems);

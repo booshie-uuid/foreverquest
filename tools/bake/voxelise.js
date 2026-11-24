@@ -33,6 +33,26 @@ export function standingHeight(prop, prefab, heightAt)
     return heightAt(x, z) - sill;
 }
 
+// The objects a placed prefab places, in the zone's frame, at the prefab's
+// prop number. Each id gains "At" and the prop number.
+export function prefabObjects(prop, prefab)
+{
+    const placement = { x: Math.round(prop.x * CUBES) / CUBES, y: prop.y, z: Math.round(prop.z * CUBES) / CUBES, angle: quarterTurn(prop.angle ?? 0), scale: 1 };
+    const named = (id) => (id === undefined ? undefined : id + "At" + prop.index);
+
+    return (prefab.objects ?? []).map((entry) =>
+    {
+        const [x, y, z] = ZoneData.toWorld(entry.at, placement);
+        const placed = { ...entry, x, y, z, angle: placement.angle + (entry.angle ?? 0), index: prop.index, id: named(entry.id) };
+
+        if(entry.trigger) { placed.trigger = { ...entry.trigger, movers: entry.trigger.movers.map(named) }; }
+
+        delete placed.at;
+
+        return placed;
+    });
+}
+
 // Placements stand on a cube corner and turn in quarter turns.
 // The cells of every placed prefab and run, as a map from cell index,
 // (y * columns + z) * columns + x, to block number, where 0 carves air out
@@ -48,6 +68,8 @@ export function zoneCells(zone, props, runs, prefabs, numbers, where, problems, 
         const placement = { x: Math.round(prop.x * CUBES) / CUBES, y: prop.y, z: Math.round(prop.z * CUBES) / CUBES, angle: quarterTurn(prop.angle ?? 0), scale: prop.scale ?? 1 };
         const prefab = prefabs[prop.prefab];
         const box = new Box();
+
+        for(const clear of prefab.clears ?? []) { carve(cells, zone, worldBlock(clear, placement)); }
 
         for(const block of prefab.blocks) { box.add(rasterise(cells, zone, worldBlock(block, placement), blockOf(block, numbers, where + " prefab " + prop.prefab, problems))); }
 
@@ -181,7 +203,8 @@ export function placeObjects(cells, zone, placements, objects, numbers, groundOf
         const column = Math.round((placement.x + half) * CUBES - across / 2);
         const row = Math.round((placement.z + half) * CUBES - along / 2);
         const middle = [column + Math.floor(across / 2), row + Math.floor(along / 2)];
-        const floor = { top: () => topOf(cells, zone, middle, groundOf), ceiling: () => ceilingOf(cells, zone, middle, groundOf) - height }[placement.on]?.() ?? floorOf(cells, zone, middle, groundOf);
+        const stated = placement.y === undefined ? undefined : () => Math.round(placement.y * CUBES + zone.base);
+        const floor = { top: () => topOf(cells, zone, middle, groundOf), ceiling: () => ceilingOf(cells, zone, middle, groundOf) - height }[placement.on]?.() ?? stated?.() ?? floorOf(cells, zone, middle, groundOf);
 
         if(!occupied.has(placement.object)) { occupied.set(placement.object, occupiedCells(object)); }
 

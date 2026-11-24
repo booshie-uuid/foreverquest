@@ -87,7 +87,7 @@ Each tag names one capability of the game. A spec lists its tags in `covers`.
 | `zones` | The game starts in the zone the address names, the zone picker travels to the zone chosen, and travelling loads the next zone, frees the last and keeps the player | [zones.spec.js](browser/specs/zones.spec.js) |
 | `streaming` | A kilometre zone loads only the regions around the player, follows the player across it, and stays within 1,000,000 triangles and 400 draw calls; `?stats` shows the frame rate | [streaming.spec.js](browser/specs/streaming.spec.js) |
 | `movers` | Clicking the lever in the test field walks the player to it, raises the portcullis and opens the archway | [movers.spec.js](browser/specs/movers.spec.js) |
-| `world` | Entering the world shows the villagers and their nameplates; keys move the player and a ground click does not; talking to the tailor opens the creator, and saving restyles and stores the player; the game starts in first person and the wheel zooms out to third person; holding both mouse buttons walks forward; right-clicking a block names its prop; walking through the inn's door leads into its room, where walls pull the camera in | [world.spec.js](browser/specs/world.spec.js) |
+| `world` | Entering the world shows the villagers and their nameplates; keys move the player and a ground click does not; talking to the tailor opens the creator, and saving restyles and stores the player; the game starts in first person and the wheel zooms out to third person; holding both mouse buttons walks forward; right-clicking a block names its prop; walking through a kit house's door in the Expanse leads into its room, where walls pull the camera in | [world.spec.js](browser/specs/world.spec.js) |
 
 ## Conventions
 

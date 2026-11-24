@@ -4,6 +4,20 @@
 
 export const OBJECTS =
 {
+    lockedDoor:
+    {
+        cells: [3, 7, 1],
+        build(door)
+        {
+            door.box([0, 0, 2], [24, 56, 6], "oldPlanks");
+
+            for(let x = 0; x < 24; x += 6) { door.box([x, 0, 1], [x + 1, 56, 7], "timber"); }
+            for(const y of [10, 44]) { door.box([1, y, 1], [23, y + 2, 7], "iron"); }
+
+            door.box([17, 26, 0], [19, 30, 8], "iron");
+            door.box([18, 23, 1], [19, 25, 7], "iron");
+        },
+    },
     portcullis:
     {
         cells: [4, 7, 1],

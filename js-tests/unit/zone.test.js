@@ -130,18 +130,18 @@ describe("Zone movement", () =>
         assert.fail("The zone has no rise of two cubes to test");
     });
 
-    it("lets a route lead through the inn's door into its room, which has a roof", () =>
+    it("lets a route lead through a kit house's door into its room, which has a ceiling 9 cubes up", async () =>
     {
-        const from = hearthmere.openGround(9.35, -4.3, 0.35);
-        const path = Pathfinder.find(hearthmere, from, { x: 8.45, z: -8.5 }, 0.35);
+        const expanse = await TestAssets.zone("expanse");
+        const from = expanse.openGround(-1.17, 22, 0.35);
+        const path = Pathfinder.find(expanse, from, { x: -1.17, z: 15 }, 0.35);
         const end = path.at(-1);
-
-        const floor = hearthmere.groundAt(end.x, end.z) + 2 / 3;
+        const floor = expanse.standAt(end.x, end.z, expanse.groundAt(end.x, end.z) + 1, 0.35).floor;
         const up = { x: 0, y: 1, z: 0 };
 
-        assert.deepEqual(end, { x: 8.45, z: -8.5 });
-        assert.ok(hearthmere.raycast({ x: end.x, y: floor + 1.7, z: end.z }, up, 10) < 1, "The room has no ceiling");
-        assert.equal(hearthmere.raycast({ x: from.x, y: from.y + 1.7, z: from.z }, up, 10), 10);
+        assert.deepEqual(end, { x: -1.17, z: 15 });
+        assert.ok(Math.abs(expanse.raycast({ x: end.x, y: floor + 0.01, z: end.z }, up, 10) - 3) < 0.02, "The ceiling is not 3 metres up");
+        assert.equal(expanse.raycast({ x: from.x, y: from.y + 1.7, z: from.z }, up, 10), 10);
     });
 
     it("names the placed object a cell belongs to, the smallest when boxes overlap", () =>

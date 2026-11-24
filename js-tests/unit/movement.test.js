@@ -81,12 +81,12 @@ describe("Movement on cells", () =>
         assert.ok(actor.position.x < 22 / 3 - 16 / 3 && actor.position.x > 21 / 3 - 16 / 3 - RADIUS, "x is " + actor.position.x);
     });
 
-    it("walks under a ceiling six cubes up, but not under one five cubes up", () =>
+    it("walks under a ceiling seven cubes up, but not under one six cubes up", () =>
     {
         const zone = cellZone((set) =>
         {
-            for(let x = 18; x < 22; x++) { for(let z = 0; z < 16; z++) { set(x, BASE + 5, z); } }
-            for(let x = 18; x < 22; x++) { for(let z = 16; z < 32; z++) { set(x, BASE + 6, z); } }
+            for(let x = 18; x < 22; x++) { for(let z = 0; z < 16; z++) { set(x, BASE + 6, z); } }
+            for(let x = 18; x < 22; x++) { for(let z = 16; z < 32; z++) { set(x, BASE + 7, z); } }
         });
         const low = walker(zone, metres(12), metres(8));
         const high = walker(zone, metres(12), metres(24));

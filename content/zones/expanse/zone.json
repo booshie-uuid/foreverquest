@@ -91,6 +91,24 @@
             "z": -16,
             "angle": 0,
             "age": 100
+        },
+        {
+            "prefab": "cottage",
+            "x": -16,
+            "z": 16,
+            "angle": 0
+        },
+        {
+            "prefab": "house",
+            "x": 0,
+            "z": 16,
+            "angle": 0
+        },
+        {
+            "prefab": "townhouse",
+            "x": 16,
+            "z": 16,
+            "angle": 0
         }
     ]
 }

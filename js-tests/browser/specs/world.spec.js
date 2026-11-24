@@ -2,9 +2,9 @@ import * as assert from "node:assert/strict";
 
 export const covers = ["world"];
 
-async function enterWorld(page, baseUrl)
+async function enterWorld(page, baseUrl, zone = "")
 {
-    await page.goto(baseUrl + "/index.html");
+    await page.goto(baseUrl + "/index.html" + (zone ? "?zone=" + zone : ""));
     await page.waitFor(() => window.foreverQuest?.isReady === true, { timeout: 20000 });
     await page.click("[data-action=confirm]");
     await page.waitFor(() => window.foreverQuest.screen === "game" && window.foreverQuest.renderer.frameCount > 10, { timeout: 20000 });
@@ -166,19 +166,19 @@ export const tests =
         },
     },
     {
-        name: "walking through the inn's door leads inside, where walls pull the camera in rather than hide the player",
+        name: "walking through a kit house's door leads inside, where walls pull the camera in rather than hide the player",
         run: async ({ page, baseUrl, screenshot }) =>
         {
-            await enterWorld(page, baseUrl);
+            await enterWorld(page, baseUrl, "expanse");
 
             const result = await page.evaluate(() =>
             {
                 const game = window.foreverQuest.game;
                 let count = 0;
 
-                game.player.placeAt(9.35, -4.6, game.zone);
+                game.player.placeAt(-1.17, 22, game.zone);
                 game.pause();
-                game.sim.command({ type: "moveTo", x: 8.45, z: -8.3 });
+                game.sim.command({ type: "moveTo", x: -1.17, z: 15 });
 
                 do
                 {
@@ -189,7 +189,7 @@ export const tests =
 
                 const { x, y, z } = game.player.position;
 
-                return { count, ceiling: game.zone.raycast({ x, y: y + 1.7, z }, { x: 0, y: 1, z: 0 }, 10), y, ground: game.zone.groundAt(x, z) };
+                return { count, ceiling: game.zone.raycast({ x, y: y + 1.7, z }, { x: 0, y: 1, z: 0 }, 10), y, street: game.zone.groundAt(-1.17, 22) };
             });
 
             await page.evaluate(() => { window.foreverQuest.game.isPaused = false; });
@@ -197,7 +197,7 @@ export const tests =
             const start = await page.evaluate(() => window.foreverQuest.renderer.frameCount);
 
             await page.waitFor("window.foreverQuest.renderer.frameCount > " + (start + 20), { timeout: 20000 });
-            await screenshot("inside-the-inn");
+            await screenshot("inside-the-house");
 
             const view = await page.evaluate(() =>
             {
@@ -208,8 +208,8 @@ export const tests =
                 return { shown: game.rig.shown, isCameraInWall: game.zone.isSolid(column, Math.floor(game.zone.cellY(position.y)), row) };
             });
 
-            assert.ok(result.ceiling < 1, "The player stopped outside the inn: " + JSON.stringify(result));
-            assert.ok(Math.abs(result.y - result.ground) < 0.01, "The inn's floor is not level with the street: " + JSON.stringify(result));
+            assert.ok(result.ceiling < 2, "The player stopped outside the house: " + JSON.stringify(result));
+            assert.ok(Math.abs(result.y - result.street) < 0.4, "The house's floor is not level with the street: " + JSON.stringify(result));
             assert.ok(view.shown < 4, "The camera stayed " + view.shown + " metres out, behind the walls");
             assert.equal(view.isCameraInWall, false);
         },

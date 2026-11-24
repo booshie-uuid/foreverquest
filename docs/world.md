@@ -70,9 +70,32 @@ After a prefab's blocks, the bake carves its rooms and doors: every cell whose c
 
 Props then draw, shade and block movement as cubes do. The colliders that prefab functions return show in the workbench's prop viewer, and the game no longer uses them. An entity is placed on open ground: `ZoneData.openGround(x, z, radius)` looks outward from a point, up to 4 metres, for the nearest column where the entity stands on the terrain itself rather than on a prop.
 
+## The Building Kit
+
+[content/art/kit.js](../content/art/kit.js) builds a building prefab from a spec in [content/props/buildings.js](../content/props/buildings.js), in whole cubes, so every building keeps the same rules:
+
+1. A door is 7 cubes tall, 2.33 metres, so the tallest character walks through it.
+2. A storey is 10 cubes: a floor 1 cube thick and 9 cubes clear above it, which is 3 metres, 2 cubes more than the tallest character's head.
+3. Every upper storey is reached by a stair, a lift, or a locked stair door on a storey below it. A locked stair door is a closed door object in front of a walled cupboard, which implies a stair without building one.
+
+| Field | Meaning |
+|---|---|
+| `width`, `depth` | The footprint in cubes, both even, with the front facing +z |
+| `storeys` | The number of storeys |
+| `walls` | `{ ground, upper, frame }`: world textures for the ground storey's walls, the upper storeys' walls, and an optional timber frame of corner posts, posts every 4 cubes and a beam at each floor |
+| `roof` | `{ texture, ridge }`: a stepped gable roof, 1 cube up for each cube in, with its ridge along `x` or `z`, and gable ends in the upper wall texture |
+| `doors` | `{ side, at }`: doorways 3 cubes wide and 7 tall, `at` cubes along the wall from its middle; a doorway on the front is the prefab's door, which sets how deep the building stands |
+| `windows` | `{ side, at, storey, isLit }`: windows 2 cubes wide and 3 tall, lit unless `isLit` is false, when they are shutters |
+| `stairs` | `{ side, storey, from }`: a flight of 10 steps 3 cubes wide against the wall on `side`, climbing from `from` cubes along it, with the floor above left open over every step whose headroom would be under 7 cubes |
+| `lockedStairs` | `{ side, storey, at }`: a locked stair door in a cupboard against the wall on `side` |
+| `lifts` | `{ storey }`: a storey that a lift in the building's details reaches |
+| `details` | A function given `{ box, clear, object }` that adds hand detail in cubes, and objects such as furniture |
+
+The kit reports a building that breaks rule 3, has a footprint with an odd side, or has a stair that does not fit along its wall, and the bake fails on it. A kit prefab also clears its footprint of terrain before its blocks are placed, and places its objects with it: the bake turns them with the building, stands them on the storey they name, and gives each mover `id` the building's prop number, so a building placed twice keeps its movers apart. A cottage, a two-storey house with a stair and a three-storey townhouse with a locked stair door stand north of the Expanse's spawn.
+
 ## Collision and Movement
 
-An entity is an upright cylinder of its body's radius. `ZoneData.standAt(x, z, feet, radius)` finds where it stands: on the highest solid cell under any part of it whose top is no more than one cube above its feet. It is blocked when a solid cell reaches into the six cells, 2 metres, above that floor, so it steps up one cube but not two, and cannot pass under a ceiling lower than 2 metres. `footingAt` also refuses a floor covered by water, a point within 2 metres of the zone's edge, and a region that is not loaded.
+An entity is an upright cylinder of its body's radius. `ZoneData.standAt(x, z, feet, radius)` finds where it stands: on the highest solid cell under any part of it whose top is no more than one cube above its feet. It is blocked when a solid cell reaches into the seven cells, 2.33 metres, above that floor, so it steps up one cube but not two, and cannot pass under a ceiling lower than 2.33 metres, the height of the tallest character, a tall elf at 2.08 metres, rounded up to whole cubes. `footingAt` also refuses a floor covered by water, a point within 2 metres of the zone's edge, and a region that is not loaded.
 
 `ZoneData.resolveMove(from, to, radius)` tries the cells at the new point, and failing that, the move along x alone and along z alone, so an entity walking into a wall at an angle slides along it. An entity steps up onto a higher floor at once, which the view blends over the tick, and falls to a lower one under gravity. An entity found inside solid cells, which happens when it was placed before its region loaded, is lifted onto them.
 

@@ -11,6 +11,9 @@ export function bake(problems, context)
         const recorded = record(build);
 
         checkFaces(recorded.blocks, context.worldTextures, "Prefab " + id, problems);
+
+        for(const problem of recorded.problems) { problems.push("Prefab " + id + " " + problem); }
+
         prefabs[id] = recorded;
     }
 
@@ -23,8 +26,9 @@ export function bake(problems, context)
 }
 
 // A prop function returns a circle, { collider }, or { collider, lights } or
-// { collider, light }, with optional `rooms` and `doors` boxes { size, at },
-// all in its own frame when built at the origin.
+// { collider, light }, with optional `rooms`, `doors` and `clears` boxes
+// { size, at }, `objects` it places { object, at, angle } and `problems`, all
+// in its own frame when built at the origin.
 export function record(build, ...args)
 {
     const builder = { blocks: [] };
@@ -32,7 +36,7 @@ export function record(build, ...args)
     const colliders = Array.isArray(result) ? result : result.collider ? [result.collider] : result.radius !== undefined ? [result] : [];
     const lights = result.lights ?? (result.light ? [result.light] : []);
 
-    return { blocks: builder.blocks, colliders, lights, rooms: result.rooms ?? [], doors: result.doors ?? [] };
+    return { blocks: builder.blocks, colliders, lights, rooms: result.rooms ?? [], doors: result.doors ?? [], clears: result.clears ?? [], objects: result.objects ?? [], problems: result.problems ?? [] };
 }
 
 export function checkFaces(blocks, textures, where, problems)

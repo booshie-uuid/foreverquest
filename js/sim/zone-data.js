@@ -3,7 +3,7 @@ import { BlockSet } from "./block-set.js";
 
 const EDGE_MARGIN = 2;
 const STEP_CELLS = 1;
-const CLEARANCE_CELLS = 6;
+const CLEARANCE_CELLS = 7;
 const EPSILON = 1e-6;
 const OPEN_GROUND_REACH = 4;
 const CUBES_PER_METRE = 3;
