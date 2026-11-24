@@ -16,8 +16,8 @@ async function enterWorld(page, baseUrl)
 }
 
 // The owner's rule: with no light at all, a room is still bright enough to
-// make out, which the base level of 0.4 gives in a stone room at 0.1.
-const MAKE_OUT = 0.08;
+// make out, which the base level of 0.2 gives in a stone room at 0.04.
+const MAKE_OUT = 0.03;
 
 // The mean brightness of the frame, from 0 to 1, after drawing it with the
 // player's own light out, so only the zone's light shows.

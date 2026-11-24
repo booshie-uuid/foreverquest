@@ -412,7 +412,7 @@ describe("Zone view", () =>
         assert.deepEqual(srgb(), [0.259, 0.518, 1]);
 
         new ZoneView(hearthmere, materials).dispose();
-        assert.deepEqual(srgb(), [0.347, 0.396, 0.594]);
+        assert.deepEqual(srgb(), [0.173, 0.198, 0.297]);
     });
 
     it("lights a door that fills its doorway by the room beside it", async () =>
