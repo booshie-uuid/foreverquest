@@ -213,6 +213,25 @@ describe("Cube mesher", () =>
         assert.deepEqual(balance.map((value) => Math.round(value * 1e6) / 1e6), [0, 0, 0], "A chipped cube is not closed");
     });
 
+    it("cuts no notch from an edge that meets glass", () =>
+    {
+        const build = (set) =>
+        {
+            for(let x = 1; x < 31; x += 3)
+            {
+                for(let z = 1; z < 31; z += 3)
+                {
+                    for(let dx = -1; dx <= 1; dx++) { for(let dz = -1; dz <= 1; dz++) { for(let dy = 0; dy <= 1; dy++) { set(x + dx, 4 + dy, z + dz, GLASS); } } }
+
+                    set(x, 4, z, STONE);
+                }
+            }
+        };
+        const mesh = CubeMesher.meshCells(cells(build, 100), table(), [0, 0, 0], FRAME);
+
+        assert.ok(mesh.positions.every((value) => Math.abs(value * 3 - Math.round(value * 3)) < 1e-6), "A cube beside glass lost a notch");
+    });
+
     it("draws see-through blocks beside each other only on their outer faces", () =>
     {
         const mesh = CubeMesher.meshCells(cells((set) =>
@@ -326,7 +345,7 @@ describe("Cube mesher", () =>
         assert.ok(byBlue[2] === 15 && byBlue[0] < 4, "The floor by the blue lamp is lit " + byBlue);
         assert.ok(between[0] > 4 && between[2] > 4, "The floor between the lamps is lit " + between);
     });
-    it("draws glass in its own mesh, lets lamp light through it, and lights a pane by the brighter side", () =>
+    it("draws glass in its own mesh, frames it where it meets stone, lets lamp light through it, and lights a pane by the brighter side", () =>
     {
         const room = (pane) => cells((set) =>
         {
@@ -352,5 +371,9 @@ describe("Cube mesher", () =>
         assert.equal(walled.glass, undefined);
         assert.ok(lampOnFloor(glazed, 13) > 0 && lampOnFloor(walled, 13) === 0, "Lamp light beyond the pane is " + lampOnFloor(glazed, 13) + " through glass and " + lampOnFloor(walled, 13) + " through stone");
         assert.equal(Math.round(lampOf(-1)), Math.round(lampOf(1)), "The pane's street side is not lit by the room");
+
+        const edges = panes.map((quad, q) => glazed.glass.weathers[q * 8 + 1]);
+
+        assert.ok(edges.every((edge) => [1, 2].includes(edge & 3) && [4, 8].includes(edge & 12)), "A corner of the two-by-two pane is not framed on its two outer edges: " + edges);
     });
 });

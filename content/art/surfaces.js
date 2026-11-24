@@ -425,17 +425,20 @@ export function glow(raster, target, random, colour = "#f0a848")
     }
 }
 
-// A texel's alpha is how much of what lies behind the pane it hides.
+// A texel's alpha is how much of what lies behind the pane it hides. A
+// quarry cut by the texture's edge continues on the far edge, so its number
+// wraps.
 export function glass(raster, target, random, style)
 {
     const quarries = new Map();
+    const across = target.w / HALF;
 
     for(let y = 0; y < target.h; y++)
     {
         for(let x = 0; x < target.w; x++)
         {
             const isLead = style !== "clear" && ((x + y) % HALF === 0 || (x - y + target.w) % HALF === 0);
-            const quarry = Math.floor((x + y) / HALF) + "," + Math.floor((x - y + target.w) / HALF);
+            const quarry = Math.floor((x + y) / HALF) % across + "," + Math.floor((x - y + target.w) / HALF) % across;
 
             if(!quarries.has(quarry)) { quarries.set(quarry, { colour: pick(STAINED, random), dirt: random.next() }); }
 

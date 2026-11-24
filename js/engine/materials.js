@@ -72,6 +72,7 @@ varying vec3 vStepNormal;
 // overlay texel shows at a level of at least its alpha * 3. Moss replaces the
 // texel; grime and cracks darken it.
 const WEATHER_FRAGMENT = `
+#ifndef GLASS
 for(int overlay = 0; overlay < 2; overlay++)
 {
     float code = floor((overlay == 0 ? vWeather.x : vWeather.y) + 0.5);
@@ -85,6 +86,26 @@ for(int overlay = 0; overlay < 2; overlay++)
 
     tileTexel.rgb = overlay == 0 ? overlayTexel.rgb : tileTexel.rgb * overlayTexel.rgb * 2.2;
 }
+#endif
+`;
+
+// A glass face's vWeather.y holds the edges that meet a cell that is not
+// glass, as the mesher's frameEdges gives them: 1 and 2 at the low and high
+// ends of the face's u axis, 4 and 8 of its v axis. Each draws a frame of
+// FRAME_LAYER's texture, FRAME_WIDTH of a cube wide.
+const GLASS_FRAGMENT = `
+#ifdef GLASS
+    vec3 inCube = fract(vStepPosition * 3.0);
+    vec3 facing = abs(vStepNormal);
+    vec2 inFace = facing.x > 0.5 ? inCube.zy : (facing.y > 0.5 ? inCube.xz : inCube.xy);
+    float edges = floor(vWeather.y + 0.5);
+    bool isFrame = (mod(edges, 2.0) > 0.5 && inFace.x < FRAME_WIDTH)
+        || (mod(floor(edges / 2.0), 2.0) > 0.5 && inFace.x > 1.0 - FRAME_WIDTH)
+        || (mod(floor(edges / 4.0), 2.0) > 0.5 && inFace.y < FRAME_WIDTH)
+        || (edges > 7.5 && inFace.y > 1.0 - FRAME_WIDTH);
+
+    if(isFrame) { diffuseColor = vec4(texture(worldAtlas, vec3(vTileUv, FRAME_LAYER)).rgb, 1.0); }
+#endif
 `;
 
 // 1 where the moon (or the sun) reaches a fragment, 0 where the fragment faces
@@ -261,6 +282,8 @@ const NO_HEIGHT_FOG = { base: 0, falloff: 1, density: 0 };
 const LEVELS = 16;
 const PLAYER_LIGHT = 7;
 const TAIL_EASE = 1;
+const GLASS_FRAME = "iron";
+const GLASS_FRAME_WIDTH = 0.1875;
 const DEFAULT_AMBIENT = { base: "#1c2030", level: 0.2, glow: 0.4 };
 const DEFAULT_STEPS =
 {
@@ -280,7 +303,7 @@ export class MaterialLibrary
         this.terrain = this.worldMaterial({ vertexColors: true }, this.stepped);
         this.objects = this.worldMaterial({}, this.stepped);
         this.glass = this.worldMaterial({ vertexColors: true, transparent: true, depthWrite: false }, this.stepped);
-        this.glass.defines = { GLASS: "" };
+        this.glass.defines = { GLASS: "", FRAME_LAYER: atlas.layer(GLASS_FRAME) + ".0", FRAME_WIDTH: String(GLASS_FRAME_WIDTH) };
         this.water = new THREE.MeshPhongMaterial({ color: "#1e2a30", specular: 0x5a6a78, shininess: 80, transparent: true, opacity: 0.82 });
         this.water.onBeforeCompile = (shader) => this.addHeightFog(shader);
     }
@@ -320,7 +343,7 @@ export class MaterialLibrary
 
             shader.fragmentShader = shader.fragmentShader
                 .replace("#include <common>", "#include <common>\n" + FRAGMENT_PARS + (stepped ? STEPPED_FRAGMENT_PARS + AMBIENT : ""))
-                .replace("#include <color_fragment>", "#include <color_fragment>\n" + TILE_FRAGMENT + (stepped ? WEATHER_FRAGMENT : "") + FRAGMENT)
+                .replace("#include <color_fragment>", "#include <color_fragment>\n" + TILE_FRAGMENT + (stepped ? WEATHER_FRAGMENT : "") + FRAGMENT + (stepped ? GLASS_FRAGMENT : ""))
                 .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n" + emissive)
                 .replace("#include <opaque_fragment>", (stepped ? STEPPED_FRAGMENT : "") + "#include <opaque_fragment>");
 

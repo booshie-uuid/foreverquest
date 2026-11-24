@@ -746,7 +746,7 @@ function floorLights(cells, light, table, glowOf)
 // Its weather mask entry holds its two overlays; see weatherOf. The mask
 // holds the faces of glass when `context.isGlass` is 1, and the rest when it
 // is 0. A glass face takes the brighter lamp light of the cells on its two
-// sides.
+// sides, and its weather entry holds its frame edges; see frameEdges.
 function fillMask(masks, context, direction, slice)
 {
     const { cells, ages, light, table } = context;
@@ -785,7 +785,8 @@ function fillMask(masks, context, direction, slice)
             const level = isGlass === 1 ? Math.max(light[front] & 0xf0, light[lit] & 0xf0) | (light[lit] & 0xf) : light[front];
 
             mask[j * CHUNK + i] = ((layer + 1) << 16) | (level << 8) | shadesOf(cells, table.opaque, front, stepU, stepV);
-            weathers[j * CHUNK + i] = age > 0 && table.weathers[block] !== 0 ? weatherOf(context, block, index, front, direction, age / 100) : 0;
+            if(isGlass === 1) { weathers[j * CHUNK + i] = frameEdges(cells, table.glass, index, stepU, stepV); }
+            else { weathers[j * CHUNK + i] = age > 0 && table.weathers[block] !== 0 ? weatherOf(context, block, index, front, direction, age / 100) : 0; }
             glows[j * CHUNK + i] = context.glowOf(lit);
             hasFace = true;
         }
@@ -797,6 +798,16 @@ function fillMask(masks, context, direction, slice)
 function brighterSide(light, front, behind)
 {
     return (light[behind] & 0xf) > (light[front] & 0xf) ? behind : front;
+}
+
+// The edges of a glass face that meet a cell that is not glass, which draw a
+// frame: 1 at the low end of u, 2 at the high end, 4 at the low end of v and
+// 8 at the high end.
+function frameEdges(cells, glass, index, stepU, stepV)
+{
+    const isEdge = (step) => (glass[cells[index + step]] === 1 ? 0 : 1);
+
+    return isEdge(-stepU) | (isEdge(stepU) << 1) | (isEdge(-stepV) << 2) | (isEdge(stepV) << 3);
 }
 
 /* WEATHER ********************************************************************/
@@ -873,9 +884,10 @@ function weatherOf(context, block, index, front, direction, age)
 /* CHIPS **********************************************************************/
 
 // Cubes that lose a notch from one exposed edge, by padded index. An edge is
-// exposed when the two cells beside it and the cell across it are not opaque.
-// A chip is a box of fine cubes, FINE to a cube's edge: `depthA` deep from
-// face A, `depthB` from face B, and from `from` to `to` along the edge.
+// exposed when the two cells beside it and the cell across it are neither
+// opaque nor glass. A chip is a box of fine cubes, FINE to a cube's edge:
+// `depthA` deep from face A, `depthB` from face B, and from `from` to `to`
+// along the edge.
 function chipsOf(context)
 {
     const { cells, ages, table } = context;
@@ -893,7 +905,7 @@ function chipsOf(context)
 
                 if((table.weathers[block] & WEATHERS.chips) === 0 || hash(context, index, 11) >= (age - 0.15) * 0.45) { continue; }
 
-                const edges = exposedEdges(cells, table.opaque, index);
+                const edges = exposedEdges(cells, table, index);
 
                 if(edges.length === 0) { continue; }
 
@@ -916,9 +928,10 @@ function chipsOf(context)
 
 // [axis A, its sign, axis B, its sign], leaving out the edges along the
 // cube's bottom.
-function exposedEdges(cells, opaque, index)
+function exposedEdges(cells, table, index)
 {
     const edges = [];
+    const isOpen = (cell) => table.opaque[cells[cell]] === 0 && table.glass[cells[cell]] === 0;
 
     for(const [a, b] of [[0, 1], [0, 2], [1, 2]])
     {
@@ -931,7 +944,7 @@ function exposedEdges(cells, opaque, index)
                 const besideA = index + signA * STRIDES[a];
                 const besideB = index + signB * STRIDES[b];
 
-                if(!opaque[cells[besideA]] && !opaque[cells[besideB]] && !opaque[cells[besideA + signB * STRIDES[b]]]) { edges.push([a, signA, b, signB]); }
+                if(isOpen(besideA) && isOpen(besideB) && isOpen(besideA + signB * STRIDES[b])) { edges.push([a, signA, b, signB]); }
             }
         }
     }
