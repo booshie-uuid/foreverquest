@@ -4,12 +4,13 @@ const RADIUS = 0.53;
 const FOG_GROWTH = 1.6;
 const FOG_DIMMING = 0.3;
 const MAX_ANGLE = 0.3;
-const STRENGTH = 1.6;
+const STRENGTH = 1;
 const FADE_FROM = 0.85;
 const GAP = 0.05;
 const MAX_LEVEL = 15;
 const FIRST_CAPACITY = 64;
 const CHECK_FRAMES = 4;
+const CLUSTER = 0.6;
 const FADE_SECONDS = 0.2;
 
 const VERTEX = `
@@ -79,11 +80,46 @@ export class Halos
     // gives them.
     setSpots(spots)
     {
+        spots = Halos.clustered(spots);
         this.spots = spots;
         this.shown = new Float32Array(spots.length / 5).fill(-1);
         this.isSeen = new Uint8Array(spots.length / 5);
 
         if(spots.length / 5 > this.capacity) { this.allocate(spots.length / 5); }
+    }
+
+    // Lights of one colour within CLUSTER metres of each other, in a chain,
+    // become one light at their middle at the level of the brightest, as
+    // their halos would otherwise add up.
+    static clustered(spots)
+    {
+        const count = spots.length / 5;
+        const parent = Array.from({ length: count }, (unused, i) => i);
+        const rootOf = (i) =>
+        {
+            while(parent[i] !== i) { i = parent[i] = parent[parent[i]]; }
+
+            return i;
+        };
+
+        for(let a = 0; a < count; a++)
+        {
+            for(let b = a + 1; b < count; b++)
+            {
+                const isNear = Math.hypot(spots[a * 5] - spots[b * 5], spots[a * 5 + 1] - spots[b * 5 + 1], spots[a * 5 + 2] - spots[b * 5 + 2]) <= CLUSTER;
+
+                if(isNear && spots[a * 5 + 3] === spots[b * 5 + 3]) { parent[rootOf(a)] = rootOf(b); }
+            }
+        }
+
+        const groups = Map.groupBy(Array.from({ length: count }, (unused, i) => i), rootOf);
+
+        return Float32Array.from([...groups.values()].flatMap((members) =>
+        {
+            const middle = (axis) => members.reduce((total, i) => total + spots[i * 5 + axis], 0) / members.length;
+
+            return [middle(0), middle(1), middle(2), spots[members[0] * 5 + 3], Math.max(...members.map((i) => spots[i * 5 + 4]))];
+        }));
     }
 
     // A new geometry each time, as Three.js keeps the instance count a

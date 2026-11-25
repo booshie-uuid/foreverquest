@@ -11,6 +11,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
 import { BlockSet } from "../../js/sim/block-set.js";
+import { Halos } from "../../js/render/halos.js";
 import { ZoneView } from "../../js/render/zone-view.js";
 
 const hearthmere = await TestAssets.zone("hearthmere");
@@ -481,6 +482,17 @@ describe("Zone view", () =>
 
         assert.equal(view.halos.mesh.visible, false);
         view.dispose();
+    });
+
+    it("joins lights of one colour in a chain less than 0.6 metres apart into one halo at their middle, at the brightest level", () =>
+    {
+        const candle = 0xffb466;
+        const joined = Halos.clustered(Float32Array.from([0, 0, 0, candle, 12, 0.5, 0, 0, candle, 14, 1, 0, 0, candle, 12, 1, 0, 0, 0xff5a28, 13, 5, 0, 0, candle, 12]));
+        const halos = [];
+
+        for(let i = 0; i < joined.length; i += 5) { halos.push([...joined.subarray(i, i + 5)]); }
+
+        assert.deepEqual(halos.sort((a, b) => a[0] - b[0] || a[3] - b[3]), [[0.5, 0, 0, candle, 14], [1, 0, 0, 0xff5a28, 13], [5, 0, 0, candle, 12]]);
     });
 
     it("orders the quads of glass that face one way from the farthest to the nearest", () =>
