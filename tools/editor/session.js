@@ -18,6 +18,7 @@ const CUBES = Terrain.CUBES_PER_METRE;
 const QUARTER = Math.PI / 2;
 const PRECISION = 1e6;
 const LEVEL = 1;
+const MAX_AGE = 100;
 const LAYOUTS = path.join("props", "layouts.json");
 const ID_PATTERN = /^[a-z][A-Za-z0-9]*$/;
 const NEW_ZONE = { sizes: [128, 256, 512, 1024], height: 256, base: 48 };
@@ -157,7 +158,7 @@ export class EditSession
     async apply(operations)
     {
         const before = this.snapshot();
-        const step = { zone: [before.zone, null], layouts: [before.layouts, null], cells: [] };
+        const step = { zone: [before.zone, null], layouts: [before.layouts, null], cells: [], ages: [] };
         const refused = [];
         const messages = [];
 
@@ -167,7 +168,7 @@ export class EditSession
         step.zone[1] = JSON.stringify(this.zone);
         step.layouts[1] = JSON.stringify(this.layouts);
 
-        const isChanged = step.cells.length > 0 || step.zone[0] !== step.zone[1] || step.layouts[0] !== step.layouts[1];
+        const isChanged = step.cells.length > 0 || step.ages.length > 0 || step.zone[0] !== step.zone[1] || step.layouts[0] !== step.layouts[1];
 
         if(isChanged)
         {
@@ -230,6 +231,10 @@ export class EditSession
 
         for(const [x, y, z, old, block] of cells) { this.setCell(x, y, z, side === 0 ? old : block); }
 
+        const ages = side === 0 ? [...step.ages].reverse() : step.ages;
+
+        for(const [column, row, old, painted] of ages) { this.setAge(column, row, side === 0 ? old : painted); }
+
         this.settleSurfaces();
     }
 
@@ -251,15 +256,16 @@ export class EditSession
         const props = this.zone.props;
         const prop = props[operation.prop];
 
-        if(!this.isLocked && (operation.type === "cubes" || operation.type === "breakApart"))
+        if(!this.isLocked && ["cubes", "breakApart", "ages"].includes(operation.type))
         {
-            messages.push("Lock in the terrain before changing its cubes.");
+            messages.push("Lock in the terrain before changing its cubes or ages.");
             refused.push(...(operation.cells ?? []).map(([x, y, z]) => [x, y, z, null]));
             return;
         }
 
         if(operation.type === "terrain") { this.setTerrain(operation, messages); }
         if(operation.type === "cubes") { this.placeCubes(operation.cells, step, refused); }
+        if(operation.type === "ages") { this.paintAges(operation.columns, step, messages); }
         if(operation.type === "add") { props.push(operation.placement); }
         if(operation.type === "copy" && prop) { this.copy(prop, operation.by ?? [0, 0, 0], messages); }
         if(operation.type === "move" && prop) { this.move(prop, operation, messages); }
@@ -513,6 +519,50 @@ export class EditSession
         }
     }
 
+    // `columns` holds [column, row, age]; a locked region keeps a painted age
+    // as the age plus one.
+    paintAges(columns, step, messages)
+    {
+        const size = this.zone.columns;
+        let refused = 0;
+
+        for(const [column, row, age] of columns)
+        {
+            const isValid = [column, row, age].every(Number.isInteger) && column >= 0 && row >= 0 && column < size && row < size && age >= 0 && age <= MAX_AGE;
+
+            if(!isValid)
+            {
+                refused++;
+                continue;
+            }
+
+            const old = this.ageAt(column, row);
+
+            if(old === age + 1) { continue; }
+
+            step.ages.push([column, row, old, age + 1]);
+            this.setAge(column, row, age + 1);
+        }
+
+        if(refused > 0) { messages.push(refused + " ages were outside the zone or not whole numbers from 0 to " + MAX_AGE + "."); }
+    }
+
+    ageAt(column, row)
+    {
+        const region = this.terrain.locked.get(Math.floor(column / REGION) + "-" + Math.floor(row / REGION));
+
+        return region.ages[(row % REGION) * region.width + (column % REGION)];
+    }
+
+    setAge(column, row, painted)
+    {
+        const name = Math.floor(column / REGION) + "-" + Math.floor(row / REGION);
+        const region = this.terrain.locked.get(name);
+
+        region.ages[(row % REGION) * region.width + (column % REGION)] = painted;
+        this.editedRegions.add(name);
+    }
+
     // The index in the zone's placed objects of the placement that owns a
     // cell, or null for the terrain's own cells.
     ownerOf(x, y, z)
@@ -615,7 +665,7 @@ export class EditSession
     // changed, appeared or went.
     touched(step, before, after)
     {
-        const names = new Set(step.cells.map(([x, , z]) => Math.floor(x / REGION) + "-" + Math.floor(z / REGION)));
+        const names = new Set([...step.cells, ...step.ages.map(([x, z]) => [x, 0, z])].map(([x, , z]) => Math.floor(x / REGION) + "-" + Math.floor(z / REGION)));
         const key = (entry) => JSON.stringify(without(entry, ["prop", "id", "trigger"]));
         const counts = new Map();
 
@@ -662,7 +712,7 @@ export class EditSession
         for(const name of regions)
         {
             const region = this.terrain.locked.get(name);
-            const encoded = RegionCodec.encode({ ...region, grounds: region.surfaces, ages: new Uint8Array(region.width * region.depth) });
+            const encoded = RegionCodec.encode({ ...region, grounds: region.surfaces });
 
             write(path.join(lockedFolder, name + ".bin"), zlib.deflateSync(encoded, { level: 9 }));
         }

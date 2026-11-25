@@ -173,7 +173,7 @@ At night [Halos](../js/render/halos.js) draws a soft disc in each light's colour
 
 ## Weathering
 
-Builders place clean blocks, and the mesher weathers them by age as it meshes each chunk. A column's age, from 0 to 100, comes from the zone's `weathering.age` or from the `age` of a prefab placed over it, and the region file stores it. Every effect is drawn from the age, the cells around a face and a hash of the face's cell position, so a chunk always meshes the same way and nothing else is stored. A block type lists the ways it weathers in its `weathers`; [Adding a Block Type](assets.md#adding-a-block-type) describes them.
+Builders place clean blocks, and the mesher weathers them by age as it meshes each chunk. A column's age, from 0 to 100, comes from the zone's `weathering.age`, from an age painted with the editor's age brush, or from the `age` of a prefab placed over it, which wins over both; the region file stores it. A locked region file keeps each column's painted age plus one, and 0 where none is painted. Every effect is drawn from the age, the cells around a face and a hash of the face's cell position, so a chunk always meshes the same way and nothing else is stored. A block type lists the ways it weathers in its `weathers`; [Adding a Block Type](assets.md#adding-a-block-type) describes them.
 
 | Effect | Where it appears |
 |---|---|

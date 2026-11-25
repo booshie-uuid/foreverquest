@@ -29,6 +29,15 @@ function bakedBlock(session, [x, y, z])
     return chunk.cells === null ? chunk.uniform : chunk.cells[((y % CHUNK) * CHUNK + (z % CHUNK)) * CHUNK + (x % CHUNK)];
 }
 
+// The age of a column in the region file the session baked.
+function bakedAge(session, column, row)
+{
+    const name = Math.floor(column / REGION) + "-" + Math.floor(row / REGION);
+    const region = RegionCodec.decode(new Uint8Array(zlib.inflateSync(session.file(name + ".bin"))));
+
+    return region.ages[(row % REGION) * region.width + (column % REGION)];
+}
+
 // A terrain column in the open, with no placement over it.
 function openCell(session)
 {
@@ -221,6 +230,46 @@ describe("Edit sessions", () =>
     });
 });
 
+describe("Painted ages", () =>
+{
+    it("paint columns, refuse ages out of range, undo and redo, and save for the bake to read back", async () =>
+    {
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), "editor-"));
+
+        fs.cpSync(path.join(CONTENT, "zones", "testfield"), path.join(root, "zones", "testfield"), { recursive: true });
+
+        const session = await EditSession.open("testfield", root);
+        const [x, , z] = openCell(session);
+        const zoneAge = session.zone.weathering?.age ?? 0;
+        const answer = await session.apply([{ type: "ages", columns: [[x, z, 80], [x + 1, z, 35], [-1, 0, 5], [x, z + 1, 101]] }]);
+
+        assert.deepEqual([bakedAge(session, x, z), bakedAge(session, x + 1, z), bakedAge(session, x, z + 1)], [80, 35, zoneAge]);
+        assert.deepEqual(answer.messages, ["2 ages were outside the zone or not whole numbers from 0 to 100."]);
+
+        await session.undo();
+        assert.deepEqual([bakedAge(session, x, z), bakedAge(session, x + 1, z)], [zoneAge, zoneAge]);
+
+        await session.redo();
+        session.save();
+
+        const reopened = await EditSession.open("testfield", root);
+
+        assert.deepEqual([bakedAge(reopened, x, z), bakedAge(reopened, x + 1, z)], [80, 35]);
+        fs.rmSync(root, { recursive: true });
+    });
+
+    it("leave a placement's own age over its footprint", async () =>
+    {
+        const prop = hearthmere.zone.props.findIndex((entry) => entry.age !== undefined);
+        const { box } = hearthmere.index.objects.find((entry) => entry.prop === prop && entry.box);
+        const [column, row] = [box[0] + 1, box[2] + 1];
+
+        await hearthmere.apply([{ type: "ages", columns: [[column, row, 5]] }]);
+        assert.equal(bakedAge(hearthmere, column, row), hearthmere.zone.props[prop].age);
+        await hearthmere.undo();
+    });
+});
+
 describe("New zones", () =>
 {
     const contentRoot = () =>
@@ -258,7 +307,7 @@ describe("New zones", () =>
         const cubes = await session.apply([{ type: "cubes", cells: [[10, 60, 10, 1]] }]);
 
         assert.deepEqual([broken.messages, broken.steps], [["The terrain needs a base, one of flat, hills."], 0]);
-        assert.deepEqual([cubes.messages, cubes.refused], [["Lock in the terrain before changing its cubes."], [[10, 60, 10, null]]]);
+        assert.deepEqual([cubes.messages, cubes.refused], [["Lock in the terrain before changing its cubes or ages."], [[10, 60, 10, null]]]);
         assert.equal(fs.existsSync(path.join(root, "zones", "vale")), false, "The new zone reached content/ before it was saved");
         fs.rmSync(root, { recursive: true });
     });

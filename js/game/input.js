@@ -9,8 +9,17 @@ export class Input
         this.keys = new Set();
         this.drag = null;
         this.buttons = 0;
-        this.listeners = { click: [], inspect: [], pick: [], hover: [], orbit: [], zoom: [], key: [] };
+        this.listeners = { click: [], inspect: [], pick: [], hover: [], orbit: [], zoom: [], key: [], stroke: [] };
         this.handlers = [];
+        this.wantsStroke = () => false;
+    }
+
+    // While `wantsStroke()` holds, a press of the left button starts a stroke,
+    // reported as "start", "move" and "end" with the pointer's place, in place
+    // of a click or a look around.
+    setStrokeTest(wantsStroke)
+    {
+        this.wantsStroke = wantsStroke;
     }
 
     attach()
@@ -87,7 +96,16 @@ export class Input
         if(event.button === 1) { event.preventDefault(); }
 
         this.buttons = event.buttons;
-        this.drag = { button: event.button, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, hasMoved: false };
+        this.drag = { button: event.button, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, hasMoved: false, isStroke: event.button === 0 && this.wantsStroke() };
+
+        if(this.drag.isStroke) { this.emitAt("stroke", event, "start"); }
+    }
+
+    emitAt(type, event, ...args)
+    {
+        const bounds = this.canvas.getBoundingClientRect();
+
+        this.emit(type, ...args, event.clientX - bounds.left, event.clientY - bounds.top);
     }
 
     onPointerMove(event)
@@ -101,6 +119,12 @@ export class Input
         this.emit("hover", event.clientX - bounds.left, event.clientY - bounds.top);
 
         if(!drag) { return; }
+
+        if(drag.isStroke)
+        {
+            this.emitAt("stroke", event, "move");
+            return;
+        }
 
         drag.wasBoth ||= this.isHoldingBothButtons;
 
@@ -120,6 +144,12 @@ export class Input
 
         this.drag = null;
         this.buttons = event.buttons;
+
+        if(drag?.isStroke)
+        {
+            this.emitAt("stroke", event, "end");
+            return;
+        }
 
         if(!drag || drag.hasMoved || drag.wasBoth) { return; }
 

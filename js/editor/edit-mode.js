@@ -1,6 +1,7 @@
 import * as Controls from "../ui/controls.js";
 import * as RegionCodec from "../sim/region-codec.js";
 import * as THREE from "three";
+import { BrushTool } from "./brush-tool.js";
 import { CubeTool } from "./cube-tool.js";
 import { EditorClient } from "./editor-client.js";
 import { EditorPanel } from "./editor-panel.js";
@@ -68,6 +69,11 @@ export class EditMode
         return this.screen.content;
     }
 
+    get wantsStrokes()
+    {
+        return this.isActive && this.tool === this.tools.brush;
+    }
+
     /* ENTER AND LEAVE ********************************************************/
 
     // `view` sets the camera, as a note's link does; otherwise the camera
@@ -97,7 +103,7 @@ export class EditMode
         this.isActive = true;
         this.kinds = this.state.kinds;
         this.marks = new Marks(this.screen.world.scene, this.zone);
-        this.tools = { cubes: new CubeTool(this), select: new SelectTool(this), notes: new NoteTool(this), terrain: new TerrainTool(this) };
+        this.tools = { cubes: new CubeTool(this), select: new SelectTool(this), notes: new NoteTool(this), terrain: new TerrainTool(this), brush: new BrushTool(this) };
         this.tools.terrain.sync(this.state);
         this.tool = this.state.isLocked ? this.tools.cubes : this.tools.terrain;
         this.screen.pause();
@@ -152,6 +158,7 @@ export class EditMode
     {
         this.tool = this.tools[name];
         this.marks.hideGhost();
+        this.marks.hideRing();
         this.redraw();
     }
 
@@ -161,7 +168,7 @@ export class EditMode
     {
         if(!this.isActive) { return; }
 
-        const names = this.state.isLocked ? [["cubes", "Cubes", "1"], ["select", "Select", "2"], ["notes", "Note", "3"]] : [["terrain", "Terrain", "4"], ["select", "Select", "2"], ["notes", "Note", "3"]];
+        const names = this.state.isLocked ? [["cubes", "Cubes", "1"], ["select", "Select", "2"], ["notes", "Note", "3"], ["brush", "Brush", "5"]] : [["terrain", "Terrain", "4"], ["select", "Select", "2"], ["notes", "Note", "3"]];
         const modes = names.map(([name, label, key]) => ({ label, key, isOn: this.tool.name === name, action: "mode-" + name, onClick: () => this.setTool(name) }));
         const history =
         [
@@ -286,6 +293,16 @@ export class EditMode
         await this.tool.click(hit, this.tool === this.tools.select ? this.pickObject(x, y) : null);
     }
 
+    stroke(phase, x, y)
+    {
+        const hit = this.pickCell(x, y);
+
+        this.pointer = { x, y };
+        this.hit = hit;
+        this.tool.hover(hit);
+        this.tool.stroke?.(phase, hit);
+    }
+
     pick(x, y)
     {
         this.tool.pick?.(this.pickCell(x, y));
@@ -304,7 +321,7 @@ export class EditMode
     key(code, event)
     {
         const isControl = event?.ctrlKey || event?.metaKey;
-        const modes = this.state.isLocked ? { Digit1: "cubes", Digit2: "select", Digit3: "notes" } : { Digit2: "select", Digit3: "notes", Digit4: "terrain" };
+        const modes = this.state.isLocked ? { Digit1: "cubes", Digit2: "select", Digit3: "notes", Digit5: "brush" } : { Digit2: "select", Digit3: "notes", Digit4: "terrain" };
 
         if(code === "F8") { this.leave(); }
         else if(isControl && code === "KeyZ") { this.undo(); }
@@ -336,12 +353,15 @@ export class EditMode
     /* CHANGES ****************************************************************/
 
     // Shows the cubes at once, then sends them; the server refuses those that
-    // belong to a placement, which go back as they were.
-    async placeCubes(cells)
+    // belong to a placement, which go back as they were. A brush has shown
+    // its cells already, and gives `old`, the cells as they were.
+    async placeCubes(cells, old = null)
     {
-        const old = cells.map(([x, y, z]) => [x, y, z, this.zone.blockAt(x, y, z)]);
-
-        this.zone.setCells(cells);
+        if(!old)
+        {
+            old = cells.map(([x, y, z]) => [x, y, z, this.zone.blockAt(x, y, z)]);
+            this.zone.setCells(cells);
+        }
 
         const answer = await this.send([{ type: "cubes", cells }]);
 

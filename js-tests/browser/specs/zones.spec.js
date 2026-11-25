@@ -59,7 +59,7 @@ export const tests =
 
             const picked = await page.evaluate(() => document.querySelector(".hud [data-action=zone]").value);
 
-            assert.deepEqual(options, ["expanse", "hearthmere", "testfield"]);
+            assert.deepEqual(options, ["expanse", "hearthmere", "testfield", "tutorial"]);
             assert.equal(picked, "testfield");
         },
     },

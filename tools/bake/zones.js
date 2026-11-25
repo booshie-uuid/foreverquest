@@ -2,6 +2,7 @@ import * as Archetypes from "../../content/archetypes.js";
 import * as Generator from "../terrain/generator.js";
 import * as Prefabs from "../../content/props/prefabs.js";
 import * as PropBaker from "./props.js";
+import * as RegionCodec from "../../js/sim/region-codec.js";
 import * as Terrain from "./terrain.js";
 import * as Voxelise from "./voxelise.js";
 import * as fs from "node:fs";
@@ -152,7 +153,7 @@ export async function bakeZone(zone, folder, people, context, where, problems, o
 
     const solid = new Set(context.blocks.flatMap((block, i) => (block.kind === "liquid" ? [] : [i + 1])));
     const only = options.only?.(placed.objects) ?? null;
-    const regions = Terrain.bakeRegions(zone, terrain, ground, numbers, { cells: placed.cells, solid }, agesOf(zone, props, placed.objects), { only, level: options.level });
+    const regions = Terrain.bakeRegions(zone, terrain, ground, numbers, { cells: placed.cells, solid }, agesOf(zone, terrain, props, placed.objects), { only, level: options.level });
     const { id, name, welcome, columns, height, base, water, lighting, spawn } = zone;
     const waterSides = Terrain.waterSides(zone, terrain.surfaces);
     const bounds = terrain.bounds ?? {};
@@ -247,9 +248,27 @@ function isAge(age)
 }
 
 // Each column takes the zone's age, or the age of a prefab placed over it.
-function agesOf(zone, props, placed)
+// A locked region holds each column's painted age plus one, and 0 where
+// none is painted. A placement's own age wins over paint.
+function agesOf(zone, terrain, props, placed)
 {
     const ages = new Uint8Array(zone.columns * zone.columns).fill(zone.weathering?.age ?? 0);
+
+    for(const [name, region] of terrain.locked ?? [])
+    {
+        const [rx, rz] = name.split("-").map(Number);
+
+        for(let z = 0; z < region.depth; z++)
+        {
+            for(let x = 0; x < region.width; x++)
+            {
+                const painted = region.ages[z * region.width + x];
+
+                if(painted > 0) { ages[(rz * RegionCodec.REGION + z) * zone.columns + rx * RegionCodec.REGION + x] = painted - 1; }
+            }
+        }
+    }
+
     const aged = new Map(props.filter((prop) => prop.age !== undefined).map((prop) => [prop.index, prop.age]));
 
     for(const { prop, box } of placed)

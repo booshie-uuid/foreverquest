@@ -158,6 +158,75 @@ export const tests =
         },
     },
     {
+        name: "the brush paints sand on the ground with a clean edge, weathers it and raises it with a square brush, each stroke one step, while a right-drag still looks around",
+        timeout: 60000,
+        run: async ({ page, baseUrl, screenshot }) =>
+        {
+            await openEditor(page, baseUrl);
+
+            try
+            {
+                const column = await page.evaluate(() => window.foreverQuest.game.editMode.pickCell(640, 470).cell);
+                const ground = () => page.evaluate(([x, , z]) => window.foreverQuest.game.zone.grounds[z * window.foreverQuest.game.zone.columns + x], column);
+                const stroke = async (steps) =>
+                {
+                    await page.mouseDrag(620, 470, 660, 470);
+                    await page.waitFor("window.foreverQuest.game.editMode.state.steps === " + steps + " && !window.foreverQuest.game.editMode.isBusy", { timeout: 20000 });
+                    await page.waitFor(() => window.foreverQuest.game.world.isSettled, { timeout: 20000 });
+                };
+                const setField = (key, value) => page.evaluate(([name, number]) =>
+                {
+                    const input = document.querySelector(".editor-palette [data-key=" + name + "]");
+
+                    input.value = number;
+                    input.dispatchEvent(new Event("change"));
+                }, [key, value]);
+
+                await page.click("[data-action=mode-brush]");
+                await setField("radius", 2);
+                await page.click("[data-action=brush-clean]");
+                await page.click(".editor-palette [data-id=sand]");
+                await stroke(1);
+
+                const painted = await page.evaluate(([x, , z]) =>
+                {
+                    const zone = window.foreverQuest.game.zone;
+
+                    return zone.blocks.block(zone.blockAt(x, zone.grounds[z * zone.columns + x] - 1, z)).id;
+                }, column);
+
+                await page.click("[data-action=brush-age]");
+                await setField("age", 100);
+                await setField("strength", 100);
+
+                const youngAge = await page.evaluate(([x, , z]) => window.foreverQuest.game.zone.age(x, z), column);
+
+                await stroke(2);
+
+                const oldAge = await page.evaluate(([x, , z]) => window.foreverQuest.game.zone.age(x, z), column);
+                const before = await ground();
+
+                await page.click("[data-action=brush-sculpt]");
+                await page.click("[data-action=brush-square]");
+                await stroke(3);
+                await screenshot("brushed");
+
+                const view = await page.evaluate(() => window.foreverQuest.game.editMode.fly.yaw);
+
+                await page.mouseDrag(640, 400, 700, 400, { button: "right" });
+
+                assert.equal(painted, "sand");
+                assert.ok(oldAge > youngAge, "The age went from " + youngAge + " to " + oldAge);
+                assert.ok(await ground() > before, "The sculpt did not raise the ground");
+                assert.notEqual(await page.evaluate(() => window.foreverQuest.game.editMode.fly.yaw), view, "A right-drag did not look around");
+            }
+            finally
+            {
+                await discard(page);
+            }
+        },
+    },
+    {
         name: "a new zone opens on its terrain recipe and map, takes a flat area dragged on the map without moving the camera, moves the camera to an empty spot clicked, and Preview bakes a changed base into the world",
         timeout: 120000,
         run: async ({ page, baseUrl, screenshot }) =>

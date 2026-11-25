@@ -64,9 +64,11 @@ export class GameScreen
             this.input.on("hover", (x, y) => { if(editing()) { this.editMode.hover(x, y); } }),
             this.input.on("orbit", (dx, dy) => (editing() ? this.editMode.look(dx, dy) : this.rig.orbit(-dx * 0.008, dy * 0.006))),
             this.input.on("zoom", (factor) => (editing() ? this.editMode.wheel(factor) : this.rig.zoom(factor))),
+            this.input.on("stroke", (phase, x, y) => { if(editing()) { this.editMode.stroke(phase, x, y); } }),
             this.input.on("key", (code, event) => this.onKey(code, event)),
         ];
 
+        this.input.setStrokeTest(() => editing() && this.editMode.wantsStrokes);
         this.graphics = graphics;
         this.sim.setPlayer(appearance);
         this.enterZone(streamer);

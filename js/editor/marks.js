@@ -3,7 +3,8 @@ import { ZoneData } from "../sim/zone-data.js";
 
 const CUBE = 1 / ZoneData.CUBES_PER_METRE;
 const GROW = 0.004;
-const COLOURS = { add: "#7fd36b", remove: "#e0604a", replace: "#7fb3d5", select: "#e0b04a", note: "#7fb3d5" };
+const COLOURS = { add: "#7fd36b", remove: "#e0604a", replace: "#7fb3d5", select: "#e0b04a", note: "#7fb3d5", ground: "#7fd36b", age: "#e0b04a", sculpt: "#7fb3d5" };
+const RING_LIFT = 0.08;
 
 
 /******************************************************************************/
@@ -20,11 +21,15 @@ export class Marks
         this.ghostEdges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ fog: false }));
         this.outline = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: COLOURS.select, depthTest: false, transparent: true, fog: false }));
 
+        this.ring = new THREE.LineLoop(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ depthTest: false, transparent: true, fog: false }));
+
         this.outline.renderOrder = 10;
-        this.group.add(this.ghost, this.ghostEdges, this.outline);
+        this.ring.renderOrder = 10;
+        this.group.add(this.ghost, this.ghostEdges, this.outline, this.ring);
         this.group.name = "editor marks";
         this.hideGhost();
         this.hideOutline();
+        this.hideRing();
         scene.add(this.group);
     }
 
@@ -63,11 +68,29 @@ export class Marks
         this.outline.visible = false;
     }
 
+    // `points` holds [x, surface, z] in cells, the surface being the cell on
+    // top of a column.
+    showRing(points, kind)
+    {
+        const zone = this.zone;
+        const positions = new Float32Array(points.flatMap(([x, y, z]) => [x * CUBE - zone.half, (y - zone.base) * CUBE + RING_LIFT, z * CUBE - zone.half]));
+
+        this.ring.geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        this.ring.geometry.computeBoundingSphere();
+        this.ring.material.color.set(COLOURS[kind]);
+        this.ring.visible = true;
+    }
+
+    hideRing()
+    {
+        this.ring.visible = false;
+    }
+
     dispose()
     {
         this.group.removeFromParent();
 
-        for(const mark of [this.ghost, this.ghostEdges, this.outline])
+        for(const mark of [this.ghost, this.ghostEdges, this.outline, this.ring])
         {
             mark.geometry.dispose();
             mark.material.dispose();

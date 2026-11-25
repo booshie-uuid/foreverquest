@@ -12,13 +12,13 @@ F8 again, or the Play button, leaves the editor and lands the character where th
 
 ## Modes and Keys
 
-The tool bar along the top switches between the modes, and holds undo, redo, the grid, save, New zone and play. A locked zone has Cubes, Select and Note modes; a zone whose terrain is not locked in yet has Terrain mode in place of Cubes. The palette on the left changes with the mode, the inspector on the right shows the selection, and the status line along the bottom shows the cell under the pointer, its height above the ground, its region and age, and the number of changes not saved.
+The tool bar along the top switches between the modes, and holds undo, redo, the grid, save, New zone and play. A locked zone has Cubes, Select, Note and Brush modes; a zone whose terrain is not locked in yet has Terrain mode in place of Cubes. The palette on the left changes with the mode, the inspector on the right shows the selection, and the status line along the bottom shows the cell under the pointer, its height above the ground, its region and age, and the number of changes not saved.
 
 | Key | Action |
 |---|---|
 | W A S D, Space, C | Fly forward, back, sideways, up and down; Shift flies faster |
-| Drag with either button | Look around |
-| 1, 2, 3, 4 | Cubes, Select, Note and Terrain modes |
+| Drag with either button | Look around; in Brush mode the left button paints and the right button looks |
+| 1, 2, 3, 4, 5 | Cubes, Select, Note, Terrain and Brush modes |
 | Ctrl+Z, Ctrl+Y, Ctrl+S | Undo, redo and save |
 | G | Outline every cube |
 | F8 | Leave the editor |
@@ -48,6 +48,20 @@ A name chosen in the palette's Prefabs, Objects or Buildings list makes the next
 ### Notes
 
 Note mode pins a note on the cube under a click. The note keeps the zone, the cell, the selection and the camera's view. A numbered pin marks each note; blue is open, gold is answered and grey is done. **N** moves the camera to the next note.
+
+### Brush
+
+Brush mode shapes and paints a locked zone's ground under a round brush. Pressing the left button starts a stroke and releasing it ends the stroke; the world shows each dab at once, and the whole stroke goes to the server as one step of the undo history. A ring on the ground shows the brush's reach. The tool bar chooses the brush, and the palette its settings: a circle, or a square whose side is twice the radius, the radius, and the brush's own settings. A square brush's strength falls off towards its sides as a circle's does towards its edge.
+
+| Brush | Effect |
+|---|---|
+| Ground | Paints a ground on the top cube of each column: grass, moss, mud, sand, earth, cobble or rock, with the ground's under block in the earth and sand cubes up to three below it. Its edge is ragged, with a few stray cubes just outside it, or, with Clean, exactly the circle or the square. A column whose top cube a placement reaches down to stays as it is |
+| Age | Weathers the columns towards an age from 0 to 100, by the strength at the middle and less towards the edge. A placement with its own `age` keeps it over its footprint. Grass, sand and mud do not weather, so the age shows on what stands on the ground and on stone |
+| Sculpt | Raises, lowers, smooths or flattens the ground, by the strength at the middle and less towards the edge. A raised column keeps its top block on top; a lowered one takes its top block down, and the cells it leaves fill with water below the zone's water. Flatten levels towards the height where the stroke began. A column under a placement stays as it is, as the bake stands placements on the ground; a run such as a wall follows the ground, so it does not hold the ground under it, though its own cubes stay |
+
+| Key | Action |
+|---|---|
+| [ and ], or the wheel | Make the brush smaller or larger, from 1 to 16 metres |
 
 ### Terrain
 
@@ -114,7 +128,8 @@ The development server listens on 127.0.0.1 alone. The editor's routes take a ch
 | File | Holds |
 |---|---|
 | [js/editor/edit-mode.js](../js/editor/edit-mode.js) | The mode: entering and leaving, picking, the request queue and reloading what the server baked |
-| [js/editor/cube-tool.js](../js/editor/cube-tool.js), [select-tool.js](../js/editor/select-tool.js), [note-tool.js](../js/editor/note-tool.js), [terrain-tool.js](../js/editor/terrain-tool.js) | The modes |
+| [js/editor/cube-tool.js](../js/editor/cube-tool.js), [select-tool.js](../js/editor/select-tool.js), [note-tool.js](../js/editor/note-tool.js), [terrain-tool.js](../js/editor/terrain-tool.js), [brush-tool.js](../js/editor/brush-tool.js) | The modes |
+| [js/editor/brush-stroke.js](../js/editor/brush-stroke.js) | A brush stroke: the cells and ages its dabs change |
 | [js/editor/editor-panel.js](../js/editor/editor-panel.js), [marks.js](../js/editor/marks.js), [fly-camera.js](../js/editor/fly-camera.js) | The controls, the marks drawn in the world and the camera |
 | [js/editor/editor-client.js](../js/editor/editor-client.js) | The requests to the server |
 | [tools/editor/routes.js](../tools/editor/routes.js) | The server's editor routes and the baked files it serves |
