@@ -29,3 +29,12 @@ check exactly into a lint rule or a guard test, and removes the prose that the c
 ## When Writing Documentation
 
 Load the `gu-tech-writer` skill before writing.
+
+## Local Scratchpad
+
+In addition to your own internal scratchpad, you have access to `local/scratchpad` to share ideas with the requestor.
+
+If you have something you need to share with the requestor for feedback, you should always use the local scratchpad.
+
+Once you have got the required feedback on items in the local scratchpad, you should clean up the scratchpad so that
+it doesn't become cluttered.

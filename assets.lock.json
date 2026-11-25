@@ -264,9 +264,46 @@
         "zones/hearthmere/2-1.bin": "df6486ee431a2acef1c3a361350e9265aa518a83240dcaadb94ee814107e6cf4",
         "zones/hearthmere/2-2.bin": "ca159c48c34dee803cc0ff41d2aa67a212b63ef54c77675c19624fd985b4697a",
         "zones/hearthmere/index.json": "0c51105ef3551c1ae39b15c81cc73db5d1518869747b8a3ba4ec55da7e24024b",
-        "zones/index.json": "98c62ba879f482b051fdd8e671e51bd0994389043936732dc99ac88cf8ba4035",
+        "zones/index.json": "4132795783c0f8393f57c9c88a8c6ba09af4f68141e4781c6ee0f88e46a0e404",
         "zones/testfield/0-0.bin": "275a1aa4ed1055acfb538965ae665c1192142c50a6a8c6b79dbcb5360fc5a116",
-        "zones/testfield/index.json": "361b1938ca9a5d652851ce0157258115b02294dc043cd034cf191d39d2b327ab"
+        "zones/testfield/index.json": "361b1938ca9a5d652851ce0157258115b02294dc043cd034cf191d39d2b327ab",
+        "zones/tutorial/0-0.bin": "d13b4ce85682a16d5679c8d0a3340098b223d14fabf36fd2e76890badd74b723",
+        "zones/tutorial/0-1.bin": "f9c02aee8233f188ce24244132855d66d1c67e07eb29e3afb741e33146d706bc",
+        "zones/tutorial/0-2.bin": "60e940ecdd9c448c4106eaac094f569e7c145435aaf7f00c53997c1766024085",
+        "zones/tutorial/0-3.bin": "8175fb545732fbae1521541505f8680a2d3d5ebf716a1a22528271b15062c174",
+        "zones/tutorial/0-4.bin": "483a6d65f2bfc7672b55c05fa4bd839e811fba65c4e3b5cab52e0c155a1e095b",
+        "zones/tutorial/0-5.bin": "a3a526b9603d0a60e974bf0b0b46ae74994001ada46969b97d8b505fbb53cd32",
+        "zones/tutorial/1-0.bin": "3782a296b96c28a62acf1400a0b1061faa1ba113df110c7ae75611ea95636970",
+        "zones/tutorial/1-1.bin": "11d13f05815cb7023932540a8280f87b8589ad788144aaa72de840f9771fe41f",
+        "zones/tutorial/1-2.bin": "65d190dded4a023a8a6d347995fd920be24b81dabfbea2c1e6db5b8467d51cc0",
+        "zones/tutorial/1-3.bin": "eacee3b8e5ae4f90a2cd077e8d7d3591f29ef991cc5822827c98667db2723a60",
+        "zones/tutorial/1-4.bin": "a92b3a0ab038eb20429b315e096e9c9506af753993479877ca6b66c0d2566da2",
+        "zones/tutorial/1-5.bin": "2668d2663557ec29f265e4cffb76101668b3ef6bda637c1bc78dfc46592c746c",
+        "zones/tutorial/2-0.bin": "73866fe46d58477075cebbee8e9bd89b6cb9be0beb1db53826b12e942075a4e2",
+        "zones/tutorial/2-1.bin": "117f877cc383988b18687b341c48492e5bf57d298cc7d2fc8d3095fee3fa600f",
+        "zones/tutorial/2-2.bin": "f8e2eed7caf7f79093429b54d1df459c371b7034cfa9fabf3e888c7caf3d67d7",
+        "zones/tutorial/2-3.bin": "501e2ee26d33141d7d97dfc45b173771f39cb93fb19d3f0e16297c590111fe25",
+        "zones/tutorial/2-4.bin": "4e38d51e94cc9c1180e5da795df05447bef20f90ed00f3bb092d24496696ad1a",
+        "zones/tutorial/2-5.bin": "91ac93e89423c5007d9e3b18054d5a25846c9ab4a4807580631a250ea21e5266",
+        "zones/tutorial/3-0.bin": "8d344b34f9fcb3ecb80939047545cc05c53b73ab7cce319246e5964220219afb",
+        "zones/tutorial/3-1.bin": "5bb023573e5ae35b56c7d81ad7e23ba3848c4a5d105489fae45dd777ab3efd47",
+        "zones/tutorial/3-2.bin": "585465b7302ab076a42d423b107ce293ddd3547e2bf94eacb212b2b807981e27",
+        "zones/tutorial/3-3.bin": "bbf38b8097f32d89d6fca2dc5ff6b8442dbb516dbc8006ff9208924fed8a5c8b",
+        "zones/tutorial/3-4.bin": "85e353cb178a9a9262c96d87edab181c98d226fba6ab7324678922f867664a0d",
+        "zones/tutorial/3-5.bin": "fa0a800ba6dbe530deee4c2723ac4e2a2a261eaaed4cd87f7c0276951f2f2d08",
+        "zones/tutorial/4-0.bin": "28b366bcf4de00f472e5f730d1086d10a251182a0226ef0f3b0bde07a1801a77",
+        "zones/tutorial/4-1.bin": "21e255bcd7a4bb482ccae36318373ce2cdf2b39c32da629c2e775b53bccbc973",
+        "zones/tutorial/4-2.bin": "a5e69e12ca91fe79d8dc987ef5f492ab9755d4131c1bc69a997bb72fd0510851",
+        "zones/tutorial/4-3.bin": "62d99c5ed3736bbcde886a4372cca2562d62b63906efe1a01f7e3e9d3f4da160",
+        "zones/tutorial/4-4.bin": "08336e1b4990ce3e03276fa01ff6450bd2dff941dcb47a3a30dd0974b99f418a",
+        "zones/tutorial/4-5.bin": "98b8761c6c7cdb1f5af493b3270fb98ffa1b6a4a01258442fb1c8f0d80c12ae3",
+        "zones/tutorial/5-0.bin": "1f31ebe427a62afa5a98e33817b41bd1fde909ce3203764f14f8dfef2ab72d12",
+        "zones/tutorial/5-1.bin": "46eb1f7d757b02f7ba13dfebf3b4341e2ea123fb4822e1647ca5ab7038675abf",
+        "zones/tutorial/5-2.bin": "88a26a6a197a1c17a121227cd452d574bea5dd04608d3fde562da9dc084ffff6",
+        "zones/tutorial/5-3.bin": "08dbe255a0aac9dff566bc971b154a4fcb01fb19dae20fc1d5845a27a04ba7a0",
+        "zones/tutorial/5-4.bin": "0d37084b9be76f621a4c25a2c612088e3204e2cfcde783e2948207235a4aaaef",
+        "zones/tutorial/5-5.bin": "395012923c33602fcc42fc04384e602019debf2bda3f58ba3f3cb53c67bac0be",
+        "zones/tutorial/index.json": "968074a5e2cb509a7de16f324c57068f6c6ce18f1ec1f55b56c7711ffd483f86"
     },
     "ids": {
         "action": [
@@ -710,7 +747,8 @@
         "zone": [
             "expanse",
             "hearthmere",
-            "testfield"
+            "testfield",
+            "tutorial"
         ]
     }
 }
