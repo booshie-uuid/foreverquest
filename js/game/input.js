@@ -1,6 +1,10 @@
 const CLICK_SLOP = 6;
 const LEFT_AND_RIGHT = 3;
 
+// The operating system repeats a held key about every 30 ms; a key that had
+// started repeating and then goes quiet for REPEAT_GAP was let go.
+const REPEAT_GAP = 250;
+
 export class Input
 {
     constructor(canvas)
@@ -9,6 +13,7 @@ export class Input
         this.keys = new Set();
         this.drag = null;
         this.buttons = 0;
+        this.lastKey = null;
         this.listeners = { click: [], inspect: [], pick: [], hover: [], orbit: [], zoom: [], key: [], stroke: [] };
         this.handlers = [];
         this.wantsStroke = () => false;
@@ -25,8 +30,10 @@ export class Input
     attach()
     {
         this.listen(window, "keydown", (event) => this.onKeyDown(event));
-        this.listen(window, "keyup", (event) => this.keys.delete(event.code));
-        this.listen(window, "blur", () => this.keys.clear());
+        this.listen(window, "keyup", (event) => this.onKeyUp(event));
+        this.listen(window, "blur", () => this.release());
+        this.listen(window, "focus", () => this.release());
+        this.listen(document, "visibilitychange", () => this.release());
         this.listen(this.canvas, "pointerdown", (event) => this.onPointerDown(event));
         this.listen(window, "pointermove", (event) => this.onPointerMove(event));
         this.listen(window, "pointerup", (event) => this.onPointerUp(event));
@@ -39,6 +46,15 @@ export class Input
         for(const { target, type, handler } of this.handlers) { target.removeEventListener(type, handler); }
 
         this.handlers = [];
+        this.release();
+    }
+
+    // Forgets every key and button held, for when their release may not reach
+    // the page, as when it loses the keyboard or a button is let go outside
+    // the window.
+    release()
+    {
+        this.lastKey = null;
         this.keys.clear();
         this.drag = null;
         this.buttons = 0;
@@ -67,7 +83,21 @@ export class Input
 
     isDown(...codes)
     {
+        this.forgetQuietKey();
+
         return codes.some((code) => this.keys.has(code));
+    }
+
+    // Only the key pressed last repeats, so it alone can be checked; a key
+    // never seen repeating, as with repeat turned off, is kept.
+    forgetQuietKey()
+    {
+        const last = this.lastKey;
+
+        if(!last?.isRepeating || performance.now() - last.at <= REPEAT_GAP) { return; }
+
+        this.keys.delete(last.code);
+        this.lastKey = null;
     }
 
     get isHoldingBothButtons()
@@ -83,9 +113,19 @@ export class Input
 
         if(!this.keys.has(event.code)) { this.emit("key", event.code, event); }
 
+        if(!event.repeat) { this.lastKey = { code: event.code, at: performance.now(), isRepeating: false }; }
+        else if(this.lastKey?.code === event.code) { Object.assign(this.lastKey, { at: performance.now(), isRepeating: true }); }
+
         this.keys.add(event.code);
 
         if(event.code.startsWith("Arrow") || event.code === "Space") { event.preventDefault(); }
+    }
+
+    onKeyUp(event)
+    {
+        this.keys.delete(event.code);
+
+        if(this.lastKey?.code === event.code) { this.lastKey = null; }
     }
 
     // A second button pressed or released while one is held reports itself in
@@ -120,6 +160,12 @@ export class Input
 
         if(!drag) { return; }
 
+        if(event.buttons === 0)
+        {
+            this.dropLostDrag(event);
+            return;
+        }
+
         if(drag.isStroke)
         {
             this.emitAt("stroke", event, "move");
@@ -136,6 +182,17 @@ export class Input
 
         if(Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > CLICK_SLOP) { drag.hasMoved = true; }
         if(drag.hasMoved) { this.emit("orbit", dx, dy); }
+    }
+
+    // A move with no button down means the release happened where the page
+    // could not hear it, as outside the window.
+    dropLostDrag(event)
+    {
+        const drag = this.drag;
+
+        this.drag = null;
+
+        if(drag.isStroke) { this.emitAt("stroke", event, "end"); }
     }
 
     onPointerUp(event)

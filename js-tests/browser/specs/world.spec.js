@@ -83,6 +83,88 @@ export const tests =
         },
     },
     {
+        name: "a held key and both held buttons are let go when the page is hidden, or the window loses or gains focus",
+        run: async ({ page, baseUrl }) =>
+        {
+            await enterWorld(page, baseUrl);
+
+            const heldAfter = (letGo) => page.evaluate((how) =>
+            {
+                const input = window.foreverQuest.game.input;
+                const canvas = window.foreverQuest.renderer.canvas;
+                const at = { clientX: 640, clientY: 400, bubbles: true };
+
+                window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyA", bubbles: true }));
+                canvas.dispatchEvent(new PointerEvent("pointerdown", { ...at, button: 0, buttons: 3 }));
+
+                if(how === "hidden") { document.dispatchEvent(new Event("visibilitychange")); }
+                if(how === "focus") { window.dispatchEvent(new Event(how)); }
+
+                return { isKeyHeld: input.isDown("KeyA"), isWalking: input.isHoldingBothButtons };
+            }, letGo);
+
+            for(const how of ["hidden", "focus"]) { assert.deepEqual(await heldAfter(how), { isKeyHeld: false, isWalking: false }, "Still held after " + how); }
+        },
+    },
+    {
+        name: "a drag whose release is lost ends at the next move with no button down, and the player's steering is put right when it does not match the keys",
+        run: async ({ page, baseUrl }) =>
+        {
+            await enterWorld(page, baseUrl);
+
+            const dropped = await page.evaluate(() =>
+            {
+                const input = window.foreverQuest.game.input;
+                const canvas = window.foreverQuest.renderer.canvas;
+                const at = { clientX: 640, clientY: 400, bubbles: true };
+
+                canvas.dispatchEvent(new PointerEvent("pointerdown", { ...at, button: 0, buttons: 3 }));
+                window.dispatchEvent(new PointerEvent("pointermove", { ...at, clientX: 700, buttons: 0 }));
+
+                return { drag: input.drag, isWalking: input.isHoldingBothButtons };
+            });
+
+            await page.evaluate(() => window.foreverQuest.game.player.steer(1, 0));
+
+            const frame = await page.evaluate(() => window.foreverQuest.renderer.frameCount);
+
+            await page.waitFor("window.foreverQuest.renderer.frameCount > " + (frame + 10));
+
+            const steering = await page.evaluate(() => ({ ...window.foreverQuest.game.player.direction }));
+
+            assert.deepEqual(dropped, { drag: null, isWalking: false });
+            assert.deepEqual(steering, { x: 0, z: 0 }, "The player kept steering with no key held");
+        },
+    },
+    {
+        name: "the key pressed last is let go once its repeats stop, but a key that never repeated is kept",
+        run: async ({ page, baseUrl }) =>
+        {
+            await enterWorld(page, baseUrl);
+
+            const held = await page.evaluate(async () =>
+            {
+                const input = window.foreverQuest.game.input;
+                const press = (code, repeat) => window.dispatchEvent(new KeyboardEvent("keydown", { code, repeat, bubbles: true }));
+                const wait = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+                press("KeyD", false);
+                await wait(400);
+
+                const isSteady = input.isDown("KeyD");
+
+                window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyD", bubbles: true }));
+                press("KeyA", false);
+                press("KeyA", true);
+                await wait(400);
+
+                return { isSteady, isQuiet: input.isDown("KeyA") };
+            });
+
+            assert.deepEqual(held, { isSteady: true, isQuiet: false });
+        },
+    },
+    {
         name: "holding both mouse buttons walks the player forward, and releasing them is not a click",
         run: async ({ page, baseUrl }) =>
         {

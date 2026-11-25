@@ -285,8 +285,10 @@ export class GameScreen
         this.sim.command({ type: "run", isRunning: !this.player.isRunning });
     }
 
-    // Sends a command only when the keys change, so a held key does not fill
-    // the queue while the simulation is paused.
+    // Sends a command when the keys change, so a held key does not fill the
+    // queue while the simulation is paused, and again whenever the player's
+    // steering does not match the keys once the queue is empty, as when a
+    // command went missing.
     steerFromKeys(delta)
     {
         const input = this.input;
@@ -303,7 +305,10 @@ export class GameScreen
         if(input.isDown("KeyD")) { add(-forward.y, forward.x); }
         if(input.isDown("KeyA")) { add(forward.y, -forward.x); }
 
-        if(move.x !== this.steering.x || move.z !== this.steering.z)
+        const direction = this.player.direction;
+        const isMatched = this.isPaused || this.sim.commands.length > 0 || (direction.x === move.x && direction.z === move.z);
+
+        if(move.x !== this.steering.x || move.z !== this.steering.z || !isMatched)
         {
             const isSteering = move.x !== 0 || move.z !== 0;
 
