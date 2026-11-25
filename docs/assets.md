@@ -121,7 +121,7 @@ A block type is one world cube's material. The files in [content/blocks/](../con
 
 ## Adding an Object
 
-An object is a thing built from fine cubes, eight to a world cube's edge, such as the cart, a barrel or a lamp post. The files in [content/objects/](../content/objects/) each export `OBJECTS`, a map from object id to its definition:
+An object is a thing built from fine cubes, eight to a world cube's edge, such as the cart, a barrel or a lamp post. An object is code or data. The `.js` files in [content/objects/](../content/objects/) each export `OBJECTS`, a map from object id to its definition, below. A `.json` file there is one object named by its file, as the editor's [capture](editor.md#capture) writes it: `cells`, `isSolid`, `palette`, the block ids its fine cubes use after a first `null`, and `runs`, pairs of a palette index and a count over the fine cubes, y then z then x, as the bake writes `objects.json`. A coded object's definition:
 
 | Field | Meaning |
 |---|---|

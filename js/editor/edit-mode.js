@@ -156,6 +156,8 @@ export class EditMode
 
     setTool(name)
     {
+        if(this.tools.select.capturing) { this.tools.select.startCapture(); }
+
         this.tool = this.tools[name];
         this.marks.hideGhost();
         this.marks.hideRing();
@@ -432,6 +434,21 @@ export class EditMode
         const answer = await this.run(() => this.client.save());
 
         if(answer) { this.panel.say("Saved " + answer.written.length + " file" + (answer.written.length === 1 ? "" : "s") + " to content/."); }
+    }
+
+    // The page loads again at the camera's view, so the game's prefab and
+    // object lists hold the new piece; the server keeps the zone's changes.
+    async capture(capture)
+    {
+        this.panel.say("Capturing " + capture.id + ", then baking the assets…");
+
+        const answer = await this.run(() => this.client.capture(capture));
+
+        if(!answer) { return; }
+
+        const { x, y, z, yaw, pitch } = this.fly.view;
+
+        location.assign("?zone=" + this.zone.id + "&edit&view=" + [x, y, z, yaw, pitch].map((value) => Math.round(value * 100) / 100).join(","));
     }
 
     async lockIn()

@@ -227,6 +227,58 @@ export const tests =
         },
     },
     {
+        name: "Capture in Select mode takes a footprint on the ground from two clicked corners, then a top that follows the pointer up until a click, Page Up raises it a cube, and Cancel puts the box away; a prefab chosen to add shows its whole size at the pointer",
+        run: async ({ page, baseUrl }) =>
+        {
+            await openEditor(page, baseUrl);
+            await page.click("[data-action=mode-select]");
+            await page.click("[data-action=capture]");
+
+            const ground = await page.evaluate(() => window.foreverQuest.game.editMode.pickCell(600, 500).cell[1]);
+
+            await page.clickAt(600, 500);
+            await page.clickAt(680, 440);
+
+            const flat = await page.evaluate(() => [...window.foreverQuest.game.editMode.tools.select.capturing.box]);
+
+            await page.mouseMove(640, 200);
+            await page.waitFor(() => window.foreverQuest.game.editMode.tools.select.capturing.box[4] > window.foreverQuest.game.editMode.tools.select.capturing.box[1] + 3);
+            await page.clickAt(640, 200);
+            await page.waitFor(() => !document.querySelector(".editor-card").hidden);
+
+            const sizeOf = () => page.evaluate(() => document.querySelector(".editor-card h3").textContent.match(/(\d+) × (\d+) × (\d+)/).slice(1).map(Number));
+            const [before, box] = [await sizeOf(), await page.evaluate(() => window.foreverQuest.game.editMode.tools.select.capturing.box)];
+
+            await page.press("PageUp");
+
+            const after = await sizeOf();
+
+            await page.click("[data-action=capture-cancel]");
+
+            const closed = await page.evaluate(() => ({ isHidden: document.querySelector(".editor-card").hidden, capturing: window.foreverQuest.game.editMode.tools.select.capturing }));
+
+            assert.deepEqual([box[0], box[1], box[2], box[3], box[5]], [flat[0], flat[1], flat[2], flat[3], flat[5]], "Raising the top moved the footprint");
+            assert.deepEqual(before, [box[3] - box[0] + 1, box[4] - box[1] + 1, box[5] - box[2] + 1]);
+            assert.deepEqual(after, [before[0], before[1] + 1, before[2]]);
+            assert.deepEqual(closed, { isHidden: true, capturing: null });
+            assert.equal(flat[1], ground + 1, "The capture box takes in the ground");
+
+            await page.evaluate(() =>
+            {
+                const select = window.foreverQuest.game.editMode.tools.select;
+
+                select.setTab("prefabs");
+                select.choose("well");
+            });
+            await page.mouseMove(640, 470);
+            await page.waitFor(() => window.foreverQuest.game.editMode.marks.ghost.visible);
+
+            const ghost = await page.evaluate(() => window.foreverQuest.game.editMode.marks.ghost.scale.toArray());
+
+            assert.ok(ghost[0] > 1 && ghost[2] > 1, "The well's ghost is " + ghost.join(" × ") + " m, not its size");
+        },
+    },
+    {
         name: "a new zone opens on its terrain recipe and map, takes a flat area dragged on the map without moving the camera, moves the camera to an empty spot clicked, and Preview bakes a changed base into the world",
         timeout: 120000,
         run: async ({ page, baseUrl, screenshot }) =>

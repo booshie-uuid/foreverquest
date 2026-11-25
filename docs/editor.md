@@ -41,9 +41,27 @@ Select mode picks a placement: a prefab, a run such as a wall, an object, or a p
 | Ctrl+D | Copy a placement one metre along x, without its id |
 | Delete | Delete it |
 | Ctrl+↑ | Select the building that a part belongs to |
-| Escape | Clear the selection |
+| Escape | Clear the selection, or put away a capture box |
 
-A name chosen in the palette's Prefabs, Objects or Buildings list makes the next click add that placement at the pointer; choosing it again, or Escape, returns to selecting.
+A name chosen in the palette's Prefabs, Objects or Buildings list makes the next click add that placement at the pointer, where a box shows the cells it will take; choosing it again, or Escape, returns to selecting.
+
+#### Capture
+
+Capture saves the cubes in a box as a new prefab or object, as a data file in `content/`. The steps:
+
+1. Choose **Capture** in Select mode's tool bar.
+2. Click one corner of the box's footprint, then the opposite corner. A click on the top of the ground marks the cube above it, so the box stands on the ground and leaves it out; Shift+Page Down later takes the ground in, as for a paved floor. The footprint lies flat at the lower corner's height.
+3. Move the pointer up or down: the box's top follows it, starting at the highest cube in the footprint. Click to set it. Page Up or Page Down then moves the top a cube, and with Shift the bottom.
+4. Name the piece, and choose **Save as prefab** or **Save as object**. Escape or Cancel puts the box away.
+
+The box shrinks to the cubes it holds, without water. A placement's cubes are copied too, so a building's doorway can become a piece of its own. **Put the new piece in the cubes' place**, on by default, removes the cubes and places the new piece where they stood, as one step of the undo history; when a placement owns some of the cubes, they stay, and only the file is written.
+
+| Saved as | Becomes | Size |
+|---|---|---|
+| Prefab | `content/prefabs/<name>.json`, a prefab at cube scale that places and turns like any other | At most 96 cubes a side |
+| Object | `content/objects/<name>.json`, an object in which each cube becomes 8 × 8 × 8 fine cubes of its block, for detail in the bench | At most 8 cubes a side |
+
+The server then runs the full bake, about 10 seconds, and the page loads again at the camera's view, so the palette lists the new piece. The zone's changes that are not saved stay in the server's session. The file stays when the step is undone.
 
 ### Notes
 

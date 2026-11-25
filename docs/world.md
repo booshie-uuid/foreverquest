@@ -227,7 +227,7 @@ A villager file exports `NPCS`, each with a `name`, the `lines` they say, an opt
 
 ## Adding to the World
 
-1. To add a prop, write a function in [content/art/props.js](../content/art/props.js) that builds with `placed()` and returns its collider, and list it in `PREFABS` in [content/props/prefabs.js](../content/props/prefabs.js). Check it in the workbench's prop viewer.
+1. To add a prop, write a function in [content/art/props.js](../content/art/props.js) that builds with `placed()` and returns its collider, and list it in `PREFABS` in [content/props/prefabs.js](../content/props/prefabs.js), or build it in a zone and [capture](editor.md#capture) it. A captured prefab is a file in `content/prefabs/` named by its id, holding `cells`, `[width, height, depth]` in cubes, a `palette` of block ids after a first `null`, and `runs` of a palette index and a count, y then z then x. Its origin is the cube corner nearest the middle of its bottom, so it turns by quarter turns without leaving the grid. Check a prefab in the workbench's prop viewer.
 2. To place props, add placements to a zone file's `props`.
 3. To add a world texture, follow [Adding a World Texture](assets.md#adding-a-world-texture). To use it as ground, give it a block type and add a ground layer to the zone's `ground`.
 4. To add a zone, choose New zone in the [zone editor](editor.md#new-zones), shape its terrain recipe, save it and lock its terrain in.

@@ -168,8 +168,11 @@ function worldBlock(block, placement)
     };
 }
 
+// A captured prefab names each block's type; a coded one paints textures.
 function blockOf(block, numbers, where, problems)
 {
+    if(block.block) { return numbers[block.block] ?? 0; }
+
     const texture = block.faces.front ?? block.faces.top ?? Object.values(block.faces).find(Boolean);
     const id = PropBlocks.BLOCK_FOR_TEXTURE[texture];
 

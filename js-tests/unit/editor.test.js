@@ -270,6 +270,103 @@ describe("Painted ages", () =>
     });
 });
 
+describe("Capture", () =>
+{
+    // A stone arch, three cubes wide, two deep and two high, on open ground.
+    const ARCH = [46, 18, 15];
+
+    async function withArch(check)
+    {
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), "editor-"));
+
+        fs.cpSync(path.join(CONTENT, "zones", "testfield"), path.join(root, "zones", "testfield"), { recursive: true });
+
+        const session = await EditSession.open("testfield", root);
+        const [x, y, z] = ARCH;
+        const cells = [];
+
+        for(let dy = 0; dy < 2; dy++)
+        {
+            for(let dz = 0; dz < 2; dz++)
+            {
+                for(let dx = 0; dx < 3; dx++) { if(!(dx === 1 && dy === 0)) { cells.push([x + dx, y + dy, z + dz, dy === 1 ? session.numbers.planks : session.numbers.stone]); } }
+            }
+        }
+
+        await session.apply([{ type: "cubes", cells }]);
+
+        try
+        {
+            await check(session, root, cells);
+        }
+        finally
+        {
+            fs.rmSync(root, { recursive: true });
+        }
+    }
+
+    it("saves the cubes in a box as a prefab, trimmed, and puts the prefab in their place, turnable without losing a cube", async () =>
+    {
+        await withArch(async (session, root, cells) =>
+        {
+            const [x, y, z] = ARCH;
+            const props = session.zone.props.length;
+            const answer = await session.capture({ box: [x - 2, y, z - 2, x + 4, y + 3, z + 3], id: "testArch", as: "prefab", replace: true });
+            const saved = JSON.parse(fs.readFileSync(path.join(root, "prefabs", "testArch.json"), "utf8"));
+            const owner = session.ownerOf(...cells[0].slice(0, 3));
+            const owned = () => [...session.placed.owners.values()].filter((index) => index === owner).length;
+
+            assert.deepEqual([answer.written, saved.cells, saved.palette[0]], [["prefabs/testArch.json"], [3, 2, 2], null]);
+            assert.equal(session.zone.props.length, props + 1);
+            assert.notEqual(owner, null, "The arch's cubes do not belong to the new prefab");
+            assert.deepEqual(cells.map((cell) => bakedBlock(session, cell)), cells.map((cell) => cell[3]));
+            assert.equal(owned(), cells.length);
+
+            await session.apply([{ type: "move", prop: props, turns: 1 }]);
+            assert.equal(owned(), cells.length, "A quarter turn lost or doubled cubes");
+
+            await session.undo();
+            await session.undo();
+            assert.equal(session.zone.props.length, props);
+            assert.deepEqual(cells.map((cell) => bakedBlock(session, cell)), cells.map((cell) => cell[3]));
+            assert.equal(session.ownerOf(...cells[0].slice(0, 3)), null);
+        });
+    });
+
+    it("saves the cubes as an object of eight fine cubes a side for each, without replacing them", async () =>
+    {
+        await withArch(async (session, root) =>
+        {
+            const [x, y, z] = ARCH;
+            const props = session.zone.props.length;
+            const answer = await session.capture({ box: [x, y, z, x + 2, y + 1, z + 1], id: "testArchPiece", as: "object", replace: false });
+            const saved = JSON.parse(fs.readFileSync(path.join(root, "objects", "testArchPiece.json"), "utf8"));
+            const fine = saved.runs.reduce((sum, value, i) => sum + (i % 2 === 1 && saved.runs[i - 1] > 0 ? value : 0), 0);
+
+            assert.deepEqual([answer.written, saved.cells, session.zone.props.length], [["objects/testArchPiece.json"], [3, 2, 2], props]);
+            assert.equal(fine, 10 * 8 * 8 * 8);
+            assert.deepEqual(session.context.objects.testArchPiece.cells, [3, 2, 2]);
+        });
+    });
+
+    it("copies a placement's cubes but leaves them, and refuses a taken name, an empty box and an object too big", async () =>
+    {
+        await withArch(async (session) =>
+        {
+            const [x, y, z] = ARCH;
+            const well = session.index.objects.find((entry) => entry.prop === 0).box;
+            const props = session.zone.props.length;
+            const answer = await session.capture({ box: well, id: "testWell", as: "prefab", replace: true });
+
+            assert.equal(session.zone.props.length, props);
+            assert.match(answer.messages[0], /belong to/);
+            await assert.rejects(session.capture({ box: well, id: "testWell", as: "prefab" }), /exists already/);
+            await assert.rejects(session.capture({ box: [x, y + 5, z, x + 2, y + 6, z + 1], id: "testAir", as: "prefab" }), /no cubes/);
+            await assert.rejects(session.capture({ box: [x - 10, y - 1, z, x + 2, y + 1, z + 1], id: "testWide", as: "object" }), /at most 8 cubes/);
+        });
+    });
+});
+
 describe("New zones", () =>
 {
     const contentRoot = () =>
@@ -395,6 +492,28 @@ describe("Editor routes", () =>
             assert.deepEqual([index.status, index.body.name], [200, "the Vale"]);
             assert.deepEqual(Object.keys(opened.body.kinds.features), ["flat", "basin", "rise", "hilly", "hillyBand", "river", "pass"]);
             assert.match(map.body.map, /^data:image\/png;base64,/);
+        }
+        finally
+        {
+            await server.close();
+            fs.rmSync(contentRoot, { recursive: true });
+        }
+    });
+
+    it("capture the cubes in a box through the capture route", { timeout: 30000 }, async () =>
+    {
+        const contentRoot = fs.mkdtempSync(path.join(os.tmpdir(), "zones-"));
+        const server = await Server.startServer({ port: 0, editor: new EditorRoutes({ shouldBake: false, contentRoot }) });
+        const json = { "Content-Type": "application/json" };
+
+        fs.cpSync(path.join(CONTENT, "zones", "testfield"), path.join(contentRoot, "zones", "testfield"), { recursive: true });
+
+        try
+        {
+            const captured = await request(server.url + "/editor/testfield/capture", { headers: json, body: JSON.stringify({ box: [40, 10, 10, 50, 20, 20], id: "testHill", as: "prefab", replace: false }) });
+
+            assert.deepEqual([captured.status, captured.body.written], [200, ["prefabs/testHill.json"]]);
+            assert.ok(fs.existsSync(path.join(contentRoot, "prefabs", "testHill.json")));
         }
         finally
         {

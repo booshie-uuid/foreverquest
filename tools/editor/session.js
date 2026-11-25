@@ -1,4 +1,5 @@
 import * as Blocks from "../bake/blocks.js";
+import * as FineMesher from "../../js/render/fine-mesher.js";
 import * as Objects from "../bake/objects.js";
 import * as Props from "../bake/props.js";
 import * as Recipe from "../terrain/recipe.js";
@@ -19,6 +20,8 @@ const QUARTER = Math.PI / 2;
 const PRECISION = 1e6;
 const LEVEL = 1;
 const MAX_AGE = 100;
+const MAX_CAPTURE = { prefab: 96, object: 8 };
+const CAPTURED = { prefab: "prefabs", object: "objects" };
 const LAYOUTS = path.join("props", "layouts.json");
 const ID_PATTERN = /^[a-z][A-Za-z0-9]*$/;
 const NEW_ZONE = { sizes: [128, 256, 512, 1024], height: 256, base: 48 };
@@ -631,6 +634,134 @@ export class EditSession
     isFloor(block)
     {
         return block !== 0 && this.context.blocks[block - 1].kind !== "liquid";
+    }
+
+    /* CAPTURE ****************************************************************/
+
+    // Copies the cubes in `box`, [x0, y0, z0, x1, y1, z1] in cells, to a new
+    // prefab or object `id` in content/, as data, trimmed to the cubes it
+    // holds. A placement's cubes are copied too, but then the cubes stay, as
+    // `replace` gives way to the new piece only for the zone's own cubes.
+    async capture({ box, id, as, replace })
+    {
+        const messages = [];
+
+        this.checkCapture(box, id, as);
+
+        const cells = this.cubesIn(box);
+
+        if(cells.length === 0) { throw new Error("The box holds no cubes to capture."); }
+
+        const low = [0, 1, 2].map((axis) => Math.min(...cells.map((cell) => cell[axis])));
+        const size = [0, 1, 2].map((axis) => Math.max(...cells.map((cell) => cell[axis])) - low[axis] + 1);
+
+        if(size.some((count) => count > MAX_CAPTURE[as])) { throw new Error("A captured " + as + " is at most " + MAX_CAPTURE[as] + " cubes a side; this one is " + size.join(" × ") + "."); }
+
+        const data = as === "prefab" ? this.prefabData(cells, low, size) : this.objectData(cells, low, size);
+        const file = path.join(this.contentRoot, CAPTURED[as], id + ".json");
+        const blocks = new Map(this.context.blocks.map((block) => [block.id, block]));
+        const problems = [];
+        const baked = as === "prefab" ? Props.fromCells(data, blocks, "Prefab " + id, problems) : Objects.bakeData(id, data, blocks, "Object " + id, problems);
+
+        if(!baked) { throw new Error(problems.join("\n")); }
+
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, JSON.stringify(data) + "\n");
+        this.context[CAPTURED[as]][id] = baked;
+
+        const written = [path.relative(this.contentRoot, file).replaceAll("\\", "/")];
+        const owner = cells.map(([x, y, z]) => this.ownerOf(x, y, z)).find((index) => index !== null);
+
+        if(replace && owner !== undefined) { messages.push("Some cubes belong to " + (this.index.objects[owner]?.name ?? "a placement") + ", so the cubes stay where they are."); }
+
+        if(!replace || owner !== undefined) { return { written, regions: [], messages, ...this.state }; }
+
+        const answer = await this.apply([{ type: "cubes", cells: cells.map(([x, y, z]) => [x, y, z, 0]) }, { type: "add", placement: this.placementOf(as, id, low, size) }]);
+
+        return { ...answer, written, messages: [...messages, ...answer.messages] };
+    }
+
+    checkCapture(box, id, as)
+    {
+        const size = [this.zone.columns, this.zone.height, this.zone.columns];
+        const isBox = Array.isArray(box) && box.length === 6 && box.every(Number.isInteger) && [0, 1, 2].every((axis) => box[axis] >= 0 && box[axis] <= box[axis + 3] && box[axis + 3] < size[axis]);
+
+        if(!CAPTURED[as]) { throw new Error("Capture as a prefab or an object."); }
+        if(!ID_PATTERN.test(id ?? "")) { throw new Error("The name needs to start with a lower-case letter and hold only letters and digits."); }
+        if(this.context.prefabs[id] || this.context.objects[id]) { throw new Error("A prefab or object called " + id + " exists already."); }
+        if(!isBox) { throw new Error("The capture box needs two corners inside the zone."); }
+    }
+
+    // Each cube in the box as [x, y, z, block id], from the placements' cells
+    // where they have them; water and the hidden blocks of objects are left
+    // out.
+    cubesIn([x0, y0, z0, x1, y1, z1])
+    {
+        const columns = this.zone.columns;
+        const cubes = [];
+
+        for(let y = y0; y <= y1; y++)
+        {
+            for(let z = z0; z <= z1; z++)
+            {
+                for(let x = x0; x <= x1; x++)
+                {
+                    const index = (y * columns + z) * columns + x;
+                    const number = this.placed.has(index) ? this.placed.get(index) : this.blockAt(x, y, z);
+                    const block = number > 0 ? this.context.blocks[number - 1] : null;
+
+                    if(block && block.kind !== "liquid" && block.kind !== "object") { cubes.push([x, y, z, block.id]); }
+                }
+            }
+        }
+
+        return cubes;
+    }
+
+    prefabData(cells, low, size)
+    {
+        const palette = [null, ...new Set(cells.map((cell) => cell[3]))];
+        const data = new Uint8Array(size[0] * size[1] * size[2]);
+
+        for(const [x, y, z, id] of cells) { data[((y - low[1]) * size[2] + z - low[2]) * size[0] + x - low[0]] = palette.indexOf(id); }
+
+        return { cells: size, palette, runs: FineMesher.encode(data) };
+    }
+
+    // Each cube becomes FINE by FINE by FINE fine cubes of its block.
+    objectData(cells, low, size)
+    {
+        const fine = FineMesher.FINE;
+        const palette = [null, ...new Set(cells.map((cell) => cell[3]))];
+        const [width, , depth] = size.map((count) => count * fine);
+        const data = new Uint8Array(width * size[1] * fine * depth);
+
+        for(const [x, y, z, id] of cells)
+        {
+            for(let fy = 0; fy < fine; fy++)
+            {
+                for(let fz = 0; fz < fine; fz++)
+                {
+                    const start = (((y - low[1]) * fine + fy) * depth + (z - low[2]) * fine + fz) * width + (x - low[0]) * fine;
+
+                    data.fill(palette.indexOf(id), start, start + fine);
+                }
+            }
+        }
+
+        return { cells: size, isSolid: true, palette, runs: FineMesher.encode(data) };
+    }
+
+    // A captured prefab's origin is the cube corner nearest the middle of its
+    // bottom; an object's position is the middle of its footprint.
+    placementOf(as, id, [x0, y0, z0], [width, , depth])
+    {
+        const half = this.zone.columns / CUBES / 2;
+        const y = round((y0 - this.zone.base) / CUBES);
+
+        if(as === "object") { return { object: id, x: round((x0 + width / 2) / CUBES - half), z: round((z0 + depth / 2) / CUBES - half), y, angle: 0 }; }
+
+        return { prefab: id, x: round((x0 + Math.floor(width / 2)) / CUBES - half), z: round((z0 + Math.floor(depth / 2)) / CUBES - half), y, angle: 0 };
     }
 
     /* BAKE *******************************************************************/

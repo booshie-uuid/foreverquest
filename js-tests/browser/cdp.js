@@ -44,6 +44,8 @@ const NAMED_KEYS =
     Enter: { code: "Enter", keyCode: 13, text: "\r" },
     Escape: { code: "Escape", keyCode: 27 },
     F8: { code: "F8", keyCode: 119 },
+    PageDown: { code: "PageDown", keyCode: 34 },
+    PageUp: { code: "PageUp", keyCode: 33 },
     Shift: { code: "ShiftLeft", keyCode: 16, location: 1 },
     Tab: { code: "Tab", keyCode: 9 },
 };
@@ -376,6 +378,11 @@ export class Page
         }
 
         await this.dispatchMouse({ type: "mouseReleased", x: x2, y: y2, button, buttons: 0, clickCount: 1 });
+    }
+
+    async mouseMove(x, y)
+    {
+        await this.dispatchMouse({ type: "mouseMoved", x, y });
     }
 
     async wheel(x, y, deltaY)

@@ -41,6 +41,15 @@ export class EditorClient
         return this.post("map", { recipe, water });
     }
 
+    // `capture` holds { box, id, as, replace }: the box's corners in cells,
+    // the new piece's name, "prefab" or "object", and whether the piece takes
+    // the cubes' place. Resolves to { written, regions, messages } and the
+    // state.
+    capture(capture)
+    {
+        return this.post("capture", capture);
+    }
+
     // Resolves to { written } and the state, once the terrain is cubes.
     lock()
     {
