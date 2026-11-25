@@ -28,7 +28,7 @@ const HUE_SHIFT = 65536;
 const GLOW_STEPS = Math.log(GLOW_END) / Math.log(GLOW_KEEP);
 const FILL_STEPS = 6;
 const FILL_KEEP = Math.sqrt(GLOW_KEEP);
-const SIDEWAYS_COST = 3;
+const SIDEWAYS_COST = 2;
 const CORE = [GLOW_REACH / COARSE - 1 - Math.ceil((FILL_STEPS + 1) / COARSE), (GLOW_REACH + CHUNK) / COARSE + Math.ceil((FILL_STEPS + 1) / COARSE)];
 
 // The step through the padded cells along x, y and z.
@@ -653,8 +653,10 @@ function windowsOf(glassCells, cells, table)
 // A window takes the brightest light that reaches any cell beside it, less
 // its dimming, and gives that light to every cell beside it, from which it
 // spreads one level a cell along the axis of the face it left by and
-// SIDEWAYS_COST levels a cell across it. Its glass cells take the brightest
-// light that reaches it.
+// SIDEWAYS_COST levels a cell across it. Off the plane of the cells beside
+// the window it also falls one level a cell downwards, and stepping back into
+// that plane costs SIDEWAYS_COST. Its glass cells take the brightest light
+// that reaches it.
 function throughWindows(levels, windows, cells, table)
 {
     const buckets = Array.from({ length: MAX_LIGHT + 1 }, () => [[], [], []]);
@@ -676,7 +678,7 @@ function throughWindows(levels, windows, cells, table)
             if(levels[faces[i]] >= level) { continue; }
 
             levels[faces[i]] = level;
-            buckets[level][faces[i + 1]].push(faces[i]);
+            buckets[level][faces[i + 1]].push(faces[i], coordOf(faces[i], faces[i + 1]));
         }
     }
 
@@ -684,24 +686,31 @@ function throughWindows(levels, windows, cells, table)
     {
         for(let along = 0; along < 3; along++)
         {
-            for(const index of buckets[level][along])
+            const bucket = buckets[level][along];
+
+            for(let i = 0; i < bucket.length; i += 2)
             {
+                const [index, plane] = [bucket[i], bucket[i + 1]];
+
                 if(levels[index] !== level) { continue; }
 
                 for(let axis = 0; axis < 3; axis++)
                 {
-                    const next = level - (axis === along ? 1 : SIDEWAYS_COST);
-
-                    if(next <= 0) { continue; }
-
                     for(const sign of [1, -1])
                     {
                         const neighbour = stepFrom(index, axis, sign);
 
-                        if(neighbour < 0 || table.blocking[cells[neighbour]] === 1 || levels[neighbour] >= next) { continue; }
+                        if(neighbour < 0 || table.blocking[cells[neighbour]] === 1) { continue; }
+
+                        const isOffWall = coordOf(neighbour, along) !== plane;
+                        const isOut = axis === along && isOffWall;
+                        const isFalling = axis === 1 && sign < 0 && along !== 1 && isOffWall;
+                        const next = level - (isOut || isFalling ? 1 : SIDEWAYS_COST);
+
+                        if(next <= 0 || levels[neighbour] >= next) { continue; }
 
                         levels[neighbour] = next;
-                        buckets[next][along].push(neighbour);
+                        buckets[next][along].push(neighbour, plane);
                     }
                 }
             }
@@ -709,10 +718,15 @@ function throughWindows(levels, windows, cells, table)
     }
 }
 
+function coordOf(index, axis)
+{
+    return [index % PADDED, Math.floor(index / (PADDED * PADDED)), Math.floor(index / PADDED) % PADDED][axis];
+}
+
 // The padded index one cell along `axis` by `sign`, or -1 outside the volume.
 function stepFrom(index, axis, sign)
 {
-    const at = [index % PADDED, Math.floor(index / (PADDED * PADDED)), Math.floor(index / PADDED) % PADDED][axis] + sign;
+    const at = coordOf(index, axis) + sign;
 
     return at < 0 || at >= PADDED ? -1 : index + sign * STRIDES[axis];
 }

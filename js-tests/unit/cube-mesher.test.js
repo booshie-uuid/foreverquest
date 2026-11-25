@@ -435,7 +435,7 @@ describe("Cube mesher", () =>
         assert.deepEqual([lampAt(leaded, 15, 3, 15), lampAt(leaded, 15, 2, 16), lampAt(leaded, 15, 3, 16)], [window, window, window], "The window does not give the same light from each of its cells");
         assert.equal(window, brightest - 2);
         assert.equal(lampAt(leaded, 13, 2, 15), window - 2, "The light does not fall a level a cell out from the window");
-        assert.equal(lampAt(leaded, 15, 2, 13), window - 6, "The light does not fall three levels a cell along the wall");
+        assert.equal(lampAt(leaded, 15, 2, 13), window - 4, "The light does not fall two levels a cell along the wall");
         assert.equal(lampAt(dimmer, 15, 2, 15), window - 2, "Grimy glass does not dim the light more than leaded glass");
     });
 
@@ -464,6 +464,23 @@ describe("Cube mesher", () =>
         const skyAt = (x, y, z) => lit[at(x, y, z)] >> 4;
 
         assert.equal(skyAt(15, 3, 15), 15);
-        assert.deepEqual([skyAt(17, 3, 15), skyAt(19, 3, 15), skyAt(17, 3, 18)], [13, 11, 7]);
+        assert.deepEqual([skyAt(17, 3, 15), skyAt(19, 3, 15), skyAt(17, 3, 18)], [13, 11, 9]);
+    });
+    it("lets a window's light pool on the ground in front of it, and not run down the wall below it", () =>
+    {
+        const at = (x, y, z) => ((y + MARGIN) * PADDED + z + MARGIN) * PADDED + x + MARGIN;
+        const lit = CubeMesher.lightCells(cells((set) =>
+        {
+            for(let x = 0; x < 32; x++) { for(let z = 0; z < 32; z++) { set(x, 0, z, STONE); } }
+            for(let y = 1; y < 32; y++) { for(let z = 0; z < 32; z++) { set(16, y, z, STONE); } }
+            for(let y = 6; y < 8; y++) { for(let z = 15; z < 17; z++) { set(16, y, z, GLASS); } }
+
+            set(19, 6, 15, LAMP);
+        }), table());
+        const lampAt = (x, y, z) => lit[at(x, y, z)] & 0xf;
+        const window = lampAt(15, 6, 15);
+
+        assert.equal(lampAt(13, 1, 15), window - 7, "The light does not fall a level a cell to the ground two cells out");
+        assert.ok(lampAt(15, 1, 15) < lampAt(13, 1, 15), "The wall below the window is as bright as the ground in front of it");
     });
 });
