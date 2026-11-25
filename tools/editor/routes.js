@@ -1,3 +1,4 @@
+import * as Recipe from "../terrain/recipe.js";
 import * as childProcess from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -7,7 +8,8 @@ import { Log } from "../../js/log.js";
 
 const ROOT = path.resolve(import.meta.dirname, "..", "..");
 const ZONE_ASSET = /^\/assets\/zones\/([a-z][A-Za-z0-9]*)\/((?:\d+-\d+\.bin)|index\.json)$/;
-const EDITOR_ROUTE = /^\/editor\/([a-z][A-Za-z0-9]*)\/(state|open|owner|apply|undo|redo|save|discard|notes)$/;
+const EDITOR_ROUTE = /^\/editor\/([a-z][A-Za-z0-9]*)\/(state|open|create|owner|apply|map|lock|undo|redo|save|discard|notes)$/;
+const MANIFEST = "/assets/manifest.json";
 const LOCAL_HOST = /^(127\.0\.0\.1|localhost)(:\d+)?$/;
 const MAX_BODY = 16 * 1024 * 1024;
 
@@ -29,12 +31,28 @@ export class EditorRoutes
         this.queue = Promise.resolve();
     }
 
-    // The bytes an open session baked for a zone asset, or null.
+    // The bytes an open session baked for a zone asset, or null. The game
+    // loads only assets its manifest lists, so the manifest gains the files of
+    // a zone that the bake has not seen yet.
     overlay(pathname)
     {
+        if(pathname === MANIFEST) { return this.manifest(); }
+
         const match = ZONE_ASSET.exec(pathname);
 
         return match ? this.sessions.get(match[1])?.file(match[2]) ?? null : null;
+    }
+
+    manifest()
+    {
+        const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "assets", "manifest.json"), "utf8"));
+        const unbaked = [...this.sessions.values()].filter((session) => !manifest.files["zones/" + session.id + "/index.json"]);
+
+        if(unbaked.length === 0) { return null; }
+
+        for(const session of unbaked) { Object.assign(manifest.files, session.manifestEntries()); }
+
+        return Buffer.from(JSON.stringify(manifest, null, 4) + "\n");
     }
 
     // Whether the request was an editor route, which this has answered.
@@ -105,16 +123,18 @@ export class EditorRoutes
     {
         if(action === "notes") { return this.writeNotes(id, body); }
         if(action === "discard") { return this.discard(id); }
+        if(action === "create") { return this.create(id, body); }
 
         const session = await this.session(id);
 
-        if(action === "open") { return { ...session.state, isOpen: true }; }
+        if(action === "open") { return { ...session.state, isOpen: true, kinds: Recipe.kinds() }; }
         if(action === "owner") { return { object: session.ownerOf(...body.cell) }; }
         if(action === "apply") { return session.apply(Array.isArray(body.operations) ? body.operations : []); }
+        if(action === "map") { return session.map(body.recipe, body.water); }
         if(action === "undo") { return session.undo(); }
         if(action === "redo") { return session.redo(); }
 
-        const written = session.save();
+        const written = action === "lock" ? await session.lockIn() : session.save();
 
         if(this.shouldBake) { await this.bake(); }
 
@@ -130,6 +150,19 @@ export class EditorRoutes
         this.sessions.set(id, session);
 
         return session;
+    }
+
+    // `body` holds the new zone's { name, size, from }, as EditSession.create
+    // takes them.
+    async create(id, body)
+    {
+        if(this.sessions.has(id)) { throw new Error("The zone " + id + " is open in the editor already."); }
+
+        const session = await EditSession.create(id, this.contentRoot, body);
+
+        this.sessions.set(id, session);
+
+        return { ...session.state, isOpen: true };
     }
 
     discard(id)

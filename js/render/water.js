@@ -1,19 +1,28 @@
 import * as THREE from "three";
 
+// `reach` holds how far in metres the water runs past each side named, from
+// north, east, south and west.
 export class Water
 {
-    constructor(size, cells, level, material)
+    constructor(size, cells, level, material, reach = {})
     {
         this.level = level;
         this.time = 0;
 
-        const geometry = new THREE.PlaneGeometry(size, size, cells, cells).rotateX(-Math.PI / 2);
+        const { north = 0, east = 0, south = 0, west = 0 } = reach;
+        const [width, depth] = [size + west + east, size + north + south];
+        const geometry = new THREE.PlaneGeometry(width, depth, Math.ceil(cells * width / size), Math.ceil(cells * depth / size)).rotateX(-Math.PI / 2);
 
-        geometry.translate(0, level, 0);
+        geometry.translate((east - west) / 2, level, (south - north) / 2);
 
         this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.name = "water";
         this.mesh.receiveShadow = true;
+    }
+
+    dispose()
+    {
+        this.mesh.geometry.dispose();
     }
 
     update(delta)

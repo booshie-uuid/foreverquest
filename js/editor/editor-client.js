@@ -22,9 +22,29 @@ export class EditorClient
         }
     }
 
+    // Resolves to the state, and the kinds of terrain recipe as `kinds`.
     open()
     {
         return this.post("open");
+    }
+
+    // `zone` holds the new zone's { name, size, from }, with `size` in metres
+    // and `from` the zone whose lighting it takes.
+    create(zone)
+    {
+        return this.post("create", zone);
+    }
+
+    // Resolves to { map }, a PNG data URL, without changing the zone.
+    map(recipe, water)
+    {
+        return this.post("map", { recipe, water });
+    }
+
+    // Resolves to { written } and the state, once the terrain is cubes.
+    lock()
+    {
+        return this.post("lock");
     }
 
     // `cell` is [x, y, z]. Resolves to { object }, the index of the owning

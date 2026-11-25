@@ -1,3 +1,4 @@
+import * as Recipe from "../../tools/terrain/recipe.js";
 import * as RegionCodec from "../../js/sim/region-codec.js";
 import * as Server from "../../tools/serve.js";
 import * as Terrain from "../../tools/bake/terrain.js";
@@ -220,6 +221,68 @@ describe("Edit sessions", () =>
     });
 });
 
+describe("New zones", () =>
+{
+    const contentRoot = () =>
+    {
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), "zones-"));
+
+        fs.mkdirSync(path.join(root, "zones", "testfield"), { recursive: true });
+        fs.copyFileSync(path.join(CONTENT, "zones", "testfield", "zone.json"), path.join(root, "zones", "testfield", "zone.json"));
+
+        return root;
+    };
+    const middle = (session) => session.terrain.surfaces[(session.zone.columns / 2) * session.zone.columns + session.zone.columns / 2];
+
+    it("starts from the starter recipe, draws a recipe's map without a step, and runs a new recipe as a step that undo takes back", async () =>
+    {
+        const root = contentRoot();
+        const session = await EditSession.create("vale", root, { name: "the Vale", size: 128, from: "testfield" });
+        const flat = { ...Recipe.starter(), base: { kind: "flat", height: 5 } };
+        const hills = middle(session);
+
+        assert.deepEqual([session.state.isLocked, session.state.recipe, session.state.water], [false, Recipe.starter(), Recipe.WATER.value]);
+        assert.equal(session.zone.lighting.sky.top, JSON.parse(fs.readFileSync(path.join(root, "zones", "testfield", "zone.json"), "utf8")).lighting.sky.top);
+        assert.match(session.map(flat, 2).map, /^data:image\/png;base64,/);
+        assert.equal(session.state.steps, 0);
+
+        const answer = await session.apply([{ type: "terrain", recipe: flat, water: 2 }]);
+
+        assert.deepEqual(answer.regions.sort(), Terrain.regionNames(session.zone.columns).sort());
+        assert.deepEqual([middle(session), session.zone.water], [session.zone.base + 15, session.zone.base + 6]);
+
+        await session.undo();
+        assert.deepEqual([middle(session), session.zone.water], [hills, session.zone.base - 3]);
+
+        const broken = await session.apply([{ type: "terrain", recipe: { ...flat, base: { kind: "mountains" } }, water: 2 }]);
+        const cubes = await session.apply([{ type: "cubes", cells: [[10, 60, 10, 1]] }]);
+
+        assert.deepEqual([broken.messages, broken.steps], [["The terrain needs a base, one of flat, hills."], 0]);
+        assert.deepEqual([cubes.messages, cubes.refused], [["Lock in the terrain before changing its cubes."], [[10, 60, 10, null]]]);
+        assert.equal(fs.existsSync(path.join(root, "zones", "vale")), false, "The new zone reached content/ before it was saved");
+        fs.rmSync(root, { recursive: true });
+    });
+
+    it("locks the terrain in as cubes and bounds that the zone opens with again, and drops the recipe", async () =>
+    {
+        const root = contentRoot();
+        const session = await EditSession.create("vale", root, { name: "the Vale", size: 128, from: "testfield" });
+        const surfaces = session.terrain.surfaces.slice();
+        const bounds = session.terrain.bounds;
+        const written = await session.lockIn();
+        const saved = JSON.parse(fs.readFileSync(path.join(root, "zones", "vale", "zone.json"), "utf8"));
+        const reopened = await EditSession.open("vale", root);
+
+        assert.deepEqual(written.sort(), ["zones/vale/regions/0-0.bin", "zones/vale/regions/0-1.bin", "zones/vale/regions/1-0.bin", "zones/vale/regions/1-1.bin", "zones/vale/regions/blocks.json", "zones/vale/regions/bounds.json", "zones/vale/zone.json"]);
+        assert.deepEqual([saved.terrain, session.state.isLocked, session.state.recipe], [undefined, true, undefined]);
+        assert.deepEqual(reopened.terrain.surfaces, surfaces);
+        assert.deepEqual(Object.keys(reopened.terrain.bounds), ["north", "east", "south", "west"]);
+        assert.deepEqual(reopened.terrain.bounds, bounds);
+        assert.deepEqual((await reopened.apply([{ type: "cubes", cells: [[10, surfaces[10 * 384 + 10], 10, 1]] }])).refused, []);
+        fs.rmSync(root, { recursive: true });
+    });
+});
+
 describe("Editor routes", () =>
 {
     const request = (url, { method = "POST", headers = {}, body = "{}" } = {}) => new Promise((resolve, reject) =>
@@ -259,6 +322,35 @@ describe("Editor routes", () =>
         {
             await server.close();
             fs.rmSync(notesRoot, { recursive: true });
+        }
+    });
+
+    it("create a zone that the server serves from memory, and draw its map", async () =>
+    {
+        const contentRoot = fs.mkdtempSync(path.join(os.tmpdir(), "zones-"));
+        const server = await Server.startServer({ port: 0, editor: new EditorRoutes({ shouldBake: false, contentRoot }) });
+        const json = { "Content-Type": "application/json" };
+        const body = JSON.stringify({ name: "the Vale", size: 128, from: "testfield" });
+
+        fs.cpSync(path.join(CONTENT, "zones", "testfield"), path.join(contentRoot, "zones", "testfield"), { recursive: true });
+
+        try
+        {
+            const created = await request(server.url + "/editor/vale/create", { headers: json, body });
+            const again = await request(server.url + "/editor/vale/create", { headers: json, body });
+            const index = await request(server.url + "/assets/zones/vale/index.json", { method: "GET", body: "" });
+            const opened = await request(server.url + "/editor/vale/open", { headers: json });
+            const map = await request(server.url + "/editor/vale/map", { headers: json, body: JSON.stringify({ recipe: created.body.recipe, water: 0 }) });
+
+            assert.deepEqual([created.status, created.body.isLocked, again.status], [200, false, 400]);
+            assert.deepEqual([index.status, index.body.name], [200, "the Vale"]);
+            assert.deepEqual(Object.keys(opened.body.kinds.features), ["flat", "basin", "rise", "hilly", "hillyBand", "river", "pass"]);
+            assert.match(map.body.map, /^data:image\/png;base64,/);
+        }
+        finally
+        {
+            await server.close();
+            fs.rmSync(contentRoot, { recursive: true });
         }
     });
 });

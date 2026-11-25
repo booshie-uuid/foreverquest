@@ -1,4 +1,6 @@
+import * as Generator from "../terrain/generator.js";
 import * as Png from "../../js/engine/png.js";
+import * as Recipe from "../terrain/recipe.js";
 import * as RegionCodec from "../../js/sim/region-codec.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -32,11 +34,13 @@ export function regionNames(columns)
     return names;
 }
 
-// A zone's terrain is a script whose `column(zone, x, z)` returns a
-// column's [surface, ground], or one image per region with a column's surface
-// in red and its ground index in green.
+// A zone's terrain is a recipe in its zone file, a script whose
+// `column(zone, x, z)` returns a column's [surface, ground], or one image per
+// region with a column's surface in red and its ground index in green.
 export async function readColumns(folder, zone, where, problems)
 {
+    if(zone.terrain !== undefined) { return generateColumns(zone, where, problems); }
+
     const columns = zone.columns;
     const surfaces = new Uint16Array(columns * columns);
     const grounds = new Uint8Array(columns * columns);
@@ -63,6 +67,36 @@ export async function readColumns(folder, zone, where, problems)
     }
 
     return { surfaces, grounds };
+}
+
+// The result's `cells` holds the generator's cells by region name, each
+// [column, y, row, block id] in zone cells, `clipped` counts the columns
+// cut to fit under the zone's height, and `bounds` and `foots` are the
+// generator's.
+export function generateColumns(zone, where, problems)
+{
+    const recipeProblems = Recipe.check(zone.terrain, zone.columns / CUBES_PER_METRE);
+
+    if(recipeProblems.length > 0)
+    {
+        problems.push(...recipeProblems.map((problem) => where + ": " + problem));
+
+        return { surfaces: new Uint16Array(zone.columns * zone.columns), grounds: new Uint8Array(zone.columns * zone.columns), cells: new Map(), bounds: {} };
+    }
+
+    const { surfaces, grounds, cells, clipped, bounds, foots } = Generator.generate(zone, zone.terrain);
+    const byRegion = new Map();
+
+    for(const cell of cells)
+    {
+        const name = Math.floor(cell[0] / REGION) + "-" + Math.floor(cell[2] / REGION);
+
+        if(!byRegion.has(name)) { byRegion.set(name, []); }
+
+        byRegion.get(name).push(cell);
+    }
+
+    return { surfaces, grounds, cells: byRegion, clipped, bounds, foots };
 }
 
 async function readImages(folder, zone, { surfaces, grounds }, where, problems)
@@ -94,6 +128,23 @@ async function readImages(folder, zone, { surfaces, grounds }, where, problems)
             }
         }
     }
+}
+
+// The sides, of north, east, south and west, where most of the zone's edge
+// lies under water.
+export function waterSides(zone, surfaces)
+{
+    const last = zone.columns - 1;
+    const edges = { north: (k) => k, east: (k) => k * zone.columns + last, south: (k) => last * zone.columns + k, west: (k) => k * zone.columns };
+
+    return Object.keys(edges).filter((side) =>
+    {
+        let wet = 0;
+
+        for(let k = 0; k < zone.columns; k++) { if(surfaces[edges[side](k)] < zone.water) { wet++; } }
+
+        return wet * 2 > zone.columns;
+    });
 }
 
 export function heightsOf(zone, surfaces)
@@ -172,6 +223,13 @@ export function composeRegion(zone, terrain, ground, blocks, rx, rz, placed = { 
     if(terrain.locked) { fillLocked(terrain.locked.get(rx + "-" + rz), cellsOf, surfaces); }
     else { fillColumns(zone, terrain, ground, blocks, rx, rz, cellsOf, surfaces); }
 
+    for(const [column, y, row, id] of terrain.cells?.get(rx + "-" + rz) ?? [])
+    {
+        const [x, z] = [column - rx * REGION, row - rz * REGION];
+
+        cellsOf(Math.floor(x / CHUNK), Math.floor(y / CHUNK), Math.floor(z / CHUNK))[((y % CHUNK) * CHUNK + (z % CHUNK)) * CHUNK + (x % CHUNK)] = id === "air" ? 0 : blocks[id];
+    }
+
     const grounds = surfaces.slice();
 
     for(const [zoneX, y, zoneZ, block] of placed.cells)
@@ -211,6 +269,7 @@ function fillColumns(zone, terrain, ground, blocks, rx, rz, cellsOf, surfaces)
             const under = isRocky(zone, terrain.surfaces, column, row) ? blocks.rock : layers.under;
             const top = Math.max(surface, zone.water);
             const offset = (z % CHUNK) * CHUNK + (x % CHUNK);
+            const foot = terrain.foots?.[row * columns + column] ?? 0;
 
             surfaces[z * width + x] = surface;
 
@@ -223,7 +282,8 @@ function fillColumns(zone, terrain, ground, blocks, rx, rz, cellsOf, surfaces)
                     const below = surface - 1 - y;
                     let block = blocks.water;
 
-                    if(below > UNDER_DEPTH) { block = blocks.rock; }
+                    if(foot > 0 && below > 0) { block = cliffCell(column, y, row, foot, blocks); }
+                    else if(below > UNDER_DEPTH) { block = blocks.rock; }
                     else if(below > 0) { block = under; }
                     else if(below === 0) { block = layers.top; }
 
@@ -251,6 +311,7 @@ function fillLocked(region, cellsOf, surfaces)
 // since the bake numbers blocks in the order content/blocks/ lists them.
 export const LOCKED_FOLDER = "regions";
 export const PALETTE_FILE = "blocks.json";
+export const BOUNDS_FILE = "bounds.json";
 
 export function isLocked(folder)
 {
@@ -298,7 +359,10 @@ export function readLocked(folder, zone, numbers, where, problems)
         locked.set(name, region);
     }
 
-    return { surfaces, locked };
+    const boundsFile = path.join(lockedFolder, BOUNDS_FILE);
+    const bounds = fs.existsSync(boundsFile) ? JSON.parse(fs.readFileSync(boundsFile, "utf8")) : {};
+
+    return { surfaces, locked, bounds };
 }
 
 // The locked files of a zone's terrain as it is now, with no props: one per
@@ -315,7 +379,20 @@ export function lockedFiles(zone, terrain, ground, numbers, ids)
 
     files.push({ path: PALETTE_FILE, bytes: Buffer.from(JSON.stringify(ids, null, 4) + "\n") });
 
+    if(Object.keys(terrain.bounds ?? {}).length > 0) { files.push({ path: BOUNDS_FILE, bytes: Buffer.from(JSON.stringify(terrain.bounds) + "\n") }); }
+
     return files;
+}
+
+// A cell inside a cliff that rises from the cell `foot`: earth near the
+// foot, rock higher up, and rock deep below it.
+function cliffCell(column, y, row, foot, blocks)
+{
+    const lift = (y - foot) / CUBES_PER_METRE;
+
+    if(lift < -UNDER_DEPTH / CUBES_PER_METRE) { return blocks.rock; }
+
+    return Generator.isStony(lift, (column + row) / CUBES_PER_METRE, y / CUBES_PER_METRE) ? blocks.rock : blocks.earth;
 }
 
 function isRocky(zone, surfaces, column, row)

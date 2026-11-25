@@ -21,6 +21,7 @@ const AROUND = [-1, 0, 1].flatMap((dx) => [-1, 0, 1].flatMap((dy) => [-1, 0, 1].
 
 export class ZoneData
 {
+    static EDGE_MARGIN = EDGE_MARGIN;
     static STEP_CELLS = STEP_CELLS;
     static CUBES_PER_METRE = CUBES_PER_METRE;
     static COARSE = COARSE;
@@ -56,7 +57,10 @@ export class ZoneData
         this.base = zone.base;
         this.size = zone.columns / CUBES_PER_METRE;
         this.half = this.size / 2;
+        this.waterCell = zone.water;
         this.waterLevel = (zone.water - zone.base) / CUBES_PER_METRE;
+        this.waterSides = zone.waterSides ?? [];
+        this.bounds = zone.bounds ?? {};
         this.lighting = zone.lighting;
         this.spawn = zone.spawn;
         this.people = zone.people;
@@ -176,6 +180,23 @@ export class ZoneData
     {
         this.objects = objects;
         this.emitRegion("objects", null);
+    }
+
+    // `water` is the water's cell and `sides` the sides of the zone that end
+    // in open water, as the zone's index gives them.
+    setWater(water, sides = [])
+    {
+        this.waterCell = water;
+        this.waterLevel = (water - this.base) / CUBES_PER_METRE;
+        this.waterSides = sides;
+        this.emitRegion("water", null);
+    }
+
+    // `bounds` holds, for some sides, how far in from the edge movement
+    // stops, metre by metre along the side from its west or north end.
+    setBounds(bounds = {})
+    {
+        this.bounds = bounds;
     }
 
     // Sets [x, y, z, block] cells in loaded regions, as the editor shows a
@@ -535,7 +556,19 @@ export class ZoneData
 
     isWalkable(x, z)
     {
-        return this.isInside(x, z, EDGE_MARGIN) && this.isLoaded(x, z);
+        return this.isInside(x, z, EDGE_MARGIN) && this.isWithinBounds(x, z) && this.isLoaded(x, z);
+    }
+
+    isWithinBounds(x, z)
+    {
+        const sides = { north: [z + this.half, x], south: [this.half - z, x], west: [x + this.half, z], east: [this.half - x, z] };
+
+        return Object.entries(this.bounds).every(([side, limits]) =>
+        {
+            const [distance, along] = sides[side];
+
+            return distance > (limits[Math.floor(along + this.half)] ?? EDGE_MARGIN);
+        });
     }
 
     // A cylinder stands on the highest solid cell under it that is no more

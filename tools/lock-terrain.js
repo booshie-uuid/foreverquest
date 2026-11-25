@@ -14,8 +14,8 @@ const USAGE = "Usage: node tools/lock-terrain.js <zone id>";
 /* LOCK                                                                       */
 /******************************************************************************/
 
-// Writes the zone's terrain as locked cubes and deletes its terrain source and
-// ground list, which the bake no longer reads.
+// Writes the zone's terrain as locked cubes and deletes its terrain source,
+// recipe and ground list, which the bake no longer reads.
 export async function lock(id)
 {
     const folder = path.join(CONTENT, "zones", id);
@@ -47,6 +47,7 @@ export async function lock(id)
     fs.rmSync(path.join(folder, "terrain.js"), { force: true });
     fs.rmSync(path.join(folder, "terrain"), { recursive: true, force: true });
     delete zone.ground;
+    delete zone.terrain;
     fs.writeFileSync(zonePath, JSON.stringify(zone, null, 4) + "\n");
 
     return files.length - 1;

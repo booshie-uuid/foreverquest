@@ -781,10 +781,10 @@ function spread(levels, seeds, cells, opaque)
 /* MESH                                                                       */
 /******************************************************************************/
 
-// Liquids are left to the water view.
+// Liquids at or below the zone's water level are left to the water view.
 export function buildChunk(zone, table, atlas, cx, cy, cz)
 {
-    const frame = { half: zone.half, base: zone.base, perCell: atlas.uvPerMetre / ZoneData.CUBES_PER_METRE };
+    const frame = { half: zone.half, base: zone.base, water: zone.waterCell, perCell: atlas.uvPerMetre / ZoneData.CUBES_PER_METRE };
 
     return meshCells(paddedCells(zone, cx, cy, cz), table, [cx * CHUNK, cy * CHUNK, cz * CHUNK], frame);
 }
@@ -800,7 +800,7 @@ export function meshCells(volume, table, origin, frame)
     const ambientOf = volume.coarse ? fineGlow(volume, table) : () => 0;
     const glowOf = (index) => ambientOf(index) + hueOf(index) * HUE_SHIFT;
     const floors = floorLights(volume.cells, light, table, glowOf);
-    const context = { cells: volume.cells, ages: volume.ages ?? new Uint8Array(PADDED * PADDED), light, glowOf, table, origin, isGlass: 0, hasGlass: false };
+    const context = { cells: volume.cells, ages: volume.ages ?? new Uint8Array(PADDED * PADDED), light, glowOf, table, origin, water: frame.water ?? Infinity, isGlass: 0, hasGlass: false };
 
     context.chips = chipsOf(context);
     addFaces(out, masks, context, frame);
@@ -948,7 +948,8 @@ function floorLights(cells, light, table, glowOf)
 // is 0. A glass face takes the brighter lamp light of the cells on its two
 // sides, and its weather entry holds its frame edges; see frameEdges. A face
 // that looks into glass, such as the side of a window's opening, takes the
-// frame's texture and does not weather.
+// frame's texture and does not weather. A liquid above the water level, such
+// as a waterfall, draws its faces that do not touch more liquid.
 function fillMask(masks, context, direction, slice)
 {
     const { cells, ages, light, table } = context;
@@ -970,7 +971,9 @@ function fillMask(masks, context, direction, slice)
             const chip = context.chips.size > 0 ? context.chips.get(index) : undefined;
             const isChipped = chip !== undefined && ((chip.a === axis && chip.signA === sign) || (chip.b === axis && chip.signB === sign));
             const isGlass = table.glass[block];
-            const isHidden = isGlass !== context.isGlass || isChipped || block === 0 || table.hidden[block] === 1 || table.opaque[neighbour] === 1 || (table.clear[block] === 1 && neighbour === block) || (isGlass === 1 && table.glass[neighbour] === 1);
+            const isPoured = table.liquid[block] === 1 && context.origin[1] + Math.floor(index / (PADDED * PADDED)) - MARGIN >= context.water;
+            const isOut = isPoured ? table.liquid[neighbour] === 1 : table.hidden[block] === 1;
+            const isHidden = isGlass !== context.isGlass || isChipped || block === 0 || isOut || table.opaque[neighbour] === 1 || (table.clear[block] === 1 && neighbour === block) || (isGlass === 1 && table.glass[neighbour] === 1);
 
             if(isGlass === 1) { context.hasGlass = true; }
 

@@ -157,4 +157,79 @@ export const tests =
             assert.deepEqual([saved[0].text, saved[0].status, saved[0].view], ["Move the well back a metre.", "open", { x: 0, y: 5, z: 6, yaw: 0, pitch: 0.7 }]);
         },
     },
+    {
+        name: "a new zone opens on its terrain recipe and map, takes a flat area dragged on the map without moving the camera, moves the camera to an empty spot clicked, and Preview bakes a changed base into the world",
+        timeout: 120000,
+        run: async ({ page, baseUrl, screenshot }) =>
+        {
+            await openEditor(page, baseUrl);
+            await page.click("[data-action=new-zone]");
+            await page.evaluate(() =>
+            {
+                document.querySelector(".editor-card [data-key=id]").value = "specVale";
+                document.querySelector(".editor-card [data-key=name]").value = "the Spec Vale";
+                document.querySelector(".editor-card select").value = "256";
+            });
+            await page.click("[data-action=new-zone-create]");
+
+            try
+            {
+                await page.waitFor(() => location.search.includes("zone=specVale") && window.foreverQuest?.isReady === true && window.foreverQuest.game?.editMode.isActive, { timeout: 60000 });
+                await page.waitFor(() => window.foreverQuest.game.world.isSettled && window.foreverQuest.game.editMode.tools.terrain.image.complete, { timeout: 30000 });
+
+                const opened = await page.evaluate(() =>
+                {
+                    const map = document.querySelector(".editor-map");
+                    const pixels = map.getContext("2d").getImageData(0, 0, map.width, map.height).data;
+                    let drawn = 0;
+
+                    for(let i = 3; i < pixels.length; i += 4) { if(pixels[i] > 0) { drawn++; } }
+
+                    return { modes: [...document.querySelectorAll("[data-action^=mode-]")].map((button) => button.dataset.action), drawn: drawn / (map.width * map.height) };
+                });
+
+                assert.deepEqual(opened.modes, ["mode-terrain", "mode-select", "mode-notes"]);
+                assert.ok(opened.drawn > 0.95, "The map is drawn over only " + opened.drawn + " of its canvas");
+
+                const box = await page.evaluate(() => { const rect = document.querySelector(".editor-map").getBoundingClientRect(); return [rect.left, rect.top, rect.width]; });
+
+                const before = await page.evaluate(() => window.foreverQuest.game.editMode.fly.view);
+
+                await page.click("[data-action=add-flat]");
+                await page.mouseDrag(box[0] + box[2] * 0.4, box[1] + box[2] * 0.4, box[0] + box[2] * 0.6, box[1] + box[2] * 0.6);
+
+                const flat = await page.evaluate(() => window.foreverQuest.game.editMode.tools.terrain.recipe.features[0]);
+
+                assert.deepEqual([flat.kind, Math.abs(flat.x) <= 2, Math.abs(flat.z) <= 2, Math.abs(flat.width - 52) <= 2], ["flat", true, true, true]);
+                assert.deepEqual(await page.evaluate(() => window.foreverQuest.game.editMode.fly.view), before, "Drawing a feature moved the camera");
+
+                await page.click("[data-action=remove-feature]");
+                await page.clickAt(box[0] + box[2] * 0.75, box[1] + box[2] * 0.25);
+
+                const flown = await page.evaluate(() => window.foreverQuest.game.editMode.fly.view);
+
+                assert.ok(Math.abs(flown.x - 64) <= 2 && Math.abs(flown.z + 64) <= 2, "A click on an empty spot of the map did not move the camera there: " + JSON.stringify(flown));
+
+                await page.evaluate(() =>
+                {
+                    const kind = document.querySelector(".editor-palette select[data-key=kind]");
+
+                    kind.value = "flat";
+                    kind.dispatchEvent(new Event("change"));
+                });
+                await page.click("[data-action=terrain-preview]");
+                await page.waitFor(() => window.foreverQuest.game.editMode.state.steps === 1 && !window.foreverQuest.game.editMode.isBusy, { timeout: 60000 });
+                await page.waitFor(() => window.foreverQuest.game.world.isSettled, { timeout: 30000 });
+
+                const ground = await page.evaluate(() => { const zone = window.foreverQuest.game.zone; return zone.surface(zone.columns / 2, zone.columns / 2) - zone.base; });
+
+                assert.equal(ground, 6, "The flat base of 2 m did not reach the world");
+                await screenshot("terrain");
+            }
+            finally
+            {
+                await page.evaluate(() => fetch("editor/specVale/discard", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }));
+            }
+        },
+    },
 ];

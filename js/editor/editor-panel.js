@@ -78,13 +78,25 @@ export class EditorPanel
     /* PALETTE ****************************************************************/
 
     // `items` holds { id, label, swatch, isOn } with `swatch` an image URL or
-    // null; `tabs` holds { label, isOn, onClick }.
-    setPalette({ title, tabs = [], items, onPick, hint = "", footer = "", search = null })
+    // null; `tabs` holds { label, isOn, onClick }. `content` holds nodes a
+    // tool built itself, shown in place of the items.
+    setPalette({ title, tabs = [], items = [], onPick, hint = "", footer = "", search = null, content = null })
     {
         const heading = Controls.element("h3", "", title);
         const tabRow = Controls.element("div", "editor-tabs");
         const list = Controls.element("div", items.some((item) => item.swatch) ? "editor-swatches" : "editor-list");
         const parts = [heading];
+
+        if(content)
+        {
+            const scroll = Controls.element("div", "editor-form");
+            const top = this.palette.querySelector(".editor-form")?.scrollTop ?? 0;
+
+            scroll.append(...content);
+            this.palette.replaceChildren(heading, scroll, ...(hint ? [Controls.element("div", "editor-hint", hint)] : []));
+            scroll.scrollTop = top;
+            return;
+        }
 
         for(const tab of tabs) { tabRow.append(EditorPanel.button({ label: tab.label, isOn: tab.isOn, onClick: tab.onClick })); }
 
@@ -135,7 +147,9 @@ export class EditorPanel
 
     /* INSPECTOR **************************************************************/
 
-    // `rows` holds [label, value, isChanged]; `actions` holds button items.
+    // `rows` holds [label, value, isChanged]; `actions` holds button items;
+    // `content` holds nodes a tool built itself, and `isWide` widens the
+    // panel for them.
     setInspector(selected)
     {
         if(!selected)
@@ -144,8 +158,10 @@ export class EditorPanel
             return;
         }
 
-        const { title, detail, rows, note, actions, more } = selected;
+        const { title, detail, rows = [], note, actions, more, content = [], isWide = false } = selected;
         const parts = [Controls.element("h3", "", title)];
+
+        this.inspector.classList.toggle("is-wide", isWide);
 
         if(detail) { parts.push(Controls.element("div", "editor-hint", detail)); }
 
@@ -158,6 +174,8 @@ export class EditorPanel
         }
 
         if(note) { parts.push(Controls.element("div", "editor-hint is-changed", note)); }
+
+        parts.push(...content);
 
         for(const group of [actions, more].filter((items) => items?.length > 0))
         {
@@ -218,8 +236,9 @@ export class EditorPanel
         });
     }
 
-    // `note` holds { title, text, isEditable, reply, detail, actions }; null
-    // closes the card. `onText(text)` follows the note's text as it is typed.
+    // `note` holds { title, text, isEditable, reply, detail, actions }, or
+    // { title, content, actions } with nodes the caller built; null closes the
+    // card. `onText(text)` follows the note's text as it is typed.
     setCard(note, onText = null)
     {
         if(!note)
@@ -230,7 +249,11 @@ export class EditorPanel
 
         const parts = [Controls.element("h3", "", note.title)];
 
-        if(note.isEditable)
+        if(note.content)
+        {
+            parts.push(...note.content);
+        }
+        else if(note.isEditable)
         {
             const text = Controls.element("textarea", "editor-note-text");
 

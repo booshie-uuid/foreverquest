@@ -12,13 +12,13 @@ F8 again, or the Play button, leaves the editor and lands the character where th
 
 ## Modes and Keys
 
-The tool bar along the top switches between three modes, and holds undo, redo, the grid, save and play. The palette on the left changes with the mode, the inspector on the right shows the selection, and the status line along the bottom shows the cell under the pointer, its height above the ground, its region and age, and the number of changes not saved.
+The tool bar along the top switches between the modes, and holds undo, redo, the grid, save, New zone and play. A locked zone has Cubes, Select and Note modes; a zone whose terrain is not locked in yet has Terrain mode in place of Cubes. The palette on the left changes with the mode, the inspector on the right shows the selection, and the status line along the bottom shows the cell under the pointer, its height above the ground, its region and age, and the number of changes not saved.
 
 | Key | Action |
 |---|---|
 | W A S D, Space, C | Fly forward, back, sideways, up and down; Shift flies faster |
 | Drag with either button | Look around |
-| 1, 2, 3 | Cubes, Select and Note modes |
+| 1, 2, 3, 4 | Cubes, Select, Note and Terrain modes |
 | Ctrl+Z, Ctrl+Y, Ctrl+S | Undo, redo and save |
 | G | Outline every cube |
 | F8 | Leave the editor |
@@ -48,6 +48,32 @@ A name chosen in the palette's Prefabs, Objects or Buildings list makes the next
 ### Notes
 
 Note mode pins a note on the cube under a click. The note keeps the zone, the cell, the selection and the camera's view. A numbered pin marks each note; blue is open, gold is answered and grey is done. **N** moves the camera to the next note.
+
+### Terrain
+
+Terrain mode edits the zone's terrain recipe, which [Terrain Recipes](world.md#terrain-recipes) describes. The palette holds the base and its settings, the water level, the kind of each edge with its band, height and foot slope, and the features in the order they apply. A setting that another setting makes irrelevant, such as a flat area's height above the water while it matches the ground, is hidden, and some settings, such as the hills', explain themselves on hover. The inspector holds an overhead map of the zone with north at the top, its features outlined on it, a blue mark at the camera, and a red line where movement stops: 2 metres inside the zone's edge, and in front of the cliffs where they have risen 3 metres.
+
+The map follows every change at once: the server runs the recipe at about 384 points a side and returns the picture, which takes about 0.15 seconds for a kilometre. The world does not change until the builder presses Preview, which sends the recipe as one step of the undo history; the server runs it at every column and bakes every region again, about 9 seconds for a kilometre, and the world reloads around the camera.
+
+| Action | Effect |
+|---|---|
+| + Flat area, + Basin, + Rise, + Hilly area, then drag on the map | Adds the box dragged |
+| + Hilly band, then click points on the map | Adds a band of hills along the points; a double click or Enter finishes it |
+| + River, then click points on the map | Adds a river; a double click or Enter finishes it |
+| + Pass, then click the map | Adds a pass that cuts straight to the nearest edge |
+| Click a feature on the map, or in the list | Selects it and shows its settings |
+| Click an empty spot on the map, when not drawing | Moves the camera there, at the same height above the ground or the water |
+| Drag a feature, or a river's point | Moves it |
+| ✕ beside a feature, or Delete | Removes it |
+| Escape | Stops drawing |
+| New seed | Gives the base a new seed |
+| Lock in | Asks first, then writes the terrain as locked cubes and saves the zone |
+
+Lock in is open only when the world shows the recipe the panel holds. It writes `regions/` and the zone file, removes the recipe, and runs the full bake; it cannot be undone. Cubes mode then takes the place of Terrain mode. The cube tool refuses changes before then, because the recipe would overwrite them.
+
+### New Zones
+
+New zone opens a form for the zone's id, name and size, 128, 256, 512 or 1,024 metres across. The new zone is 256 cells high with its base 48 cells up, takes the lighting of the zone open in the editor, and starts from rolling hills closed by cliffs on every side. It lives only in the server's session until the builder saves it: the server serves its baked files and adds them to the asset manifest it serves, so the game can load a zone the bake has not seen. The game then opens the new zone in the editor, with the camera above its middle looking north. A zone saved before Lock in keeps its recipe in its zone file, and the bake runs the recipe.
 
 ## How a Change Reaches the World
 
@@ -88,8 +114,9 @@ The development server listens on 127.0.0.1 alone. The editor's routes take a ch
 | File | Holds |
 |---|---|
 | [js/editor/edit-mode.js](../js/editor/edit-mode.js) | The mode: entering and leaving, picking, the request queue and reloading what the server baked |
-| [js/editor/cube-tool.js](../js/editor/cube-tool.js), [select-tool.js](../js/editor/select-tool.js), [note-tool.js](../js/editor/note-tool.js) | The three modes |
+| [js/editor/cube-tool.js](../js/editor/cube-tool.js), [select-tool.js](../js/editor/select-tool.js), [note-tool.js](../js/editor/note-tool.js), [terrain-tool.js](../js/editor/terrain-tool.js) | The modes |
 | [js/editor/editor-panel.js](../js/editor/editor-panel.js), [marks.js](../js/editor/marks.js), [fly-camera.js](../js/editor/fly-camera.js) | The controls, the marks drawn in the world and the camera |
 | [js/editor/editor-client.js](../js/editor/editor-client.js) | The requests to the server |
 | [tools/editor/routes.js](../tools/editor/routes.js) | The server's editor routes and the baked files it serves |
-| [tools/editor/session.js](../tools/editor/session.js) | A zone held in memory: its changes, the undo history, the partial bakes and saving |
+| [tools/editor/session.js](../tools/editor/session.js) | A zone held in memory: its changes, the undo history, the partial bakes, saving, new zones and Lock in |
+| [tools/terrain/](../tools/terrain/) | The terrain recipe's kinds and checks, the generator and the overhead map |

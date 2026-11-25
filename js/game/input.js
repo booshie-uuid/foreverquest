@@ -70,7 +70,7 @@ export class Input
 
     onKeyDown(event)
     {
-        if(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) { return; }
+        if(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) { return; }
 
         if(!this.keys.has(event.code)) { this.emit("key", event.code, event); }
 

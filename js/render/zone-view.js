@@ -45,7 +45,7 @@ export class ZoneView
         this.materials = materials;
         this.workers = workers;
         this.table = CubeMesher.faceTable(zone.blocks, materials.atlas);
-        this.frame = { half: zone.half, base: zone.base, perCell: materials.atlas.uvPerMetre / ZoneData.CUBES_PER_METRE };
+        this.frame = { half: zone.half, base: zone.base, water: zone.waterCell, perCell: materials.atlas.uvPerMetre / ZoneData.CUBES_PER_METRE };
         this.scene = new THREE.Scene();
         this.objectMeshes = new Map();
         this.objectSlots = new Map();
@@ -68,8 +68,8 @@ export class ZoneView
 
         this.scene.fog = new THREE.Fog(lighting.sky.horizon, lighting.fog.near, lighting.fog.far);
         this.scene.background = new THREE.Color(lighting.sky.horizon);
-        this.water = new Water(zone.size, WATER_CELLS, zone.waterLevel - 0.05, materials.water);
-        this.scene.add(this.water.mesh);
+        this.water = null;
+        this.placeWater();
         this.scene.add(this.halos.mesh);
 
         this.unsubscribe = zone.onRegion((event) => this.onRegion(event));
@@ -111,6 +111,24 @@ export class ZoneView
 
     /* TERRAIN ****************************************************************/
 
+    // The water reaches past each side that ends in open water as far as the
+    // fog's far distance.
+    placeWater()
+    {
+        const zone = this.zone;
+        const reach = Object.fromEntries(zone.waterSides.map((side) => [side, zone.lighting.fog.far]));
+
+        if(this.water)
+        {
+            this.scene.remove(this.water.mesh);
+            this.water.dispose();
+        }
+
+        this.frame.water = zone.waterCell;
+        this.water = new Water(zone.size, WATER_CELLS, zone.waterLevel - 0.05, this.materials.water, reach);
+        this.scene.add(this.water.mesh);
+    }
+
     onRegion({ type, name, cells })
     {
         if(type === "added")
@@ -127,6 +145,7 @@ export class ZoneView
 
         if(type === "replaced") { this.queueRegion(name, true); }
         if(type === "cells") { this.queueCells(cells); }
+        if(type === "water") { this.placeWater(); }
 
         if(type === "objects")
         {

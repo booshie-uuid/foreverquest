@@ -141,11 +141,11 @@ Characters can step up one cube at a time, and cannot enter the river. Fifteen v
 | [js/editor/](js/editor/) | The zone editor, a mode of the game screen |
 | [js/ui/](js/ui/) | The character creator and its controls |
 | [js/engine/](js/engine/) | The WebGL renderer loop, the asset source and PNG decoder, the world atlas and material, the raster and the graphics settings |
-| [content/](content/) | Authoring code and data that the bake turns into assets: painters, stamps, rigs, bodies, parts, palettes, archetypes and the id migrations |
+| [content/](content/) | Authoring code and data that the bake turns into assets: painters, stamps, rigs, bodies, parts, palettes, archetypes, terrain bases and the id migrations |
 | `assets/` | The baked asset files, which the bake rebuilds and Git ignores |
 | [js-tests/](js-tests/) | The unit and browser test suites |
 | [lint/](lint/) | The project's ESLint rules |
-| [tools/](tools/) | The bake, the workbench, the development server and its editor routes, the Three.js copy script, the command that locks a zone's terrain into cubes, the command that prints a region as text, and the notes command |
+| [tools/](tools/) | The bake, the workbench, the development server and its editor routes, the terrain generator, the Three.js copy script, the command that locks a zone's terrain into cubes, the command that prints a region as text, and the notes command |
 
 ## Documentation
 

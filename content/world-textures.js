@@ -57,4 +57,5 @@ export const TEXTURES =
     { name: "mossFoot", seed: 803, overlay: true, paint: (r, a, random) => Weathering.mossEdge(r, a, random, false) },
     { name: "grime", seed: 816, overlay: true, paint: (r, a, random) => Weathering.grime(r, a, random) },
     { name: "cracks", seed: 829, overlay: true, paint: (r, a, random) => Weathering.cracks(r, a, random) },
+    { name: "crag", seed: 1050, paint: (r, a, random) => Surfaces.crag(r, a, random) },
 ];

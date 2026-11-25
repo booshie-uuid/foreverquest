@@ -1,11 +1,14 @@
 import * as Blocks from "../bake/blocks.js";
 import * as Objects from "../bake/objects.js";
 import * as Props from "../bake/props.js";
+import * as Recipe from "../terrain/recipe.js";
 import * as RegionCodec from "../../js/sim/region-codec.js";
 import * as Terrain from "../bake/terrain.js";
+import * as TerrainMap from "../terrain/map.js";
 import * as Voxelise from "../bake/voxelise.js";
 import * as WorldTextures from "../bake/world-textures.js";
 import * as Zones from "../bake/zones.js";
+import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as zlib from "node:zlib";
@@ -16,6 +19,8 @@ const QUARTER = Math.PI / 2;
 const PRECISION = 1e6;
 const LEVEL = 1;
 const LAYOUTS = path.join("props", "layouts.json");
+const ID_PATTERN = /^[a-z][A-Za-z0-9]*$/;
+const NEW_ZONE = { sizes: [128, 256, 512, 1024], height: 256, base: 48 };
 
 
 /******************************************************************************/
@@ -28,19 +33,58 @@ export class EditSession
 {
     static async open(id, contentRoot)
     {
+        const folder = path.join(contentRoot, "zones", id);
+        const zone = JSON.parse(fs.readFileSync(path.join(folder, "zone.json"), "utf8"));
+
+        if(!Terrain.isLocked(folder) && zone.terrain === undefined) { throw new Error("Zone zones/" + id + " has no locked terrain or terrain recipe to edit. Run node tools/lock-terrain.js " + id); }
+        if(Terrain.isLocked(folder) && zone.terrain !== undefined) { throw new Error("Zone zones/" + id + " has locked cubes and a terrain recipe; delete the recipe."); }
+
+        return EditSession.start(id, folder, contentRoot, zone);
+    }
+
+    // A new zone lives only in the session until it is saved. It takes the
+    // starter recipe and the lighting of the zone `from`.
+    static async create(id, contentRoot, { name, size, from })
+    {
+        const folder = path.join(contentRoot, "zones", id);
+        const fromPath = path.join(contentRoot, "zones", String(from), "zone.json");
+
+        if(!ID_PATTERN.test(id)) { throw new Error("A zone's id starts with a lower-case letter and holds only letters and digits."); }
+        if(fs.existsSync(folder)) { throw new Error("There is already a zone called " + id + "."); }
+        if(typeof name !== "string" || name.trim() === "") { throw new Error("A new zone needs a name."); }
+        if(!NEW_ZONE.sizes.includes(size)) { throw new Error("A new zone is " + NEW_ZONE.sizes.join(", ") + " metres across."); }
+        if(!ID_PATTERN.test(String(from)) || !fs.existsSync(fromPath)) { throw new Error("There is no zone " + from + " to take the lighting from."); }
+
+        const zone =
+        {
+            id,
+            name: name.trim(),
+            welcome: ["You arrive in " + name.trim() + "."],
+            columns: size * CUBES,
+            height: NEW_ZONE.height,
+            base: NEW_ZONE.base,
+            water: NEW_ZONE.base + Math.round(Recipe.WATER.value * CUBES),
+            lighting: JSON.parse(fs.readFileSync(fromPath, "utf8")).lighting,
+            spawn: { x: 0, z: 0, heading: 0 },
+            people: { seed: 1, residents: [] },
+            props: [],
+            terrain: Recipe.starter(),
+        };
+
+        return EditSession.start(id, folder, contentRoot, zone);
+    }
+
+    static async start(id, folder, contentRoot, zone)
+    {
         const problems = [];
         const context = {};
 
         for(const baker of [WorldTextures, Blocks, Props, Objects]) { await baker.bake(problems, context); }
 
-        const folder = path.join(contentRoot, "zones", id);
-        const zone = JSON.parse(fs.readFileSync(path.join(folder, "zone.json"), "utf8"));
-        const numbers = Object.fromEntries(context.blocks.map((block, i) => [block.id, i + 1]));
-
-        if(!Terrain.isLocked(folder)) { problems.push("Zone zones/" + id + " has no locked terrain to edit. Run node tools/lock-terrain.js " + id); }
         if(problems.length > 0) { throw new Error(problems.join("\n")); }
 
-        const terrain = Terrain.readLocked(folder, zone, numbers, "Zone zones/" + id, problems);
+        const numbers = Object.fromEntries(context.blocks.map((block, i) => [block.id, i + 1]));
+        const terrain = Terrain.isLocked(folder) ? Terrain.readLocked(folder, zone, numbers, "Zone zones/" + id, problems) : null;
         const layoutsPath = path.join(contentRoot, LAYOUTS);
         const layouts = fs.existsSync(layoutsPath) ? JSON.parse(fs.readFileSync(layoutsPath, "utf8")) : {};
         const session = new EditSession({ id, folder, contentRoot, zone, terrain, context, layouts, people: await Zones.loadPeople() });
@@ -48,6 +92,9 @@ export class EditSession
         if(problems.length > 0) { throw new Error(problems.join("\n")); }
 
         session.setLayouts(layouts);
+
+        if(!terrain) { session.syncTerrain([]); }
+
         await session.bake(null);
 
         return session;
@@ -73,17 +120,34 @@ export class EditSession
         this.editedRegions = new Set();
         this.unsettled = new Set();
         this.chunkMaps = new Map();
+        this.generatedFrom = null;
     }
 
+    // A zone not locked in yet holds its recipe, and its water level in
+    // metres for the terrain panel.
     get state()
     {
-        return { isDirty: this.history.length > 0, canUndo: this.history.length > 0, canRedo: this.future.length > 0, steps: this.history.length };
+        const terrain = this.isLocked ? {} : { recipe: this.zone.terrain, water: (this.zone.water - this.zone.base) / CUBES };
+
+        return { isDirty: this.history.length > 0, canUndo: this.history.length > 0, canRedo: this.future.length > 0, steps: this.history.length, isLocked: this.isLocked, ...terrain };
+    }
+
+    get isLocked()
+    {
+        return this.zone.terrain === undefined;
     }
 
     // The baked file at `name`, a path inside the zone's asset folder, or null.
     file(name)
     {
         return this.files.get(name) ?? null;
+    }
+
+    manifestEntries()
+    {
+        const entries = [...this.files].map(([name, bytes]) => ["zones/" + this.id + "/" + name, { sha256: crypto.createHash("sha256").update(bytes).digest("hex"), bytes: bytes.length }]);
+
+        return Object.fromEntries(entries);
     }
 
     /* STEPS ******************************************************************/
@@ -115,13 +179,13 @@ export class EditSession
 
         try
         {
-            return { regions: await this.bake(step), refused, messages, ...this.state };
+            return { regions: await this.bakeStep(step, messages), refused, messages, ...this.state };
         }
         catch(error)
         {
             this.history.pop();
             this.restore(step, 0);
-            await this.bake(step);
+            await this.bakeStep(step, []);
 
             throw error;
         }
@@ -136,7 +200,7 @@ export class EditSession
         this.restore(step, 0);
         this.future.push(step);
 
-        return { regions: await this.bake(step), ...this.state };
+        return { regions: await this.bakeStep(step, []), ...this.state };
     }
 
     async redo()
@@ -148,7 +212,7 @@ export class EditSession
         this.restore(step, 1);
         this.history.push(step);
 
-        return { regions: await this.bake(step), ...this.state };
+        return { regions: await this.bakeStep(step, []), ...this.state };
     }
 
     snapshot()
@@ -187,6 +251,14 @@ export class EditSession
         const props = this.zone.props;
         const prop = props[operation.prop];
 
+        if(!this.isLocked && (operation.type === "cubes" || operation.type === "breakApart"))
+        {
+            messages.push("Lock in the terrain before changing its cubes.");
+            refused.push(...(operation.cells ?? []).map(([x, y, z]) => [x, y, z, null]));
+            return;
+        }
+
+        if(operation.type === "terrain") { this.setTerrain(operation, messages); }
         if(operation.type === "cubes") { this.placeCubes(operation.cells, step, refused); }
         if(operation.type === "add") { props.push(operation.placement); }
         if(operation.type === "copy" && prop) { this.copy(prop, operation.by ?? [0, 0, 0], messages); }
@@ -330,6 +402,92 @@ export class EditSession
         }
     }
 
+    /* TERRAIN ****************************************************************/
+
+    // `water` is the level in metres above the zone's base cell.
+    setTerrain({ recipe, water }, messages)
+    {
+        const problems = this.isLocked ? ["The terrain is locked in, so its recipe cannot change."] : this.checkTerrain(recipe, water);
+
+        if(problems.length > 0)
+        {
+            messages.push(...problems);
+            return;
+        }
+
+        this.zone.terrain = structuredClone(recipe);
+        this.zone.water = this.zone.base + Math.round(water * CUBES);
+    }
+
+    checkTerrain(recipe, water)
+    {
+        const problems = Recipe.check(recipe, this.zone.columns / CUBES);
+        const { min, max } = Recipe.WATER;
+
+        if(!(Number.isFinite(water) && water >= min && water <= max)) { problems.push("The water level needs to be a number from " + min + " to " + max + "."); }
+
+        return problems;
+    }
+
+    // An overhead map of a recipe, without changing the zone.
+    map(recipe, water)
+    {
+        const problems = this.checkTerrain(recipe, water);
+
+        if(problems.length > 0) { throw new Error(problems.join(" ")); }
+
+        return { map: TerrainMap.render({ ...this.zone, water: this.zone.base + Math.round(water * CUBES) }, recipe) };
+    }
+
+    // Runs the recipe again when it or the water level changed since it last
+    // ran, and says whether it did.
+    syncTerrain(messages)
+    {
+        const key = JSON.stringify([this.zone.terrain, this.zone.water]);
+
+        if(this.isLocked || key === this.generatedFrom) { return false; }
+
+        const problems = [];
+
+        this.terrain = Terrain.generateColumns(this.zone, "The terrain", problems);
+
+        if(problems.length > 0) { throw new Error(problems.join("\n")); }
+        if(this.terrain.clipped > 0) { messages.push(this.terrain.clipped + " columns rise above the zone's height of " + this.zone.height + " cubes and are cut flat."); }
+
+        this.generatedFrom = key;
+
+        return true;
+    }
+
+    // Writes the terrain as locked cubes, then saves the rest of the zone, and
+    // returns the paths written. The recipe goes, and cannot be run again.
+    async lockIn()
+    {
+        if(this.isLocked) { throw new Error("The terrain of " + this.id + " is already locked in."); }
+
+        const where = "Zone zones/" + this.id;
+        const problems = [];
+        const ground = Zones.groundOf(this.zone, this.context, where, problems);
+        const files = Terrain.lockedFiles(this.zone, this.terrain, ground, this.numbers, this.context.blocks.map((block) => block.id));
+        const lockedFolder = path.join(this.folder, Terrain.LOCKED_FOLDER);
+
+        fs.mkdirSync(lockedFolder, { recursive: true });
+
+        for(const file of files) { fs.writeFileSync(path.join(lockedFolder, file.path), file.bytes); }
+
+        delete this.zone.terrain;
+        this.terrain = Terrain.readLocked(this.folder, this.zone, this.numbers, where, problems);
+        this.generatedFrom = null;
+
+        if(problems.length > 0) { throw new Error(problems.join("\n")); }
+
+        const written = [...files.map((file) => path.relative(this.contentRoot, path.join(lockedFolder, file.path)).replaceAll("\\", "/")), ...this.save()];
+
+        await this.bake(null);
+
+        return written;
+    }
+
     /* CUBES ******************************************************************/
 
     placeCubes(cells, step, refused)
@@ -427,6 +585,12 @@ export class EditSession
 
     /* BAKE *******************************************************************/
 
+    // A step that changed the recipe bakes every region.
+    async bakeStep(step, messages)
+    {
+        return this.bake(this.syncTerrain(messages) ? null : step);
+    }
+
     // Bakes the regions the step touched, or every region without a step, and
     // returns the names of those baked.
     async bake(step)
@@ -483,7 +647,7 @@ export class EditSession
         const ids = this.context.blocks.map((block) => block.id);
         const lockedFolder = path.join(this.folder, Terrain.LOCKED_FOLDER);
         const palettePath = path.join(lockedFolder, Terrain.PALETTE_FILE);
-        const isRenumbered = fs.readFileSync(palettePath, "utf8") !== JSON.stringify(ids, null, 4) + "\n";
+        const isRenumbered = this.isLocked && fs.readFileSync(palettePath, "utf8") !== JSON.stringify(ids, null, 4) + "\n";
         const regions = isRenumbered ? [...this.terrain.locked.keys()] : [...this.editedRegions];
         const written = [];
         const write = (file, bytes) =>
@@ -492,6 +656,7 @@ export class EditSession
             written.push(path.relative(this.contentRoot, file).replaceAll("\\", "/"));
         };
 
+        fs.mkdirSync(this.folder, { recursive: true });
         write(path.join(this.folder, "zone.json"), JSON.stringify(this.zone, null, 4) + "\n");
 
         for(const name of regions)

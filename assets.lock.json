@@ -1,6 +1,6 @@
 {
     "files": {
-        "blocks.json": "a00cffa110f915b14cdc6fde7115afccebc0ca28ad09a5cf56ca77228a8921cc",
+        "blocks.json": "afaa7c2a319e74a9030f17493c8a395a25513147c40e8fe59a9323d83456f01f",
         "migrations.json": "36ca8f2294979382612449f2e06759552b1faf0b1e63acc4930d06d0534623e7",
         "models/appearance.json": "8cf415eb281d3f71d9b89fc40f092eff9f6c23a35b7b23de38916110d483dfd4",
         "models/archetypes.json": "2be2c9e982bea9d46e186a6ea92b6fe9947342c48002d34b68eea53d51ec8604",
@@ -107,8 +107,8 @@
         "npcs.json": "9b06f5c5aacaa28191302bb956ccf05b4d2beafab2ac9917b407f3bdc2cb0491",
         "objects.json": "9001766bddb3fb2ad25e3d7aa7fa2863077fc319f0222aa2dd674fa36f3fd502",
         "props/prefabs.json": "e1fb3076b78912553ae47615d68b4f7537a886c9175b2ac788eeb7f490b2ea12",
-        "textures/world.json": "229ce55f284edd13892213d67d200e6e0e6fb281e0415ab0625548528f273c8a",
-        "textures/world.png": "d805f9e93d66f91368eae9c4b7f650cf8c88ac23c07d97eeafde9bf3d031b5a6",
+        "textures/world.json": "99a3da9d143b7d3393a82652354f24d853c9ac8ff19d9b77266f1c27f3a5728b",
+        "textures/world.png": "4734ed07649eaaebaefbad773be00b4a455f5646e2c716138033fc1cd49ea0d2",
         "zones/expanse/0-0.bin": "848cc45379d8e40e3fb0ba7490c2e1db899e1af8bf7a082933cd5bb92c5e5656",
         "zones/expanse/0-1.bin": "a811a4ec56015ac8161acaef09254586eab7d2ad33ac5c8bb373daadedd14c04",
         "zones/expanse/0-10.bin": "3953f289b9e22f98bf32f15f9d2f5ee53fb30c038c5b51af8a58debb63982b38",
@@ -663,6 +663,7 @@
             "clearGlass",
             "cobble",
             "cracks",
+            "crag",
             "darkStone",
             "earth",
             "embers",

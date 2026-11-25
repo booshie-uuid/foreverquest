@@ -1,3 +1,4 @@
+import * as Controls from "../ui/controls.js";
 import * as RegionCodec from "../sim/region-codec.js";
 import * as THREE from "three";
 import { CubeTool } from "./cube-tool.js";
@@ -7,11 +8,13 @@ import { FlyCamera } from "./fly-camera.js";
 import { Marks } from "./marks.js";
 import { NoteTool } from "./note-tool.js";
 import { SelectTool } from "./select-tool.js";
+import { TerrainTool } from "./terrain-tool.js";
 import { ZoneData } from "../sim/zone-data.js";
 
 const CUBES = ZoneData.CUBES_PER_METRE;
 const RANGE = 90;
 const SWATCH_SIZE = 16;
+const NEW_ZONE = { sizes: [128, 256, 512, 1024], size: 1024, height: 60, pitch: 0.5 };
 
 
 /******************************************************************************/
@@ -34,7 +37,8 @@ export class EditMode
         this.marks = null;
         this.tools = null;
         this.tool = null;
-        this.state = { isDirty: false, canUndo: false, canRedo: false, steps: 0 };
+        this.kinds = null;
+        this.state = { isDirty: false, canUndo: false, canRedo: false, steps: 0, isLocked: true };
         this.pointer = null;
         this.hit = null;
         this.pending = null;
@@ -91,9 +95,11 @@ export class EditMode
         }
 
         this.isActive = true;
+        this.kinds = this.state.kinds;
         this.marks = new Marks(this.screen.world.scene, this.zone);
-        this.tools = { cubes: new CubeTool(this), select: new SelectTool(this), notes: new NoteTool(this) };
-        this.tool = this.tools.cubes;
+        this.tools = { cubes: new CubeTool(this), select: new SelectTool(this), notes: new NoteTool(this), terrain: new TerrainTool(this) };
+        this.tools.terrain.sync(this.state);
+        this.tool = this.state.isLocked ? this.tools.cubes : this.tools.terrain;
         this.screen.pause();
         this.screen.hud.hide();
         this.panel.show();
@@ -155,7 +161,8 @@ export class EditMode
     {
         if(!this.isActive) { return; }
 
-        const modes = [["cubes", "Cubes", "1"], ["select", "Select", "2"], ["notes", "Note", "3"]].map(([name, label, key]) => ({ label, key, isOn: this.tool.name === name, action: "mode-" + name, onClick: () => this.setTool(name) }));
+        const names = this.state.isLocked ? [["cubes", "Cubes", "1"], ["select", "Select", "2"], ["notes", "Note", "3"]] : [["terrain", "Terrain", "4"], ["select", "Select", "2"], ["notes", "Note", "3"]];
+        const modes = names.map(([name, label, key]) => ({ label, key, isOn: this.tool.name === name, action: "mode-" + name, onClick: () => this.setTool(name) }));
         const history =
         [
             { label: "Undo", key: "Ctrl+Z", isDisabled: !this.state.canUndo, action: "undo", onClick: () => this.undo() },
@@ -165,12 +172,13 @@ export class EditMode
         const files =
         [
             { label: "Save", key: "Ctrl+S", isDisabled: !this.state.isDirty, action: "save", onClick: () => this.save() },
+            { label: "New zone", action: "new-zone", onClick: () => this.showNewZone() },
             { label: "Play", key: "F8", action: "play", onClick: () => this.leave() },
         ];
 
         this.panel.setToolbar([modes, ...this.tool.toolbar(), history, files]);
         this.panel.setPalette(this.tool.palette());
-        this.panel.setInspector(this.tool === this.tools.select ? this.tools.select.inspector() : null);
+        this.panel.setInspector(this.tool.inspector?.() ?? null);
 
         const selected = this.tools.select.entry;
 
@@ -296,7 +304,7 @@ export class EditMode
     key(code, event)
     {
         const isControl = event?.ctrlKey || event?.metaKey;
-        const modes = { Digit1: "cubes", Digit2: "select", Digit3: "notes" };
+        const modes = this.state.isLocked ? { Digit1: "cubes", Digit2: "select", Digit3: "notes" } : { Digit2: "select", Digit3: "notes", Digit4: "terrain" };
 
         if(code === "F8") { this.leave(); }
         else if(isControl && code === "KeyZ") { this.undo(); }
@@ -313,6 +321,7 @@ export class EditMode
     update(delta)
     {
         this.fly.update(delta, this.screen.input);
+        this.tool.update?.();
 
         if(this.pointer)
         {
@@ -405,6 +414,72 @@ export class EditMode
         if(answer) { this.panel.say("Saved " + answer.written.length + " file" + (answer.written.length === 1 ? "" : "s") + " to content/."); }
     }
 
+    async lockIn()
+    {
+        this.panel.say("Locking in the terrain, then baking the assets…");
+
+        const answer = await this.run(() => this.client.lock());
+
+        if(answer) { this.panel.say("Locked in: wrote " + answer.written.length + " files to content/. The terrain now changes cube by cube."); }
+    }
+
+    /* NEW ZONE ***************************************************************/
+
+    showNewZone()
+    {
+        const id = Controls.element("input", "editor-search");
+        const name = Controls.element("input", "editor-search");
+        const size = Controls.element("select", "editor-choice");
+        const field = (label, control) =>
+        {
+            const node = Controls.element("label", "editor-field");
+
+            node.append(Controls.element("span", "", label), control);
+
+            return node;
+        };
+
+        id.placeholder = "vale";
+        id.dataset.key = "id";
+        name.placeholder = "Hearthmere Vale";
+        name.dataset.key = "name";
+
+        for(const metres of NEW_ZONE.sizes)
+        {
+            const option = Controls.element("option", "", metres.toLocaleString() + " m");
+
+            option.value = metres;
+            size.append(option);
+        }
+
+        size.value = NEW_ZONE.size;
+        this.panel.setCard(
+        {
+            title: "New zone",
+            content: [field("Id", id), field("Name", name), field("Size", size), Controls.element("div", "editor-hint", "The terrain starts as rolling hills closed by cliffs, with " + this.zone.name + "'s lighting. Nothing is written to content/ until you save.")],
+            actions:
+            [
+                { label: "Create", isOn: true, action: "new-zone-create", onClick: () => this.createZone(id.value.trim(), name.value.trim(), Number(size.value)) },
+                { label: "Cancel", action: "new-zone-cancel", onClick: () => this.panel.setCard(null) },
+            ],
+        });
+    }
+
+    async createZone(id, name, size)
+    {
+        try
+        {
+            await new EditorClient(id).create({ name, size, from: this.zone.id });
+        }
+        catch(error)
+        {
+            this.panel.say(error.message);
+            return;
+        }
+
+        location.assign("?zone=" + id + "&edit&view=0," + NEW_ZONE.height + "," + Math.round(size * 0.3) + ",0," + NEW_ZONE.pitch);
+    }
+
     async run(request)
     {
         this.isBusy = true;
@@ -414,6 +489,9 @@ export class EditMode
             const answer = await request();
 
             this.state = answer;
+            this.tools.terrain.sync(answer);
+
+            if(answer.isLocked && this.tool === this.tools.terrain) { this.tool = this.tools.cubes; }
 
             if(Array.isArray(answer.regions)) { await this.refresh(answer.regions); }
             for(const message of answer.messages ?? []) { this.panel.say(message); }
@@ -438,6 +516,11 @@ export class EditMode
         const source = this.screen.streamer.source;
         const id = this.zone.id;
         const index = await source.json("zones/" + id + "/index.json");
+        const sides = index.waterSides ?? [];
+
+        if(index.water !== this.zone.waterCell || sides.join() !== this.zone.waterSides.join()) { this.zone.setWater(index.water, sides); }
+
+        this.zone.setBounds(index.bounds);
 
         for(const name of regions.filter((region) => this.zone.hasRegion(region)))
         {

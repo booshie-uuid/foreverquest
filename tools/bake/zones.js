@@ -1,4 +1,5 @@
 import * as Archetypes from "../../content/archetypes.js";
+import * as Generator from "../terrain/generator.js";
 import * as Prefabs from "../../content/props/prefabs.js";
 import * as PropBaker from "./props.js";
 import * as Terrain from "./terrain.js";
@@ -93,7 +94,7 @@ export async function bakeZone(zone, folder, people, context, where, problems, o
 
     const numbers = Object.fromEntries(context.blocks.map((block, i) => [block.id, i + 1]));
 
-    if(isLocked && (fs.existsSync(path.join(folder, "terrain.js")) || fs.existsSync(path.join(folder, "terrain")))) { problems.push(where + " has locked cubes and a terrain source; delete the terrain source"); }
+    if(isLocked && (zone.terrain !== undefined || fs.existsSync(path.join(folder, "terrain.js")) || fs.existsSync(path.join(folder, "terrain")))) { problems.push(where + " has locked cubes and a terrain source; delete the terrain source"); }
 
     const terrain = options.terrain ?? (isLocked ? Terrain.readLocked(folder, zone, numbers, where, problems) : await Terrain.readColumns(folder, zone, where, problems));
 
@@ -153,7 +154,9 @@ export async function bakeZone(zone, folder, people, context, where, problems, o
     const only = options.only?.(placed.objects) ?? null;
     const regions = Terrain.bakeRegions(zone, terrain, ground, numbers, { cells: placed.cells, solid }, agesOf(zone, props, placed.objects), { only, level: options.level });
     const { id, name, welcome, columns, height, base, water, lighting, spawn } = zone;
-    const index = { id, name, welcome, columns, height, base, water, lighting, spawn, people: zone.people, objects: placed.objects, regions: Terrain.regionNames(zone.columns) };
+    const waterSides = Terrain.waterSides(zone, terrain.surfaces);
+    const bounds = terrain.bounds ?? {};
+    const index = { id, name, welcome, columns, height, base, water, ...(waterSides.length > 0 ? { waterSides } : {}), ...(Object.keys(bounds).length > 0 ? { bounds } : {}), lighting, spawn, people: zone.people, objects: placed.objects, regions: Terrain.regionNames(zone.columns) };
 
     return { index, regions, placed: placed.cells };
 }
@@ -174,18 +177,20 @@ export function groundOf(zone, context, where, problems)
     const solid = new Set(context.blocks.filter((block) => block.kind === "solid").map((block) => block.id));
     const numbers = Object.fromEntries(context.blocks.map((block, i) => [block.id, i + 1]));
 
-    if(!(Array.isArray(zone.ground) && zone.ground.length > 0)) { problems.push(where + " needs a list of ground layers"); return []; }
+    const layers = zone.terrain === undefined ? zone.ground : Generator.GROUND;
+
+    if(!(Array.isArray(layers) && layers.length > 0)) { problems.push(where + " needs a list of ground layers"); return []; }
 
     for(const block of ["rock", "water"]) { if(!numbers[block]) { problems.push(where + " needs the " + block + " block"); } }
 
-    return zone.ground.map((layers, i) =>
+    return layers.map((layer, i) =>
     {
-        for(const block of [layers.top, layers.under])
+        for(const block of [layer.top, layer.under])
         {
             if(!solid.has(block)) { problems.push(where + " ground " + i + " needs a solid block, not " + block); }
         }
 
-        return { top: numbers[layers.top], under: numbers[layers.under] };
+        return { top: numbers[layer.top], under: numbers[layer.under] };
     });
 }
 

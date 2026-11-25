@@ -208,6 +208,40 @@ export function cobble(raster, target, random, colour = "#5a5650")
 
 
 /******************************************************************************/
+/* NATURAL ROCK                                                               */
+/******************************************************************************/
+
+// Rock as it lies in a cliff: weathered patches, cracks and lichen.
+export function crag(raster, target, random, colour = "#55514a")
+{
+    Pixels.grit(raster, target, colour, random, 0.2);
+    blots(raster, target, random, Colour.shade(colour, 1.18), 9, 4, 10);
+    blots(raster, target, random, Colour.shade(colour, 0.8), 9, 3, 8);
+    fractures(raster, target, random, colour, 0.3);
+    Pixels.speckle(raster, target, ["#5a5c40", "#66624c", "#4a4e36"], 0.012, random);
+}
+
+// Dark cracks that wander downwards, each lit on one side.
+function fractures(raster, target, random, colour, density)
+{
+    for(let i = 0; i < target.w * density; i++)
+    {
+        let x = Math.floor(random.next() * target.w);
+        let y = Math.floor(random.next() * target.h);
+        const length = 3 + Math.floor(random.next() * 6);
+
+        for(let step = 0; step < length; step++)
+        {
+            Pixels.dot(raster, target, x, y, Colour.shade(colour, 0.48));
+            Pixels.dot(raster, target, x + 1, y, Colour.shade(colour, 1.2));
+            y += 1;
+            x += Math.floor(random.next() * 3) - 1;
+        }
+    }
+}
+
+
+/******************************************************************************/
 /* MASONRY                                                                    */
 /******************************************************************************/
 

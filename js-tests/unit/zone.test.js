@@ -151,6 +151,25 @@ describe("Region files", () =>
 
 describe("Zone movement", () =>
 {
+    it("stops at a side's bounds, metre by metre along it, and 2 metres in from a side without them", () =>
+    {
+        const half = testfield.half;
+        const west = Array.from({ length: testfield.size }, (unused, k) => (k < half ? 10 : 20));
+
+        testfield.setBounds({ west });
+
+        try
+        {
+            assert.deepEqual([-half + 9, -half + 11, -half + 19, -half + 21].map((x) => testfield.isWalkable(x, -5)), [false, true, true, true]);
+            assert.deepEqual([-half + 19, -half + 21].map((x) => testfield.isWalkable(x, 5)), [false, true]);
+            assert.deepEqual([half - 1.5, half - 2.5].map((x) => testfield.isWalkable(x, 0)), [false, true]);
+        }
+        finally
+        {
+            testfield.setBounds({});
+        }
+    });
+
     it("stops a move into the well, into the river, and up two cubes", () =>
     {
         const intoWell = hearthmere.resolveMove({ x: -4, y: hearthmere.groundAt(-4, -3.8), z: -3.8 }, { x: -4, z: -4.6 }, 0.35);

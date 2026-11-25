@@ -239,6 +239,23 @@ describe("Cube mesher", () =>
         assert.ok(mesh.positions.every((value) => Math.abs(value * 3 - Math.round(value * 3)) < 1e-6), "A cube beside glass lost a notch");
     });
 
+    it("draws water above the zone's water level on its faces that touch no more water, and leaves the rest to the water view", () =>
+    {
+        const water = 5;
+        const liquid = table();
+        const column = cells((set) => { for(let y = 0; y < 6; y++) { set(3, y, 3, water); } });
+
+        for(const side of ["top", "side", "bottom"]) { liquid[side] = Int16Array.from([...liquid[side], 70]); }
+
+        liquid.liquid[water] = 1;
+        liquid.hidden[water] = 1;
+
+        const area = (frame) => quads(CubeMesher.meshCells(column, liquid, [0, 0, 0], frame)).reduce((total, quad) => total + quad.area * 9, 0);
+
+        assert.ok(Math.abs(area({ ...FRAME, water: 3 }) - 13) < 1e-5, "The three cubes above the level do not show their top and four sides");
+        assert.equal(CubeMesher.meshCells(column, liquid, [0, 0, 0], FRAME).positions, undefined, "The water view's water is drawn as cubes");
+    });
+
     it("draws see-through blocks beside each other only on their outer faces", () =>
     {
         const mesh = CubeMesher.meshCells(cells((set) =>
