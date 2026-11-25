@@ -2,6 +2,7 @@ import * as CubeMesher from "./cube-mesher.js";
 import * as FineMesher from "./fine-mesher.js";
 import * as RegionCodec from "../sim/region-codec.js";
 import * as THREE from "three";
+import { Halos } from "./halos.js";
 import { Water } from "./water.js";
 import { ZoneData } from "../sim/zone-data.js";
 
@@ -52,6 +53,9 @@ export class ZoneView
         this.tileMeshes = new Map();
         this.glassTiles = new Map();
         this.leadTiles = new Map();
+        this.haloSpots = new Map();
+        this.halos = new Halos(zone);
+        this.areHalosDirty = false;
         this.dirtyTiles = new Set();
         this.focus = { x: zone.spawn.x, z: zone.spawn.z };
         this.waiting = new Set();
@@ -64,6 +68,7 @@ export class ZoneView
         this.scene.background = new THREE.Color(lighting.sky.horizon);
         this.water = new Water(zone.size, WATER_CELLS, zone.waterLevel - 0.05, materials.water);
         this.scene.add(this.water.mesh);
+        this.scene.add(this.halos.mesh);
 
         this.unsubscribe = zone.onRegion((event) => this.onRegion(event));
         materials.setSteps(lighting.steps);
@@ -199,6 +204,7 @@ export class ZoneView
             this.waiting.delete(key);
             this.versions.delete(key);
             this.floors.delete(key);
+            this.areHalosDirty = this.haloSpots.delete(key) || this.areHalosDirty;
 
             if(this.chunkArrays.delete(key)) { this.dirtyTiles.add(this.tileOf(key)); }
         }
@@ -283,6 +289,12 @@ export class ZoneView
     placeChunk(key, arrays)
     {
         this.floors.set(key, arrays.floors);
+
+        if(arrays.halos.length > 0 || this.haloSpots.has(key))
+        {
+            this.haloSpots.set(key, arrays.halos);
+            this.areHalosDirty = true;
+        }
 
         if(arrays.indices || arrays.glass) { this.chunkArrays.set(key, arrays); }
         else { this.chunkArrays.delete(key); }
@@ -768,6 +780,7 @@ export class ZoneView
         this.meshWaiting();
         this.buildTiles();
         this.lightObjects();
+        this.updateHalos(camera);
         this.water.update(delta);
         this.sky.position.copy(camera.position);
         const disc = this.isDay ? SUN_AT : MOON_AT;
@@ -775,6 +788,33 @@ export class ZoneView
 
         this.moon.position.set(focus.x + disc[0] * toLight, focus.y + disc[1] * toLight, focus.z + disc[2] * toLight);
         this.moon.target.position.copy(focus);
+    }
+
+    updateHalos(camera)
+    {
+        if(this.areHalosDirty)
+        {
+            const spots = [...this.haloSpots.values()];
+            const joined = new Float32Array(spots.reduce((total, part) => total + part.length, 0));
+            let at = 0;
+
+            for(const part of spots)
+            {
+                joined.set(part, at);
+                at += part.length;
+            }
+
+            this.halos.setSpots(joined);
+            this.areHalosDirty = false;
+        }
+
+        this.halos.mesh.visible = !this.isDay;
+
+        if(this.isDay) { return; }
+
+        const [base, falloff, density] = this.materials.fog.heightFog.value.toArray();
+
+        this.halos.update(camera, this.scene.fog, { base, falloff, density });
     }
 
     dispose()

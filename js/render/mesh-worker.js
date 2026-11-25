@@ -13,8 +13,8 @@ self.onmessage = (event) =>
     }
 
     const arrays = CubeMesher.meshCells(message.volume, table, message.origin, message.frame);
-    const { floors, glass = {}, ...faces } = arrays;
-    const buffers = [floors.indices, floors.levels, floors.glows, floors.hues, ...Object.values(faces), ...Object.values(glass)].map((array) => array.buffer);
+    const { floors, halos, glass = {}, ...faces } = arrays;
+    const buffers = [floors.indices, floors.levels, floors.glows, floors.hues, halos, ...Object.values(faces), ...Object.values(glass)].map((array) => array.buffer);
 
     self.postMessage({ id: message.id, arrays }, buffers);
 };

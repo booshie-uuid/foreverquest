@@ -646,8 +646,9 @@ export function buildChunk(zone, table, atlas, cx, cy, cz)
     return meshCells(paddedCells(zone, cx, cy, cz), table, [cx * CHUNK, cy * CHUNK, cz * CHUNK], frame);
 }
 
-// The chunk's floors and its faces' mesh arrays, with the faces of glass in
-// `glass`. Either set of arrays is absent when the chunk has no such faces.
+// The chunk's floors, its lights' halos, and its faces' mesh arrays, with
+// the faces of glass in `glass`. Either set of mesh arrays is absent when the
+// chunk has no such faces.
 export function meshCells(volume, table, origin, frame)
 {
     const out = emptyMesh();
@@ -671,7 +672,7 @@ export function meshCells(volume, table, origin, frame)
         addFaces(glass, masks, context, frame);
     }
 
-    return { floors, ...meshArrays(out), ...(glass.indices.length > 0 ? { glass: meshArrays(glass) } : {}) };
+    return { floors, halos: haloSpots(volume.cells, table, origin, frame), ...meshArrays(out), ...(glass.indices.length > 0 ? { glass: meshArrays(glass) } : {}) };
 }
 
 function emptyMesh()
@@ -706,6 +707,60 @@ function meshArrays(out)
         hues: new Float32Array(out.hues),
         indices: new Uint32Array(out.indices),
     };
+}
+
+// [x, y, z, colour, level] in metres for each light of the chunk, where the
+// light cells of one colour that touch, such as a forge's embers, count as
+// one light at their middle, at the level of the brightest. The colour is
+// 0xrrggbb.
+function haloSpots(cells, table, origin, frame)
+{
+    const seen = new Uint8Array(CHUNK * CHUNK * CHUNK);
+    const spots = [];
+    const indexOf = (x, y, z) => ((y + MARGIN) * PADDED + z + MARGIN) * PADDED + x + MARGIN;
+
+    for(let start = 0; start < seen.length; start++)
+    {
+        const [x, y, z] = [start % CHUNK, Math.floor(start / (CHUNK * CHUNK)), Math.floor(start / CHUNK) % CHUNK];
+        const block = cells[indexOf(x, y, z)];
+
+        if(seen[start] === 1 || table.lights[block] === 0) { continue; }
+
+        const colour = table.glowKeys[block];
+        const group = [[x, y, z]];
+        let level = 0;
+
+        seen[start] = 1;
+
+        for(let i = 0; i < group.length; i++)
+        {
+            const cell = group[i];
+
+            level = Math.max(level, table.lights[cells[indexOf(...cell)]]);
+
+            for(const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]])
+            {
+                const [nx, ny, nz] = [cell[0] + dx, cell[1] + dy, cell[2] + dz];
+                const local = (ny * CHUNK + nz) * CHUNK + nx;
+                const isInside = nx >= 0 && ny >= 0 && nz >= 0 && nx < CHUNK && ny < CHUNK && nz < CHUNK;
+
+                if(!isInside || seen[local] === 1) { continue; }
+
+                const neighbour = cells[indexOf(nx, ny, nz)];
+
+                if(table.lights[neighbour] === 0 || table.glowKeys[neighbour] !== colour) { continue; }
+
+                seen[local] = 1;
+                group.push([nx, ny, nz]);
+            }
+        }
+
+        const middle = [0, 1, 2].map((axis) => group.reduce((total, cell) => total + cell[axis], 0) / group.length + 0.5);
+
+        spots.push((origin[0] + middle[0]) / ZoneData.CUBES_PER_METRE - frame.half, (origin[1] + middle[1] - frame.base) / ZoneData.CUBES_PER_METRE, (origin[2] + middle[2]) / ZoneData.CUBES_PER_METRE - frame.half, colour, level);
+    }
+
+    return Float32Array.from(spots);
 }
 
 // Each cube of the chunk that something can stand on, by its index in the

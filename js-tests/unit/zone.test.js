@@ -447,6 +447,38 @@ describe("Zone view", () =>
         view.dispose();
     });
 
+    it("draws a halo over each light by night, never inside a wall and larger the more fog lies in front of it, and none by day", () =>
+    {
+        const view = new ZoneView(hearthmere, materials);
+        const camera = new THREE.PerspectiveCamera(70, 1.6, 0.1, 500);
+        const focus = { x: -1, y: 1, z: -24 };
+
+        camera.position.set(-1, 2.5, -24);
+        view.update(0.016, camera, focus);
+
+        const centres = view.halos.geometry.getAttribute("centre");
+        const sizes = view.halos.geometry.getAttribute("size");
+        const halos = Array.from({ length: view.halos.count }, (unused, i) =>
+        {
+            const [column, row] = hearthmere.columnOf(centres.getX(i), centres.getZ(i));
+            const block = hearthmere.blockAt(column, Math.floor(hearthmere.cellY(centres.getY(i))), row);
+
+            return { isInWall: hearthmere.blocks.isOpaque(block) && hearthmere.blocks.light(block) === 0, radius: sizes.getX(i), fog: sizes.getY(i) };
+        });
+        const clearest = halos.reduce((best, halo) => (halo.fog < best.fog ? halo : best));
+        const foggiest = halos.reduce((best, halo) => (halo.fog > best.fog ? halo : best));
+
+        assert.ok(halos.length > 0, "No light has a halo");
+        assert.ok(halos.every((halo) => !halo.isInWall), "A halo stands inside a wall");
+        assert.ok(foggiest.fog > clearest.fog && foggiest.radius > clearest.radius, "A halo in more fog is not larger");
+
+        view.setDaylight(true);
+        view.update(0.016, camera, focus);
+
+        assert.equal(view.halos.mesh.visible, false);
+        view.dispose();
+    });
+
     it("orders the quads of glass that face one way from the farthest to the nearest", () =>
     {
         const quads = [[-1, 1], [-1, 5], [1, 5], [1, 1], [-1, 3]];
@@ -515,7 +547,7 @@ describe("Zone view", () =>
     it("shines the moon, and by day the sun, from where its disc stands in the sky", () =>
     {
         const view = new ZoneView(testfield, materials);
-        const camera = { position: view.sky.position.clone() };
+        const camera = new THREE.PerspectiveCamera();
         const along = () =>
         {
             const light = view.moon.position.clone().sub(view.moon.target.position).normalize();

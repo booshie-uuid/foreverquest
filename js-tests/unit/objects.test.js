@@ -130,7 +130,7 @@ describe("Objects in a zone", () =>
         const meshes = [...view.objectMeshes.values()];
         const named = (kind) => meshes.find((mesh) => mesh.userData.entries[0].object === kind);
 
-        view.update(0.016, { position: view.sky.position.clone() }, { x: 0, y: 1, z: 0 });
+        view.update(0.016, new THREE.PerspectiveCamera(), { x: 0, y: 1, z: 0 });
 
         const regionOf = (entry) => zone.regionOfColumn(entry.box[0], entry.box[2]);
         const drawn = meshes.reduce((total, mesh) => total + mesh.count, 0);
@@ -180,7 +180,7 @@ describe("Objects in a zone", () =>
         const view = new ZoneView(zone, await TestAssets.materials(), null, await TestAssets.objects());
         const placed = (name) => zone.objects.find((entry) => entry.name === "object " + name);
 
-        view.update(0.016, { position: view.sky.position.clone() }, { x: 0, y: 1, z: 0 });
+        view.update(0.016, new THREE.PerspectiveCamera(), { x: 0, y: 1, z: 0 });
 
         assert.ok(view.objectLight(placed("runner")).lamp > 0, "The aisle's runner is unlit");
         assert.ok(view.objectLight(placed("pew")).lamp > 0);

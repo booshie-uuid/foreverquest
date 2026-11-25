@@ -92,6 +92,21 @@
             "x": 16,
             "z": 16,
             "angle": 0
+        },
+        {
+            "object": "lampPost",
+            "x": -3,
+            "z": -6
+        },
+        {
+            "object": "lampPost",
+            "x": 16,
+            "z": -5
+        },
+        {
+            "object": "lampPost",
+            "x": -16,
+            "z": -5
         }
     ]
 }

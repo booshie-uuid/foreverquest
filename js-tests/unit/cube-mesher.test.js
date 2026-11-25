@@ -34,6 +34,7 @@ function table()
     built.worn[STONE] = WORN;
     built.overlays = OVERLAYS;
     built.frameLayer = FRAME_LAYER;
+    built.glowKeys = new Int32Array(256);
 
     return built;
 }
@@ -381,5 +382,29 @@ describe("Cube mesher", () =>
         assert.ok(edges.every((edge) => [1, 2].includes(edge & 3) && [4, 8].includes(edge & 12)), "A corner of the two-by-two pane is not framed on its two outer edges: " + edges);
         assert.ok(reveals.length > 0 && reveals.every((quad) => quad.normal[0] === 0), "The sides of the window's opening do not take the frame, or another face does");
         assert.ok(quads(walled).every((quad) => quad.layer !== FRAME_LAYER), "A face with no glass in front of it takes the frame");
+    });
+    it("gives each light a halo, with touching light cells of one colour as one light at their middle", () =>
+    {
+        const lit = table();
+
+        lit.lights[LEAVES] = 12;
+        lit.glowKeys[LAMP] = 0xff5a28;
+        lit.glowKeys[LEAVES] = 0xffb466;
+
+        const mesh = CubeMesher.meshCells(cells((set) =>
+        {
+            set(3, 3, 3, LAMP);
+            set(4, 3, 3, LAMP);
+            set(5, 3, 3, LAMP);
+            set(6, 3, 3, LEAVES);
+            set(20, 9, 20, LAMP);
+        }), lit, [0, 0, 0], FRAME);
+        const spots = [];
+
+        for(let i = 0; i < mesh.halos.length; i += 5) { spots.push([...mesh.halos.subarray(i, i + 5)].map((value) => Math.round(value * 1000) / 1000)); }
+
+        spots.sort((a, b) => a[0] - b[0]);
+
+        assert.deepEqual(spots, [[4.5 / 3, 3.5 / 3, 3.5 / 3, 0xff5a28, 12], [6.5 / 3, 3.5 / 3, 3.5 / 3, 0xffb466, 12], [20.5 / 3, 9.5 / 3, 20.5 / 3, 0xff5a28, 12]].map((spot) => spot.map((value) => Math.round(value * 1000) / 1000)));
     });
 });

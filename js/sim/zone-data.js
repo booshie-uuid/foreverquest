@@ -611,9 +611,10 @@ export class ZoneData
     }
 
     // How far, in metres, a ray from `origin` along the unit `direction`
-    // travels before it enters a solid cell, up to `distance`.
+    // travels before it enters a cell that stops it, a solid one unless
+    // `isStop(x, y, z)` says otherwise, up to `distance`.
     // Amanatides and Woo, "A Fast Voxel Traversal Algorithm for Ray Tracing".
-    raycast(origin, direction, distance)
+    raycast(origin, direction, distance, isStop = (x, y, z) => this.isSolid(x, y, z))
     {
         const start = [(origin.x + this.half) * CUBES_PER_METRE, this.cellY(origin.y), (origin.z + this.half) * CUBES_PER_METRE];
         const along = [direction.x, direction.y, direction.z].map((value) => value * CUBES_PER_METRE);
@@ -622,7 +623,7 @@ export class ZoneData
         const across = along.map((value) => (value === 0 ? Infinity : 1 / Math.abs(value)));
         const next = [0, 1, 2].map((axis) => (along[axis] === 0 ? Infinity : (step[axis] > 0 ? cell[axis] + 1 - start[axis] : start[axis] - cell[axis]) * across[axis]));
 
-        if(this.isSolid(...cell)) { return 0; }
+        if(isStop(...cell)) { return 0; }
 
         for(;;)
         {
@@ -634,7 +635,7 @@ export class ZoneData
             cell[axis] += step[axis];
             next[axis] += across[axis];
 
-            if(this.isSolid(...cell)) { return travelled; }
+            if(isStop(...cell)) { return travelled; }
         }
     }
 

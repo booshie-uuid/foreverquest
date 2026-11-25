@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import * as TestAssets from "../helpers/assets.js";
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -41,7 +42,7 @@ describe("Region streaming", () =>
         assert.equal(zone.hasRegion(spawnRegion), false);
         assert.equal(zone.surface(...zone.columnOf(0, 0)), 0);
 
-        view.update(0.016, { position: view.sky.position.clone() }, { x: FAR.x, y: 0, z: FAR.z });
+        view.update(0.016, new THREE.PerspectiveCamera(), { x: FAR.x, y: 0, z: FAR.z });
 
         assert.ok(meshesNearSpawn > 0 && view.terrainMeshes.length > 0);
 

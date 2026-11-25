@@ -243,4 +243,24 @@ export const tests =
             assert.deepEqual(glass, { hasPanes: true, isSeeThrough: true, leadsHideWhatIsBehind: true, castsShadow: false });
         },
     },
+    {
+        name: "lights draw halos by night in one draw call, and none by day",
+        run: async ({ page, baseUrl }) =>
+        {
+            await enterWorld(page, baseUrl);
+            await page.waitFor(() => window.foreverQuest.game.world.isSettled && window.foreverQuest.game.world.halos.count > 0, { timeout: 60000 });
+
+            const night = await page.evaluate(() =>
+            {
+                const halos = window.foreverQuest.game.world.halos;
+
+                return { isShown: halos.mesh.visible, isOneMesh: window.foreverQuest.game.world.scene.children.filter((node) => node.name === "halos").length === 1 };
+            });
+
+            await page.evaluate(() => window.foreverQuest.game.world.setDaylight(true));
+            await page.waitFor(() => window.foreverQuest.game.world.halos.mesh.visible === false, { timeout: 5000 });
+
+            assert.deepEqual(night, { isShown: true, isOneMesh: true });
+        },
+    },
 ];
