@@ -205,4 +205,15 @@ describe("Objects in a zone", () =>
         assert.ok(under.lamp >= 5, "The lantern does not light the street: " + JSON.stringify(under));
         view.dispose();
     });
+    it("stands an object's halos at the middle of each of its flames", async () =>
+    {
+        const objects = await TestAssets.objects();
+        const blocks = await TestAssets.blocks();
+        const flames = (id) => ZoneView.flamesOf(FineMesher.decode(objects[id]), blocks);
+        const [lantern] = flames("lampPost");
+
+        assert.deepEqual(lantern.at.map((value) => Math.round(value * 24 * 1000) / 1000), [17, 49, 4]);
+        assert.equal(lantern.level, blocks.light(blocks.number("window")));
+        assert.equal(flames("chandelier").length, 8, "The chandelier does not have a halo for each of its eight candles");
+    });
 });

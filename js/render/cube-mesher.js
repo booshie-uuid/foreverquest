@@ -712,7 +712,7 @@ function meshArrays(out)
 // [x, y, z, colour, level] in metres for each light of the chunk, where the
 // light cells of one colour that touch, such as a forge's embers, count as
 // one light at their middle, at the level of the brightest. The colour is
-// 0xrrggbb.
+// 0xrrggbb. The light cells of objects are left out.
 function haloSpots(cells, table, origin, frame)
 {
     const seen = new Uint8Array(CHUNK * CHUNK * CHUNK);
@@ -724,7 +724,7 @@ function haloSpots(cells, table, origin, frame)
         const [x, y, z] = [start % CHUNK, Math.floor(start / (CHUNK * CHUNK)), Math.floor(start / CHUNK) % CHUNK];
         const block = cells[indexOf(x, y, z)];
 
-        if(seen[start] === 1 || table.lights[block] === 0) { continue; }
+        if(seen[start] === 1 || table.lights[block] === 0 || table.hidden[block] === 1) { continue; }
 
         const colour = table.glowKeys[block];
         const group = [[x, y, z]];
@@ -748,7 +748,7 @@ function haloSpots(cells, table, origin, frame)
 
                 const neighbour = cells[indexOf(nx, ny, nz)];
 
-                if(table.lights[neighbour] === 0 || table.glowKeys[neighbour] !== colour) { continue; }
+                if(table.lights[neighbour] === 0 || table.hidden[neighbour] === 1 || table.glowKeys[neighbour] !== colour) { continue; }
 
                 seen[local] = 1;
                 group.push([nx, ny, nz]);

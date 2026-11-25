@@ -1,11 +1,16 @@
 import * as THREE from "three";
 
 const RADIUS = 0.53;
-const FOG_GROWTH = 2.6;
+const FOG_GROWTH = 1.6;
+const FOG_DIMMING = 0.3;
+const MAX_ANGLE = 0.3;
+const STRENGTH = 1.6;
 const FADE_FROM = 0.85;
 const GAP = 0.05;
 const MAX_LEVEL = 15;
 const FIRST_CAPACITY = 64;
+const CHECK_FRAMES = 4;
+const FADE_SECONDS = 0.2;
 
 const VERTEX = `
 attribute vec3 centre;
@@ -53,20 +58,20 @@ export class Halos
     {
         this.zone = zone;
         this.spots = new Float32Array(0);
-        this.geometry = new THREE.InstancedBufferGeometry().copy(new THREE.PlaneGeometry(1, 1));
-        this.geometry.instanceCount = 0;
-        this.mesh = new THREE.Mesh(this.geometry, new THREE.ShaderMaterial({ vertexShader: VERTEX, fragmentShader: FRAGMENT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+        this.mesh = new THREE.Mesh(undefined, new THREE.ShaderMaterial({ vertexShader: VERTEX, fragmentShader: FRAGMENT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
         this.mesh.name = "halos";
         this.mesh.frustumCulled = false;
         this.mesh.renderOrder = 1;
         this.scratch = { spot: new THREE.Vector3(), toCamera: new THREE.Vector3(), inView: new THREE.Vector3() };
-        this.isStop = (x, y, z) =>
-        {
-            const block = zone.blockAt(x, y, z);
+        this.shown = new Float32Array(0);
+        this.isSeen = new Uint8Array(0);
+        this.nextCheck = 0;
 
-            return zone.blocks.isOpaque(block) && zone.blocks.light(block) === 0;
-        };
+        const walls = Uint8Array.from({ length: zone.blocks.count + 1 }, (unused, block) => (zone.blocks.isOpaque(block) && zone.blocks.light(block) === 0 ? 1 : 0));
+        const panes = walls.map((isWall, block) => (isWall === 1 || zone.blocks.block(block)?.kind === "glass" ? 1 : 0));
 
+        this.isWall = (x, y, z) => walls[zone.blockAt(x, y, z)] === 1;
+        this.isWallOrPane = (x, y, z) => panes[zone.blockAt(x, y, z)] === 1;
         this.allocate(FIRST_CAPACITY);
     }
 
@@ -75,18 +80,28 @@ export class Halos
     setSpots(spots)
     {
         this.spots = spots;
+        this.shown = new Float32Array(spots.length / 5).fill(-1);
+        this.isSeen = new Uint8Array(spots.length / 5);
 
         if(spots.length / 5 > this.capacity) { this.allocate(spots.length / 5); }
     }
 
+    // A new geometry each time, as Three.js keeps the instance count a
+    // geometry was first drawn with as the most it will draw.
     allocate(count)
     {
-        this.capacity = count;
+        const geometry = new THREE.InstancedBufferGeometry().copy(new THREE.PlaneGeometry(1, 1));
 
         for(const [name, size] of [["centre", 3], ["colour", 3], ["size", 2]])
         {
-            this.geometry.setAttribute(name, new THREE.InstancedBufferAttribute(new Float32Array(count * size), size).setUsage(THREE.DynamicDrawUsage));
+            geometry.setAttribute(name, new THREE.InstancedBufferAttribute(new Float32Array(count * size), size).setUsage(THREE.DynamicDrawUsage));
         }
+
+        geometry.instanceCount = 0;
+        this.geometry?.dispose();
+        this.geometry = geometry;
+        this.mesh.geometry = geometry;
+        this.capacity = count;
     }
 
     get count()
@@ -95,37 +110,49 @@ export class Halos
     }
 
     // `fog` is the scene's Fog and `heightFog` { base, falloff, density }.
-    update(camera, fog, heightFog)
+    update(delta, camera, fog, heightFog)
     {
         const centres = this.geometry.getAttribute("centre");
         const colours = this.geometry.getAttribute("colour");
         const sizes = this.geometry.getAttribute("size");
         const { spot, toCamera } = this.scratch;
+        const lights = this.spots.length / 5;
+        const checks = Math.ceil(lights / CHECK_FRAMES);
         let count = 0;
 
         camera.updateMatrixWorld();
 
-        for(let i = 0; i < this.spots.length; i += 5)
+        for(let light = 0; light < lights; light++)
         {
+            const i = light * 5;
+
             spot.set(this.spots[i], this.spots[i + 1], this.spots[i + 2]);
 
             const distance = spot.distanceTo(camera.position);
 
             if(distance >= fog.far) { continue; }
 
+            toCamera.subVectors(camera.position, spot).normalize();
+
+            if(this.shown[light] < 0 || (light - this.nextCheck + lights) % lights < checks) { this.isSeen[light] = this.zone.raycast(spot, toCamera, distance, this.isWall) >= distance ? 1 : 0; }
+
+            this.shown[light] = this.shown[light] < 0 ? this.isSeen[light] : THREE.MathUtils.clamp(this.shown[light] + (this.isSeen[light] === 1 ? 1 : -1) * delta / FADE_SECONDS, 0, 1);
+
+            if(this.shown[light] === 0) { continue; }
+
             const fogged = this.fogBetween(camera, spot, fog, heightFog);
-            const radius = RADIUS + FOG_GROWTH * fogged;
-            const strength = (1 - THREE.MathUtils.smoothstep(distance, fog.far * FADE_FROM, fog.far)) * this.spots[i + 4] / MAX_LEVEL;
+            const radius = Math.min(RADIUS + FOG_GROWTH * fogged, distance * MAX_ANGLE);
+            const strength = this.shown[light] * (1 - THREE.MathUtils.smoothstep(distance, fog.far * FADE_FROM, fog.far)) * (1 - FOG_DIMMING * fogged) * STRENGTH * this.spots[i + 4] / MAX_LEVEL;
             const colour = this.spots[i + 3];
 
-            toCamera.subVectors(camera.position, spot).normalize();
-            spot.addScaledVector(toCamera, Math.max(0, this.zone.raycast(spot, toCamera, Math.min(radius, distance), this.isStop) - GAP));
+            spot.addScaledVector(toCamera, Math.max(0, this.zone.raycast(spot, toCamera, Math.min(radius, distance), this.isWallOrPane) - GAP));
             centres.setXYZ(count, spot.x, spot.y, spot.z);
             colours.setXYZ(count, Math.floor(colour / 65536) / 255 * strength, Math.floor(colour / 256) % 256 / 255 * strength, colour % 256 / 255 * strength);
             sizes.setXY(count, radius, fogged);
             count++;
         }
 
+        this.nextCheck = lights > 0 ? (this.nextCheck + checks) % lights : 0;
         this.geometry.instanceCount = count;
         centres.needsUpdate = true;
         colours.needsUpdate = true;

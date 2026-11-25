@@ -447,9 +447,9 @@ describe("Zone view", () =>
         view.dispose();
     });
 
-    it("draws a halo over each light by night, never inside a wall and larger the more fog lies in front of it, and none by day", () =>
+    it("draws a halo over each light in view by night, never inside a wall or glass, no wider than its distance allows and larger the more fog lies in front of it, and none by day", async () =>
     {
-        const view = new ZoneView(hearthmere, materials);
+        const view = new ZoneView(hearthmere, materials, null, await TestAssets.objects());
         const camera = new THREE.PerspectiveCamera(70, 1.6, 0.1, 500);
         const focus = { x: -1, y: 1, z: -24 };
 
@@ -462,14 +462,18 @@ describe("Zone view", () =>
         {
             const [column, row] = hearthmere.columnOf(centres.getX(i), centres.getZ(i));
             const block = hearthmere.blockAt(column, Math.floor(hearthmere.cellY(centres.getY(i))), row);
+            const isWall = hearthmere.blocks.isOpaque(block) && hearthmere.blocks.light(block) === 0;
+            const distance = camera.position.distanceTo(new THREE.Vector3(centres.getX(i), centres.getY(i), centres.getZ(i)));
 
-            return { isInWall: hearthmere.blocks.isOpaque(block) && hearthmere.blocks.light(block) === 0, radius: sizes.getX(i), fog: sizes.getY(i) };
+            return { isInWall: isWall || hearthmere.blocks.block(block)?.kind === "glass", radius: sizes.getX(i), fog: sizes.getY(i), distance };
         });
-        const clearest = halos.reduce((best, halo) => (halo.fog < best.fog ? halo : best));
-        const foggiest = halos.reduce((best, halo) => (halo.fog > best.fog ? halo : best));
+        const uncapped = halos.filter((halo) => halo.radius < halo.distance * 0.3 - 0.01);
+        const clearest = uncapped.reduce((best, halo) => (halo.fog < best.fog ? halo : best));
+        const foggiest = uncapped.reduce((best, halo) => (halo.fog > best.fog ? halo : best));
 
         assert.ok(halos.length > 0, "No light has a halo");
-        assert.ok(halos.every((halo) => !halo.isInWall), "A halo stands inside a wall");
+        assert.ok(halos.every((halo) => !halo.isInWall), "A halo stands inside a wall or glass");
+        assert.ok(halos.every((halo) => halo.radius <= (halo.distance + halo.radius) * 0.3 + 1e-6), "A halo is wider than its distance allows");
         assert.ok(foggiest.fog > clearest.fog && foggiest.radius > clearest.radius, "A halo in more fog is not larger");
 
         view.setDaylight(true);

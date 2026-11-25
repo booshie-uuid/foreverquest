@@ -16,6 +16,8 @@ const OBJECT_DROP = 8;
 const MOON_AT = [-120, 150, -180];
 const SUN_AT = [90, 220, -120];
 const LIGHT_DISTANCE = 46;
+const FLAMES = "flames:";
+const FINE_PER_METRE = FineMesher.FINE * ZoneData.CUBES_PER_METRE;
 
 // Daylight for every zone until a zone gives its own.
 const DAY =
@@ -489,8 +491,54 @@ export class ZoneView
         geometry.computeBoundingSphere();
         geometry.userData.size = object.cells.map((count) => count / ZoneData.CUBES_PER_METRE);
         geometry.userData.lamp = object.lights ? blocks.light(blocks.number("objectLight")) - 1 : 0;
+        geometry.userData.flames = object.lights ? ZoneView.flamesOf(FineMesher.decode(object), blocks) : [];
 
         return geometry;
+    }
+
+    // Each group of touching fine cubes of a block that gives light, as
+    // { at, colour, level }: its middle in metres from the object's lower
+    // corner, its light's colour as 0xrrggbb, and its level.
+    static flamesOf({ size, palette, data }, blocks)
+    {
+        const [width, height, depth] = size;
+        const lightOf = palette.map((id) => (id ? blocks.light(blocks.number(id)) : 0));
+        const seen = new Uint8Array(data.length);
+        const flames = [];
+
+        for(let start = 0; start < data.length; start++)
+        {
+            if(seen[start] === 1 || lightOf[data[start]] === 0) { continue; }
+
+            const group = [start];
+
+            seen[start] = 1;
+
+            for(let i = 0; i < group.length; i++)
+            {
+                const at = group[i];
+                const [x, y, z] = [at % width, Math.floor(at / (width * depth)), Math.floor(at / width) % depth];
+
+                for(const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]])
+                {
+                    const [nx, ny, nz] = [x + dx, y + dy, z + dz];
+                    const next = (ny * depth + nz) * width + nx;
+                    const isInside = nx >= 0 && ny >= 0 && nz >= 0 && nx < width && ny < height && nz < depth;
+
+                    if(!isInside || seen[next] === 1 || data[next] !== data[start]) { continue; }
+
+                    seen[next] = 1;
+                    group.push(next);
+                }
+            }
+
+            const middle = (axis) => group.reduce((total, at) => total + [at % width, Math.floor(at / (width * depth)), Math.floor(at / width) % depth][axis] + 0.5, 0) / group.length;
+            const block = blocks.number(palette[data[start]]);
+
+            flames.push({ at: [0, 1, 2].map((axis) => middle(axis) / FINE_PER_METRE), colour: blocks.glowKey(block), level: blocks.light(block) });
+        }
+
+        return flames;
     }
 
     // `size` is the object's cells in metres.
@@ -532,6 +580,29 @@ export class ZoneView
             this.objectMeshes.set(name + "/" + kind, mesh);
             this.scene.add(mesh);
         }
+
+        this.addFlames(name, placed);
+    }
+
+    addFlames(name, placed)
+    {
+        const spots = [];
+        const at = new THREE.Vector3();
+
+        for(const entry of placed)
+        {
+            const shared = this.objectGeometries.get(entry.object);
+            const matrix = shared ? ZoneView.objectMatrix(entry, shared.userData.size) : null;
+
+            for(const flame of shared?.userData.flames ?? [])
+            {
+                at.fromArray(flame.at).applyMatrix4(matrix);
+                spots.push(at.x, at.y, at.z, flame.colour, flame.level);
+            }
+        }
+
+        this.haloSpots.set(FLAMES + name, Float32Array.from(spots));
+        this.areHalosDirty = true;
     }
 
     removeObjects(name)
@@ -547,6 +618,9 @@ export class ZoneView
             this.scene.remove(mesh);
             this.objectMeshes.delete(key);
         }
+
+        this.haloSpots.delete(FLAMES + name);
+        this.areHalosDirty = true;
     }
 
     // Each pose is a mover's slide `offset` in metres, or its `angle` about
@@ -780,7 +854,7 @@ export class ZoneView
         this.meshWaiting();
         this.buildTiles();
         this.lightObjects();
-        this.updateHalos(camera);
+        this.updateHalos(delta, camera);
         this.water.update(delta);
         this.sky.position.copy(camera.position);
         const disc = this.isDay ? SUN_AT : MOON_AT;
@@ -790,7 +864,7 @@ export class ZoneView
         this.moon.target.position.copy(focus);
     }
 
-    updateHalos(camera)
+    updateHalos(delta, camera)
     {
         if(this.areHalosDirty)
         {
@@ -814,7 +888,7 @@ export class ZoneView
 
         const [base, falloff, density] = this.materials.fog.heightFog.value.toArray();
 
-        this.halos.update(camera, this.scene.fog, { base, falloff, density });
+        this.halos.update(delta, camera, this.scene.fog, { base, falloff, density });
     }
 
     dispose()

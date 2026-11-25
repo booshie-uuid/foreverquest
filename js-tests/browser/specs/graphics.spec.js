@@ -244,7 +244,7 @@ export const tests =
         },
     },
     {
-        name: "lights draw halos by night in one draw call, and none by day",
+        name: "lights draw halos by night, every one of them in one draw call, and none by day",
         run: async ({ page, baseUrl }) =>
         {
             await enterWorld(page, baseUrl);
@@ -252,15 +252,29 @@ export const tests =
 
             const night = await page.evaluate(() =>
             {
-                const halos = window.foreverQuest.game.world.halos;
+                const app = window.foreverQuest;
+                const halos = app.game.world.halos;
+                const drawnTriangles = () =>
+                {
+                    app.game.render(app.renderer.webgl);
 
-                return { isShown: halos.mesh.visible, isOneMesh: window.foreverQuest.game.world.scene.children.filter((node) => node.name === "halos").length === 1 };
+                    return app.renderer.webgl.info.render.triangles;
+                };
+                const withHalos = drawnTriangles();
+
+                halos.mesh.visible = false;
+
+                const withoutHalos = drawnTriangles();
+
+                halos.mesh.visible = true;
+
+                return { isShown: halos.mesh.visible, isOneMesh: app.game.world.scene.children.filter((node) => node.name === "halos").length === 1, isEveryHaloDrawn: (withHalos - withoutHalos) / 2 === halos.count };
             });
 
             await page.evaluate(() => window.foreverQuest.game.world.setDaylight(true));
             await page.waitFor(() => window.foreverQuest.game.world.halos.mesh.visible === false, { timeout: 5000 });
 
-            assert.deepEqual(night, { isShown: true, isOneMesh: true });
+            assert.deepEqual(night, { isShown: true, isOneMesh: true, isEveryHaloDrawn: true });
         },
     },
 ];
