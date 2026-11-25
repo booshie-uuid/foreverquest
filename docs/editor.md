@@ -8,7 +8,7 @@ The zone editor is a mode of the running game. It changes a zone's cubes and pla
 2. Open the game at `http://localhost:8080/` and enter the world.
 3. Press **F8**. The simulation pauses, the HUD hides, and the camera flies from where it was.
 
-F8 again, or the Play button, leaves the editor and lands the character where the camera looks. The address `?zone=hearthmere&edit` opens the game straight into the editor, and `&view=x,y,z,yaw,pitch` places its camera; a note's view uses the same form. On a static host the editor routes do not exist, so F8 reports that the editor needs the development server.
+F8 again, or the Play button, leaves the editor and lands the character where the camera looks. The address `?zone=hearthmere&edit` opens the game straight into the editor, `&view=x,y,z,yaw,pitch` places its camera, and `&bench=id` opens that object in the bench; a note's view uses the same form. On a static host the editor routes do not exist, so F8 reports that the editor needs the development server.
 
 ## Modes and Keys
 
@@ -21,6 +21,7 @@ The tool bar along the top switches between the modes, and holds undo, redo, the
 | 1, 2, 3, 4, 5 | Cubes, Select, Note, Terrain and Brush modes |
 | Ctrl+Z, Ctrl+Y, Ctrl+S | Undo, redo and save |
 | G | Outline every cube |
+| B | Open the selected object in the bench, or go back to the world |
 | F8 | Leave the editor |
 
 ### Cubes
@@ -61,7 +62,22 @@ The box shrinks to the cubes it holds, without water. A placement's cubes are co
 | Prefab | `content/prefabs/<name>.json`, a prefab at cube scale that places and turns like any other | At most 96 cubes a side |
 | Object | `content/objects/<name>.json`, an object in which each cube becomes 8 × 8 × 8 fine cubes of its block, for detail in the bench | At most 8 cubes a side |
 
-The server then runs the full bake, about 10 seconds, and the page loads again at the camera's view, so the palette lists the new piece. The zone's changes that are not saved stay in the server's session. The file stays when the step is undone.
+The server then runs the full bake, about 10 seconds, and the page loads again at the camera's view, so the palette lists the new piece; a new object opens in the bench. The zone's changes that are not saved stay in the server's session. The file stays when the step is undone.
+
+### The Bench
+
+The bench edits an object's fine cubes. **Open in the bench** in the inspector of a selected object, or B, opens it: the world gives way to the object alone, six times its size, on a floor ruled in world cubes under even light, and the camera flies around it as in the world. The block palette is Cubes mode's, so a block chosen in either is chosen in both.
+
+| Tool | Effect |
+|---|---|
+| Add | Adds fine cubes of the chosen block against the face under the pointer, or on the floor |
+| Remove | Removes the fine cubes under the pointer |
+| Paint | Gives the fine cubes under the pointer the chosen block |
+| Light | Marks the world cube that holds the clicked fine cube as one of the object's lights, or unmarks it; a gold outline shows each light |
+
+The tool acts on one fine cube or a square of 3 by 3 or 5 by 5 across the face, and **Mirror X**, or M, repeats each change across the object's middle in x. The slider in the inspector hides the layers above a height, so a click reaches the inside of an object. The middle button picks the block of the fine cube under the pointer.
+
+The bench keeps its own undo history, with Ctrl+Z and Ctrl+Y. **Save object**, or Ctrl+S, writes the object to `content/objects/<id>.json` for every copy in every zone, runs the full bake, about 10 seconds, and loads the page again at the world view where the bench opened. **Back to the world**, or B, returns without saving, and asks first when changes are not saved. The bench keeps the object's cells, whether it is solid and its light's colour; it does not resize an object.
 
 ### Notes
 
@@ -148,8 +164,9 @@ The development server listens on 127.0.0.1 alone. The editor's routes take a ch
 | [js/editor/edit-mode.js](../js/editor/edit-mode.js) | The mode: entering and leaving, picking, the request queue and reloading what the server baked |
 | [js/editor/cube-tool.js](../js/editor/cube-tool.js), [select-tool.js](../js/editor/select-tool.js), [note-tool.js](../js/editor/note-tool.js), [terrain-tool.js](../js/editor/terrain-tool.js), [brush-tool.js](../js/editor/brush-tool.js) | The modes |
 | [js/editor/brush-stroke.js](../js/editor/brush-stroke.js) | A brush stroke: the cells and ages its dabs change |
+| [js/editor/bench.js](../js/editor/bench.js) | The bench: its scene, picking fine cubes, its tools and its own history |
 | [js/editor/editor-panel.js](../js/editor/editor-panel.js), [marks.js](../js/editor/marks.js), [fly-camera.js](../js/editor/fly-camera.js) | The controls, the marks drawn in the world and the camera |
 | [js/editor/editor-client.js](../js/editor/editor-client.js) | The requests to the server |
 | [tools/editor/routes.js](../tools/editor/routes.js) | The server's editor routes and the baked files it serves |
-| [tools/editor/session.js](../tools/editor/session.js) | A zone held in memory: its changes, the undo history, the partial bakes, saving, new zones and Lock in |
+| [tools/editor/session.js](../tools/editor/session.js) | A zone held in memory: its changes, the undo history, the partial bakes, saving, new zones, Lock in, capture and the bench's saves |
 | [tools/terrain/](../tools/terrain/) | The terrain recipe's kinds and checks, the generator and the overhead map |

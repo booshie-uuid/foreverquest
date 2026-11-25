@@ -435,7 +435,7 @@ export class GameScreen
 
     render(webgl)
     {
-        webgl.render(this.world.scene, this.camera);
+        webgl.render(this.editMode.scene ?? this.world.scene, this.camera);
     }
 
     dispose()

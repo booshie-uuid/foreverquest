@@ -1,6 +1,7 @@
 import * as Controls from "../ui/controls.js";
 import * as RegionCodec from "../sim/region-codec.js";
 import * as THREE from "three";
+import { Bench } from "./bench.js";
 import { BrushTool } from "./brush-tool.js";
 import { CubeTool } from "./cube-tool.js";
 import { EditorClient } from "./editor-client.js";
@@ -69,6 +70,12 @@ export class EditMode
         return this.screen.content;
     }
 
+    // The scene the screen draws: the bench's while it is open.
+    get scene()
+    {
+        return this.bench?.isOpen ? this.bench.scene : null;
+    }
+
     get wantsStrokes()
     {
         return this.isActive && this.tool === this.tools.brush;
@@ -104,6 +111,7 @@ export class EditMode
         this.kinds = this.state.kinds;
         this.marks = new Marks(this.screen.world.scene, this.zone);
         this.tools = { cubes: new CubeTool(this), select: new SelectTool(this), notes: new NoteTool(this), terrain: new TerrainTool(this), brush: new BrushTool(this) };
+        this.bench = new Bench(this);
         this.tools.terrain.sync(this.state);
         this.tool = this.state.isLocked ? this.tools.cubes : this.tools.terrain;
         this.screen.pause();
@@ -170,6 +178,16 @@ export class EditMode
     {
         if(!this.isActive) { return; }
 
+        if(this.bench.isOpen)
+        {
+            this.panel.setToolbar(this.bench.toolbar());
+            this.panel.setPalette(this.bench.palette());
+            this.panel.setInspector(this.bench.inspector());
+            this.marks.hideOutline();
+            this.drawStatus();
+            return;
+        }
+
         const names = this.state.isLocked ? [["cubes", "Cubes", "1"], ["select", "Select", "2"], ["notes", "Note", "3"], ["brush", "Brush", "5"]] : [["terrain", "Terrain", "4"], ["select", "Select", "2"], ["notes", "Note", "3"]];
         const modes = names.map(([name, label, key]) => ({ label, key, isOn: this.tool.name === name, action: "mode-" + name, onClick: () => this.setTool(name) }));
         const history =
@@ -202,7 +220,11 @@ export class EditMode
         const parts = [];
         const hit = this.hit;
 
-        if(hit)
+        if(hit && this.bench.isOpen)
+        {
+            parts.push("Fine cube " + hit.cell.join(", "), "Object " + this.bench.id);
+        }
+        else if(hit)
         {
             const [x, y, z] = hit.cell;
             const ground = this.zone.grounds[z * this.zone.columns + x];
@@ -285,9 +307,15 @@ export class EditMode
 
     // The target follows the click, which may come before a frame has
     // followed the pointer there.
+    // The bench picks fine cubes; every other tool picks the zone's cells.
+    hitAt(x, y)
+    {
+        return this.bench.isOpen ? this.bench.hitAt(x, y) : this.pickCell(x, y);
+    }
+
     async click(x, y)
     {
-        const hit = this.pickCell(x, y);
+        const hit = this.hitAt(x, y);
 
         this.pointer = { x, y };
         this.hit = hit;
@@ -307,7 +335,7 @@ export class EditMode
 
     pick(x, y)
     {
-        this.tool.pick?.(this.pickCell(x, y));
+        this.tool.pick?.(this.hitAt(x, y));
     }
 
     wheel(factor)
@@ -325,6 +353,12 @@ export class EditMode
         const isControl = event?.ctrlKey || event?.metaKey;
         const modes = this.state.isLocked ? { Digit1: "cubes", Digit2: "select", Digit3: "notes", Digit5: "brush" } : { Digit2: "select", Digit3: "notes", Digit4: "terrain" };
 
+        if(this.bench.isOpen && this.benchKey(code, isControl))
+        {
+            event?.preventDefault();
+            return;
+        }
+
         if(code === "F8") { this.leave(); }
         else if(isControl && code === "KeyZ") { this.undo(); }
         else if(isControl && code === "KeyY") { this.redo(); }
@@ -337,6 +371,19 @@ export class EditMode
         event?.preventDefault();
     }
 
+    // F8 does nothing while the bench is open.
+    benchKey(code, isControl)
+    {
+        if(isControl && code === "KeyZ") { this.bench.undo(); }
+        else if(isControl && code === "KeyY") { this.bench.redo(); }
+        else if(isControl && code === "KeyS") { this.saveObject(); }
+        else if(code === "KeyB" && !isControl) { this.closeBench(); }
+        else if(this.bench.key(code)) { this.redraw(); }
+        else { return code === "F8"; }
+
+        return true;
+    }
+
     update(delta)
     {
         this.fly.update(delta, this.screen.input);
@@ -344,7 +391,7 @@ export class EditMode
 
         if(this.pointer)
         {
-            this.hit = this.pickCell(this.pointer.x, this.pointer.y);
+            this.hit = this.hitAt(this.pointer.x, this.pointer.y);
             this.tool.hover(this.hit);
             this.drawStatus();
         }
@@ -437,7 +484,8 @@ export class EditMode
     }
 
     // The page loads again at the camera's view, so the game's prefab and
-    // object lists hold the new piece; the server keeps the zone's changes.
+    // object lists hold the new piece, and a new object opens in the bench;
+    // the server keeps the zone's changes.
     async capture(capture)
     {
         this.panel.say("Capturing " + capture.id + ", then baking the assets…");
@@ -447,6 +495,66 @@ export class EditMode
         if(!answer) { return; }
 
         const { x, y, z, yaw, pitch } = this.fly.view;
+
+        location.assign("?zone=" + this.zone.id + "&edit&view=" + [x, y, z, yaw, pitch].map((value) => Math.round(value * 100) / 100).join(",") + (capture.as === "object" ? "&bench=" + capture.id : ""));
+    }
+
+    /* BENCH ******************************************************************/
+
+    openBench(id)
+    {
+        if(!this.bench.open(id))
+        {
+            this.panel.say("The game knows no object called " + id + ".");
+            return;
+        }
+
+        this.tool = this.bench;
+        this.marks.hideGhost();
+        this.marks.hideRing();
+        this.panel.say("The bench: " + id + ". B goes back to the world.");
+        this.redraw();
+    }
+
+    // Leaving with changes not saved asks first.
+    closeBench(isDiscarding = false)
+    {
+        if(this.bench.isDirty && !isDiscarding)
+        {
+            this.panel.setCard(
+            {
+                title: "Leave the bench?",
+                text: "The changes to " + this.bench.id + " are not saved.",
+                actions:
+                [
+                    { label: "Discard them", isWarning: true, action: "bench-discard", onClick: () => this.closeBench(true) },
+                    { label: "Keep editing", action: "bench-keep", onClick: () => this.panel.setCard(null) },
+                ],
+            });
+            return;
+        }
+
+        this.panel.setCard(null);
+        this.bench.close();
+        this.tool = this.tools.select;
+        this.redraw();
+    }
+
+    // The page loads again at the world view, as after a capture, so every
+    // copy of the object takes the saved fine cubes.
+    async saveObject()
+    {
+        if(!this.bench.isDirty) { return; }
+
+        const id = this.bench.id;
+
+        this.panel.say("Saving " + id + ", then baking the assets…");
+
+        const answer = await this.run(() => this.client.saveObject(id, this.bench.data()));
+
+        if(!answer) { return; }
+
+        const { x, y, z, yaw, pitch } = this.bench.returnView;
 
         location.assign("?zone=" + this.zone.id + "&edit&view=" + [x, y, z, yaw, pitch].map((value) => Math.round(value * 100) / 100).join(","));
     }

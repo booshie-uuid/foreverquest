@@ -16,7 +16,8 @@ function readStorage()
     }
 }
 
-// `?edit` opens the editor; `view=x,y,z,yaw,pitch` sets its camera.
+// `?edit` opens the editor; `view=x,y,z,yaw,pitch` sets its camera, and
+// `bench=id` opens that object in the bench.
 function editOf(params)
 {
     if(!params.has("edit")) { return null; }
@@ -24,7 +25,7 @@ function editOf(params)
     const values = (params.get("view") ?? "").split(",").map(Number);
     const isView = values.length === 5 && values.every(Number.isFinite);
 
-    return { view: isView ? { x: values[0], y: values[1], z: values[2], yaw: values[3], pitch: values[4] } : null };
+    return { view: isView ? { x: values[0], y: values[1], z: values[2], yaw: values[3], pitch: values[4] } : null, bench: params.get("bench") };
 }
 
 async function start()

@@ -764,6 +764,31 @@ export class EditSession
         return { prefab: id, x: round((x0 + Math.floor(width / 2)) / CUBES - half), z: round((z0 + Math.floor(depth / 2)) / CUBES - half), y, angle: 0 };
     }
 
+    /* OBJECTS ****************************************************************/
+
+    // Writes an object's data, as the bench saves it, to content/objects/ for
+    // every zone's copies, and bakes the zone again, as the cells the object
+    // fills may have changed.
+    async saveObject({ id, object })
+    {
+        const problems = [];
+        const blocks = new Map(this.context.blocks.map((block) => [block.id, block]));
+
+        if(!ID_PATTERN.test(id ?? "")) { throw new Error("The object needs a name that starts with a lower-case letter and holds only letters and digits."); }
+
+        const baked = Objects.bakeData(id, object ?? {}, blocks, "Object " + id, problems);
+
+        if(!baked) { throw new Error(problems.join(". ")); }
+
+        const file = path.join(this.contentRoot, CAPTURED.object, id + ".json");
+
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, JSON.stringify(baked) + String.fromCharCode(10));
+        this.context.objects[id] = baked;
+
+        return { written: [path.relative(this.contentRoot, file).split(path.sep).join("/")], regions: await this.bake(null), messages: [], ...this.state };
+    }
+
     /* BAKE *******************************************************************/
 
     // A step that changed the recipe bakes every region.

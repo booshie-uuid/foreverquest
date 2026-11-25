@@ -216,6 +216,7 @@ export class SelectTool
         else if(code === "KeyR") { this.turn(event?.shiftKey ? -1 : 1); }
         else if(code === "Delete") { this.remove(); }
         else if(code === "KeyD" && event?.ctrlKey) { this.copy(); }
+        else if(code === "KeyB" && this.entry.object) { this.editor.openBench(this.entry.object); }
         else { return false; }
 
         return true;
@@ -286,6 +287,7 @@ export class SelectTool
 
         if(isPart) { more.push({ label: "Select the " + kind, key: "Ctrl+↑", action: "select-building", onClick: () => this.selectBuilding() }); }
         if(isPrefab && !isPart) { more.push({ label: "Break apart into cubes", isWarning: true, action: "break-apart", onClick: () => this.breakApart() }); }
+        if(entry.object) { more.push({ label: "Open in the bench", key: "B", action: "open-bench", onClick: () => this.editor.openBench(entry.object) }); }
 
         more.push({ label: "Delete", key: "Del", action: "delete-selected", onClick: () => this.remove() });
 

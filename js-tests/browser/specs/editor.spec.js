@@ -279,6 +279,57 @@ export const tests =
         },
     },
     {
+        name: "the bench opens an object large, adds a fine cube and its mirror, undoes, marks a light cell, slices, and asks before leaving with changes not saved",
+        run: async ({ page, baseUrl, screenshot }) =>
+        {
+            await page.goto(baseUrl + "/index.html?zone=testfield&edit&view=" + VIEW + "&bench=barrel");
+            await page.waitFor(() => window.foreverQuest?.isReady === true && window.foreverQuest.game?.editMode.bench?.isOpen, { timeout: 30000 });
+
+            const count = () => page.evaluate(() => window.foreverQuest.game.editMode.bench.grid.data.filter((value) => value > 0).length);
+            const before = await count();
+
+            await page.clickAt(640, 400);
+
+            const added = await count();
+
+            await page.click("[data-action=bench-undo]");
+
+            const undone = await count();
+
+            await page.click("[data-action=bench-mirror]");
+            await page.clickAt(640, 400);
+            await screenshot("bench");
+
+            const mirrored = await count();
+            const data = await page.evaluate(() => window.foreverQuest.game.editMode.bench.data());
+            const filled = data.runs.reduce((sum, value, i) => sum + (i % 2 === 1 ? value : 0), 0);
+            await page.click("[data-action=bench-light]");
+            await page.clickAt(640, 400);
+
+            const lights = await page.evaluate(() => window.foreverQuest.game.editMode.bench.data().lights);
+            const sliced = await page.evaluate(() =>
+            {
+                const bench = window.foreverQuest.game.editMode.bench;
+
+                bench.setSlice(4);
+
+                return bench.hitAt(640, 400)?.cell ?? null;
+            });
+
+            await page.click("[data-action=bench-back]");
+            await page.waitFor(() => !document.querySelector(".editor-card").hidden);
+            await page.click("[data-action=bench-discard]");
+
+            const closed = await page.evaluate(() => ({ isOpen: window.foreverQuest.game.editMode.bench.isOpen, scene: window.foreverQuest.game.editMode.scene }));
+
+            assert.deepEqual([added - before, undone - before, mirrored - before], [1, 0, 2]);
+            assert.deepEqual([data.palette[0], filled, data.cells], [null, 16 * 24 * 16, [2, 3, 2]]);
+            assert.ok(sliced === null || sliced[1] < 4, "A fine cube above the slice was picked: " + sliced);
+            assert.deepEqual(closed, { isOpen: false, scene: null });
+            assert.equal(lights?.length, 1, "The light tool did not mark a cell");
+        },
+    },
+    {
         name: "a new zone opens on its terrain recipe and map, takes a flat area dragged on the map without moving the camera, moves the camera to an empty spot clicked, and Preview bakes a changed base into the world",
         timeout: 120000,
         run: async ({ page, baseUrl, screenshot }) =>

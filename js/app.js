@@ -75,6 +75,8 @@ export class App
         {
             this.showGame();
             await this.game.editMode.enter(this.edit.view);
+
+            if(this.edit.bench && this.game.editMode.isActive) { this.game.editMode.openBench(this.edit.bench); }
         }
 
         this.isReady = true;

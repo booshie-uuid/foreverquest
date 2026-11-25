@@ -8,7 +8,7 @@ import { Log } from "../../js/log.js";
 
 const ROOT = path.resolve(import.meta.dirname, "..", "..");
 const ZONE_ASSET = /^\/assets\/zones\/([a-z][A-Za-z0-9]*)\/((?:\d+-\d+\.bin)|index\.json)$/;
-const EDITOR_ROUTE = /^\/editor\/([a-z][A-Za-z0-9]*)\/(state|open|create|owner|apply|map|lock|capture|undo|redo|save|discard|notes)$/;
+const EDITOR_ROUTE = /^\/editor\/([a-z][A-Za-z0-9]*)\/(state|open|create|owner|apply|map|lock|capture|object|undo|redo|save|discard|notes)$/;
 const MANIFEST = "/assets/manifest.json";
 const LOCAL_HOST = /^(127\.0\.0\.1|localhost)(:\d+)?$/;
 const MAX_BODY = 16 * 1024 * 1024;
@@ -133,6 +133,15 @@ export class EditorRoutes
         if(action === "map") { return session.map(body.recipe, body.water); }
         if(action === "undo") { return session.undo(); }
         if(action === "redo") { return session.redo(); }
+
+        if(action === "object")
+        {
+            const saved = await session.saveObject(body);
+
+            if(this.shouldBake) { await this.bake(); }
+
+            return saved;
+        }
 
         if(action === "capture")
         {

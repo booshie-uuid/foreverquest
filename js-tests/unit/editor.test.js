@@ -367,6 +367,34 @@ describe("Capture", () =>
     });
 });
 
+describe("Bench saves", () =>
+{
+    it("write an object's data for every zone, and refuse data the bake would", async () =>
+    {
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), "editor-"));
+
+        fs.cpSync(path.join(CONTENT, "zones", "testfield"), path.join(root, "zones", "testfield"), { recursive: true });
+
+        try
+        {
+            const session = await EditSession.open("testfield", root);
+            const jug = JSON.parse(fs.readFileSync(path.join(CONTENT, "objects", "jug.json"), "utf8"));
+            const changed = { ...jug, palette: [...jug.palette, "planks"], runs: [jug.palette.length, 1, jug.runs[0], jug.runs[1] - 1, ...jug.runs.slice(2)] };
+            const answer = await session.saveObject({ id: "jug", object: changed });
+            const saved = JSON.parse(fs.readFileSync(path.join(root, "objects", "jug.json"), "utf8"));
+
+            assert.deepEqual(answer.written, ["objects/jug.json"]);
+            assert.deepEqual(saved, session.context.objects.jug);
+            assert.ok(saved.palette.includes("planks"));
+            await assert.rejects(session.saveObject({ id: "jug", object: { ...jug, palette: [...jug.palette, "lava"], runs: [jug.palette.length, 1, jug.runs[0], jug.runs[1] - 1, ...jug.runs.slice(2)] } }), /unknown block: lava/);
+        }
+        finally
+        {
+            fs.rmSync(root, { recursive: true });
+        }
+    });
+});
+
 describe("New zones", () =>
 {
     const contentRoot = () =>

@@ -14,10 +14,39 @@ const BLOCKS = new Map(
     ["object", { id: "object", kind: "object", faces: {} }],
 ]);
 
-function bake(object)
+// An object's data, with fine cubes that `build` places through set(x, y, z,
+// block) and box(from, to, block), from one corner up to the other.
+function dataOf(cells, build, extra = {})
+{
+    const size = cells.map((count) => count * FineMesher.FINE);
+    const palette = [null];
+    const grid = new Uint8Array(size[0] * size[1] * size[2]);
+    const set = (x, y, z, block) =>
+    {
+        if(!palette.includes(block)) { palette.push(block); }
+
+        grid[(y * size[2] + z) * size[0] + x] = palette.indexOf(block);
+    };
+    const box = (from, to, block) =>
+    {
+        for(let y = from[1]; y < to[1]; y++)
+        {
+            for(let z = from[2]; z < to[2]; z++)
+            {
+                for(let x = from[0]; x < to[0]; x++) { set(x, y, z, block); }
+            }
+        }
+    };
+
+    build({ set, box });
+
+    return { cells, palette, runs: FineMesher.encode(grid), ...extra };
+}
+
+function bake(data)
 {
     const problems = [];
-    const baked = Objects.bakeObject("sample", object, BLOCKS, "Object sample", problems);
+    const baked = Objects.bakeData("sample", data, BLOCKS, "Object sample", problems);
     const mesh = baked && FineMesher.mesh(FineMesher.decode(baked), (block) => BLOCKS.get(block).faces, 1);
 
     return { baked, mesh, problems };
@@ -25,23 +54,23 @@ function bake(object)
 
 describe("Fine-cube objects", () =>
 {
-    it("keeps every fine cube inside the object's cubes", () =>
+    it("refuses unknown blocks, more than 8 cubes a side, lights outside its cells, and runs that do not fill it", () =>
     {
-        const outside = bake({ cells: [1, 1, 1], build: (o) => o.box([0, 0, 0], [9, 1, 1], "planks") });
-        const unknown = bake({ cells: [1, 1, 1], build: (o) => o.set(0, 0, 0, "lava") });
-        const tooBig = bake({ cells: [9, 1, 1], build: () => {} });
-        const lightOutside = bake({ cells: [1, 1, 1], lights: [[1, 0, 0]], build: (o) => o.set(0, 0, 0, "planks") });
+        const short = bake({ cells: [1, 1, 1], palette: [null, "planks"], runs: [1, 100] });
+        const unknown = bake(dataOf([1, 1, 1], (o) => o.set(0, 0, 0, "lava")));
+        const tooBig = bake({ cells: [9, 1, 1], palette: [null], runs: [0, 9 * 512] });
+        const lightOutside = bake(dataOf([1, 1, 1], (o) => o.set(0, 0, 0, "planks"), { lights: [[1, 0, 0]] }));
 
-        assert.match(outside.problems[0], /outside its cubes at 8, 0, 0/);
+        assert.match(short.problems[0], /runs that do not fill/);
         assert.match(lightOutside.problems[0], /lights to be a list of its cells/);
         assert.match(unknown.problems[0], /unknown block: lava/);
         assert.match(tooBig.problems[0], /from 1 to 8/);
-        assert.equal(outside.baked, null);
+        assert.equal(short.baked, null);
     });
 
     it("draws a lone fine cube as six faces an eighth of a cube across, with each side's texture", () =>
     {
-        const { mesh } = bake({ cells: [1, 1, 1], build: (o) => o.set(3, 0, 3, "timber") });
+        const { mesh } = bake(dataOf([1, 1, 1], (o) => o.set(3, 0, 3, "timber")));
         const xs = mesh.positions.filter((value, i) => i % 3 === 0);
 
         assert.equal(mesh.indices.length / 3, 12);
@@ -51,11 +80,11 @@ describe("Fine-cube objects", () =>
 
     it("winds every triangle to face along its normal", () =>
     {
-        const { mesh } = bake({ cells: [1, 1, 1], build: (o) =>
+        const { mesh } = bake(dataOf([1, 1, 1], (o) =>
         {
             o.box([1, 1, 1], [5, 3, 4], "planks");
             o.set(6, 6, 6, "timber");
-        } });
+        }));
         const at = (index) => mesh.positions.slice(index * 3, index * 3 + 3);
 
         for(let t = 0; t < mesh.indices.length; t += 3)
@@ -72,7 +101,7 @@ describe("Fine-cube objects", () =>
 
     it("merges the faces of one texture into rectangles", () =>
     {
-        const { baked, mesh } = bake({ cells: [2, 1, 1], build: (o) => o.box([0, 0, 0], [16, 8, 8], "planks") });
+        const { baked, mesh } = bake(dataOf([2, 1, 1], (o) => o.box([0, 0, 0], [16, 8, 8], "planks")));
 
         assert.equal(mesh.indices.length / 3, 12);
         assert.deepEqual(baked.cells, [2, 1, 1]);
@@ -81,11 +110,11 @@ describe("Fine-cube objects", () =>
 
     it("stores the fine cubes as runs that decode to the same grid", () =>
     {
-        const { baked } = bake({ cells: [1, 1, 1], build: (o) =>
+        const { baked } = bake(dataOf([1, 1, 1], (o) =>
         {
             o.box([0, 0, 0], [8, 1, 8], "planks");
             o.set(7, 7, 7, "timber");
-        } });
+        }));
         const { data, palette } = FineMesher.decode(baked);
 
         assert.equal(data.length, 512);
@@ -95,13 +124,13 @@ describe("Fine-cube objects", () =>
 
     it("fails an object whose mesh goes over the triangle budget", () =>
     {
-        const checker = bake({ cells: [8, 1, 8], build: (o) =>
+        const checker = bake(dataOf([8, 1, 8], (o) =>
         {
             for(let x = 0; x < 64; x++)
             {
                 for(let z = 0; z < 64; z++) { if((x + z) % 2 === 0) { o.set(x, 0, z, "planks"); } }
             }
-        } });
+        }));
 
         assert.match(checker.problems[0], /triangles, more than 6000/);
     });
@@ -143,7 +172,7 @@ describe("Objects in a zone", () =>
 
     it("blocks the turned cells that the view draws fine cubes in, at every quarter turn", () =>
     {
-        const { baked } = bake({ cells: [3, 1, 2], build: (o) => o.set(20, 3, 2, "planks") });
+        const { baked } = bake(dataOf([3, 1, 2], (o) => o.set(20, 3, 2, "planks")));
         const zone = { columns: 48, height: 8, base: 0 };
         const half = zone.columns / 6;
 

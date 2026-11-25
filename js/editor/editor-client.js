@@ -50,6 +50,13 @@ export class EditorClient
         return this.post("capture", capture);
     }
 
+    // `object` is an object's data, as its file in content/objects/ holds it.
+    // Resolves to { written } and the state.
+    saveObject(id, object)
+    {
+        return this.post("object", { id, object });
+    }
+
     // Resolves to { written } and the state, once the terrain is cubes.
     lock()
     {
