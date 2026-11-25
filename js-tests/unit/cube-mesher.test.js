@@ -17,10 +17,14 @@ function table()
 {
     const faces = { top: new Int16Array([0, 10, 20, 30, 60]), side: new Int16Array([0, 11, 21, 31, 61]), bottom: new Int16Array([0, 12, 22, 32, 62]) };
     const flags = () => new Uint8Array(256);
-    const built = { ...faces, opaque: flags(), clear: flags(), glass: flags(), liquid: flags(), hidden: flags(), standable: flags(), lights: flags() };
+    const built = { ...faces, opaque: flags(), blocking: flags(), clear: flags(), glass: flags(), dimming: flags(), liquid: flags(), hidden: flags(), standable: flags(), lights: flags() };
 
     built.opaque[STONE] = 1;
     built.opaque[LAMP] = 1;
+    built.blocking[STONE] = 1;
+    built.blocking[LAMP] = 1;
+    built.blocking[GLASS] = 1;
+    built.dimming[GLASS] = 2;
     built.clear[LEAVES] = 1;
     built.standable[STONE] = 1;
     built.standable[LAMP] = 1;
@@ -406,5 +410,60 @@ describe("Cube mesher", () =>
         spots.sort((a, b) => a[0] - b[0]);
 
         assert.deepEqual(spots, [[4.5 / 3, 3.5 / 3, 3.5 / 3, 0xff5a28, 12], [6.5 / 3, 3.5 / 3, 3.5 / 3, 0xffb466, 12], [20.5 / 3, 9.5 / 3, 20.5 / 3, 0xff5a28, 12]].map((spot) => spot.map((value) => Math.round(value * 1000) / 1000)));
+    });
+    it("makes a window one light, the brightest light reaching it less its glass's dimming, that falls faster along the wall than out from it", () =>
+    {
+        const at = (x, y, z) => ((y + MARGIN) * PADDED + z + MARGIN) * PADDED + x + MARGIN;
+        const room = cells((set) =>
+        {
+            for(let x = 0; x < 32; x++) { for(let z = 0; z < 32; z++) { set(x, 0, z, STONE); } }
+            for(let y = 1; y < 32; y++) { for(let z = 0; z < 32; z++) { set(16, y, z, STONE); } }
+            for(let y = 2; y < 4; y++) { for(let z = 15; z < 17; z++) { set(16, y, z, GLASS); } }
+
+            set(19, 2, 15, LAMP);
+        });
+        const lampAt = (lit, x, y, z) => lit[at(x, y, z)] & 0xf;
+        const leaded = CubeMesher.lightCells(room, table());
+        const grimy = table();
+
+        grimy.dimming[GLASS] = 4;
+
+        const dimmer = CubeMesher.lightCells(room, grimy);
+        const brightest = Math.max(lampAt(leaded, 17, 2, 15), lampAt(leaded, 17, 3, 16));
+        const window = lampAt(leaded, 15, 2, 15);
+
+        assert.deepEqual([lampAt(leaded, 15, 3, 15), lampAt(leaded, 15, 2, 16), lampAt(leaded, 15, 3, 16)], [window, window, window], "The window does not give the same light from each of its cells");
+        assert.equal(window, brightest - 2);
+        assert.equal(lampAt(leaded, 13, 2, 15), window - 2, "The light does not fall a level a cell out from the window");
+        assert.equal(lampAt(leaded, 15, 2, 13), window - 6, "The light does not fall three levels a cell along the wall");
+        assert.equal(lampAt(dimmer, 15, 2, 15), window - 2, "Grimy glass does not dim the light more than leaded glass");
+    });
+
+    it("lets daylight into a closed room by its window as from a light, less the glass's dimming", () =>
+    {
+        const at = (x, y, z) => ((y + MARGIN) * PADDED + z + MARGIN) * PADDED + x + MARGIN;
+        const box = cells((set) =>
+        {
+            for(let x = 16; x < 25; x++)
+            {
+                for(let y = 0; y < 9; y++)
+                {
+                    for(let z = 8; z < 25; z++)
+                    {
+                        const isShell = x === 16 || x === 24 || y === 0 || y === 8 || z === 8 || z === 24;
+
+                        if(isShell) { set(x, y, z, STONE); }
+                    }
+                }
+            }
+
+            set(16, 3, 15, GLASS);
+            set(16, 3, 16, GLASS);
+        });
+        const lit = CubeMesher.lightCells(box, table());
+        const skyAt = (x, y, z) => lit[at(x, y, z)] >> 4;
+
+        assert.equal(skyAt(15, 3, 15), 15);
+        assert.deepEqual([skyAt(17, 3, 15), skyAt(19, 3, 15), skyAt(17, 3, 18)], [13, 11, 7]);
     });
 });

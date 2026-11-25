@@ -1,6 +1,6 @@
 {
     "files": {
-        "blocks.json": "98594625477168e026d3ac51a33f846261f5854adbe986ba8cab6c64ce44408d",
+        "blocks.json": "a00cffa110f915b14cdc6fde7115afccebc0ca28ad09a5cf56ca77228a8921cc",
         "migrations.json": "36ca8f2294979382612449f2e06759552b1faf0b1e63acc4930d06d0534623e7",
         "models/appearance.json": "8cf415eb281d3f71d9b89fc40f092eff9f6c23a35b7b23de38916110d483dfd4",
         "models/archetypes.json": "2be2c9e982bea9d46e186a6ea92b6fe9947342c48002d34b68eea53d51ec8604",

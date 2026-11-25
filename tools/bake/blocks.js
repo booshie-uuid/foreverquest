@@ -72,11 +72,12 @@ export function bakeBlock(id, block, textures, where, problems, glassTextures = 
     if(!(weathers.every((weather) => WEATHERS.includes(weather)) && (kind === "solid" || weathers.length === 0))) { problems.push(where + " weathers in an unknown way, or is not solid: " + weathers.join(", ")); }
     if(block.worn !== undefined && !textures.includes(block.worn)) { problems.push(where + " wears to an unknown world texture: " + block.worn); }
     if(block.glow !== undefined && !(light > 0 && LightColours.LIGHT_COLOURS[block.glow])) { problems.push(where + " needs a light above 0 and a glow from light-colours.js, not " + block.glow); }
+    if((kind === "glass") !== (block.dimming !== undefined) || !(block.dimming === undefined || (Number.isInteger(block.dimming) && block.dimming >= 0 && block.dimming <= MAX_LIGHT))) { problems.push(where + " needs a dimming from 0 to " + MAX_LIGHT + " if it is glass, and none if it is not"); }
     if(problems.length > before) { return null; }
 
     const glow = light > 0 ? { glow: LightColours.LIGHT_COLOURS[block.glow ?? "candle"] } : {};
 
     if(kind === "object") { return { id, kind, light, faces: {}, ...glow }; }
 
-    return { id, kind, light, faces: { top, side, bottom }, weathers, ...(block.worn ? { worn: block.worn } : {}), ...glow };
+    return { id, kind, light, faces: { top, side, bottom }, weathers, ...(block.worn ? { worn: block.worn } : {}), ...(kind === "glass" ? { dimming: block.dimming } : {}), ...glow };
 }

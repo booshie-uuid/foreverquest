@@ -47,7 +47,7 @@ describe("Block bake", () =>
 
 describe("Block set", () =>
 {
-    it("puts glass textures on glass blocks only, and only glass textures on them", () =>
+    it("puts glass textures on glass blocks only, and only glass textures on them, and gives only glass a dimming", () =>
     {
         const glassProblems = (block) =>
         {
@@ -58,9 +58,11 @@ describe("Block set", () =>
             return problems;
         };
 
-        assert.deepEqual(glassProblems({ faces: { all: "leadedGlass" }, kind: "glass" }), []);
+        assert.deepEqual(glassProblems({ faces: { all: "leadedGlass" }, kind: "glass", dimming: 2 }), []);
         assert.equal(glassProblems({ faces: { all: "leadedGlass" } }).length, 1);
-        assert.equal(glassProblems({ faces: { all: "earth", side: "leadedGlass" }, kind: "glass" }).length, 1);
+        assert.equal(glassProblems({ faces: { all: "earth", side: "leadedGlass" }, kind: "glass", dimming: 2 }).length, 1);
+        assert.equal(glassProblems({ faces: { all: "leadedGlass" }, kind: "glass" }).length, 1, "Glass with no dimming was accepted");
+        assert.equal(glassProblems({ faces: { all: "earth" }, dimming: 2 }).length, 1, "A dimming on a block that is not glass was accepted");
     });
 
     it("numbers the baked blocks from 1, with 0 as air", async () =>

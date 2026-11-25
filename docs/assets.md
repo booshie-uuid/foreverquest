@@ -112,11 +112,12 @@ A block type is one world cube's material. The files in [content/blocks/](../con
 | `faces` | World texture names for `top`, `side` and `bottom`; `all` covers the faces that are not named |
 | `kind` | `solid` (the default) blocks movement and hides the faces behind it; `clear` blocks movement and lets the faces behind it show, as leaves do; `glass` blocks movement, lets light through and draws see-through, as windows do; `liquid` lets entities enter it |
 | `light` | The light the block gives, from 0 (the default) to 15 |
+| `dimming` | Glass only, and required for it: the light levels a window of this glass takes from the light passing out of it, from 0 to 15. Clear glass dims 1, leaded 2, stained 3 and grimy 4 |
 | `glow` | Optional, for a block with a light. The colour of its light, by name from [content/light-colours.js](../content/light-colours.js): `candle` (the default), `hearth` or `moonstone`. The forge's `embers` glow hearth red |
 | `weathers` | Optional. The ways a solid block weathers: any of `moss`, `grime`, `cracks` and `chips`; see [Weathering](world.md#weathering) |
 | `worn` | Optional. The world texture an old block takes, such as `plasterWorn` |
 
-[BlockSet](../js/sim/block-set.js) numbers the block types from 1 in the baked order, file by file in name order, and keeps 0 for air. The simulation and the views both read it. The bake fails on a repeated id, an unknown texture, face or kind, a block without a texture on every face, a light out of range, an unknown way of weathering or one on a block that is not solid, an unknown worn texture, a glow on a block with no light or of a colour that light-colours.js does not name, and a glass block with a texture that is not glass or a glass texture on a block that is not glass.
+[BlockSet](../js/sim/block-set.js) numbers the block types from 1 in the baked order, file by file in name order, and keeps 0 for air. The simulation and the views both read it. The bake fails on a repeated id, an unknown texture, face or kind, a block without a texture on every face, a light out of range, an unknown way of weathering or one on a block that is not solid, an unknown worn texture, a glow on a block with no light or of a colour that light-colours.js does not name, a glass block with a texture that is not glass or a glass texture on a block that is not glass, and a glass block without a dimming or another block with one.
 
 ## Adding an Object
 

@@ -28,6 +28,7 @@ const HUE_SHIFT = 65536;
 const GLOW_STEPS = Math.log(GLOW_END) / Math.log(GLOW_KEEP);
 const FILL_STEPS = 6;
 const FILL_KEEP = Math.sqrt(GLOW_KEEP);
+const SIDEWAYS_COST = 3;
 const CORE = [GLOW_REACH / COARSE - 1 - Math.ceil((FILL_STEPS + 1) / COARSE), (GLOW_REACH + CHUNK) / COARSE + Math.ceil((FILL_STEPS + 1) / COARSE)];
 
 // The step through the padded cells along x, y and z.
@@ -55,7 +56,7 @@ export function faceTable(blocks, atlas)
 {
     const count = blocks.count + 1;
     const flags = () => new Uint8Array(256);
-    const table = { top: new Int16Array(count), side: new Int16Array(count), bottom: new Int16Array(count), opaque: flags(), clear: flags(), glass: flags(), liquid: flags(), hidden: flags(), standable: flags(), lights: flags() };
+    const table = { top: new Int16Array(count), side: new Int16Array(count), bottom: new Int16Array(count), opaque: flags(), blocking: flags(), clear: flags(), glass: flags(), dimming: flags(), liquid: flags(), hidden: flags(), standable: flags(), lights: flags() };
 
     table.weathers = flags();
     table.glowKeys = new Int32Array(256);
@@ -71,6 +72,8 @@ export function faceTable(blocks, atlas)
         table.opaque[number] = block.kind === "solid" ? 1 : 0;
         table.clear[number] = block.kind === "clear" ? 1 : 0;
         table.glass[number] = block.kind === "glass" ? 1 : 0;
+        table.blocking[number] = block.kind === "solid" || block.kind === "glass" ? 1 : 0;
+        table.dimming[number] = block.dimming ?? 0;
         table.liquid[number] = block.kind === "liquid" ? 1 : 0;
         table.hidden[number] = block.kind === "liquid" || block.kind === "object" ? 1 : 0;
         table.standable[number] = block.kind === "solid" || block.kind === "clear" || block.kind === "glass" || block.kind === "object" ? 1 : 0;
@@ -83,6 +86,7 @@ export function faceTable(blocks, atlas)
     table.frameLayer = atlas.frameLayer;
 
     table.opaque[BEDROCK] = 1;
+    table.blocking[BEDROCK] = 1;
 
     return table;
 }
@@ -215,7 +219,8 @@ export function coarseVolume(zone, cx, cy, cz)
 
 // Each cell's sky light in the high four bits and lamp light in the low four.
 // Sky light is MAX_LIGHT above a column's surface; both spread through cells
-// that are not opaque, one level dimmer a cell.
+// that are neither opaque nor glass, one level dimmer a cell, and leave
+// through windows; see throughWindows.
 export function lightCells(volume, table)
 {
     return lightField(volume, table).light;
@@ -255,8 +260,11 @@ function lightField(volume, table)
         }
     }
 
+    const glassCells = [];
+
     for(let i = 0; i < cells.length; i++)
     {
+        if(table.glass[cells[i]] === 1) { glassCells.push(i); }
         if(table.lights[cells[i]] === 0) { continue; }
 
         const colour = table.glowKeys?.[cells[i]] ?? 0;
@@ -266,7 +274,10 @@ function lightField(volume, table)
         seedsOf.get(colour).push(i);
     }
 
-    spread(sky, skySeeds, cells, table.opaque);
+    const windows = windowsOf(glassCells, cells, table);
+
+    spread(sky, skySeeds, cells, table.blocking);
+    throughWindows(sky, windows, cells, table);
 
     const lamps = [...seedsOf].map(([colour, seeds]) =>
     {
@@ -274,7 +285,8 @@ function lightField(volume, table)
 
         for(const seed of seeds) { levels[seed] = table.lights[cells[seed]]; }
 
-        spread(levels, seeds, cells, table.opaque);
+        spread(levels, seeds, cells, table.blocking);
+        throughWindows(levels, windows, cells, table);
 
         return { colour, levels };
     });
@@ -588,6 +600,123 @@ function fineGlow(volume, table)
 }
 
 // Breadth first, so each cell keeps the brightest level that reaches it.
+// Each window, a group of touching glass cells, as `glass`, the cells, and
+// `faces`, the cells beside it that light enters or leaves by, with the axis
+// of each, and the most any of its glass dims light by.
+function windowsOf(glassCells, cells, table)
+{
+    const seen = new Set();
+    const windows = [];
+
+    for(const start of glassCells)
+    {
+        if(seen.has(start)) { continue; }
+
+        const glass = [start];
+        const faces = [];
+        let dimming = 0;
+
+        seen.add(start);
+
+        for(let i = 0; i < glass.length; i++)
+        {
+            const index = glass[i];
+
+            dimming = Math.max(dimming, table.dimming[cells[index]]);
+
+            for(let axis = 0; axis < 3; axis++)
+            {
+                for(const sign of [1, -1])
+                {
+                    const neighbour = stepFrom(index, axis, sign);
+
+                    if(neighbour < 0) { continue; }
+
+                    const block = cells[neighbour];
+
+                    if(table.glass[block] === 1 && !seen.has(neighbour))
+                    {
+                        seen.add(neighbour);
+                        glass.push(neighbour);
+                    }
+                    else if(table.blocking[block] === 0) { faces.push(neighbour, axis); }
+                }
+            }
+        }
+
+        windows.push({ glass, faces, dimming });
+    }
+
+    return windows;
+}
+
+// A window takes the brightest light that reaches any cell beside it, less
+// its dimming, and gives that light to every cell beside it, from which it
+// spreads one level a cell along the axis of the face it left by and
+// SIDEWAYS_COST levels a cell across it. Its glass cells take the brightest
+// light that reaches it.
+function throughWindows(levels, windows, cells, table)
+{
+    const buckets = Array.from({ length: MAX_LIGHT + 1 }, () => [[], [], []]);
+
+    for(const { glass, faces, dimming } of windows)
+    {
+        let brightest = 0;
+
+        for(let i = 0; i < faces.length; i += 2) { brightest = Math.max(brightest, levels[faces[i]]); }
+
+        for(const index of glass) { levels[index] = brightest; }
+
+        const level = brightest - dimming;
+
+        if(level <= 0) { continue; }
+
+        for(let i = 0; i < faces.length; i += 2)
+        {
+            if(levels[faces[i]] >= level) { continue; }
+
+            levels[faces[i]] = level;
+            buckets[level][faces[i + 1]].push(faces[i]);
+        }
+    }
+
+    for(let level = MAX_LIGHT; level > 0; level--)
+    {
+        for(let along = 0; along < 3; along++)
+        {
+            for(const index of buckets[level][along])
+            {
+                if(levels[index] !== level) { continue; }
+
+                for(let axis = 0; axis < 3; axis++)
+                {
+                    const next = level - (axis === along ? 1 : SIDEWAYS_COST);
+
+                    if(next <= 0) { continue; }
+
+                    for(const sign of [1, -1])
+                    {
+                        const neighbour = stepFrom(index, axis, sign);
+
+                        if(neighbour < 0 || table.blocking[cells[neighbour]] === 1 || levels[neighbour] >= next) { continue; }
+
+                        levels[neighbour] = next;
+                        buckets[next][along].push(neighbour);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// The padded index one cell along `axis` by `sign`, or -1 outside the volume.
+function stepFrom(index, axis, sign)
+{
+    const at = [index % PADDED, Math.floor(index / (PADDED * PADDED)), Math.floor(index / PADDED) % PADDED][axis] + sign;
+
+    return at < 0 || at >= PADDED ? -1 : index + sign * STRIDES[axis];
+}
+
 function spread(levels, seeds, cells, opaque)
 {
     let queue = new Int32Array(Math.max(1024, seeds.length * 2));
