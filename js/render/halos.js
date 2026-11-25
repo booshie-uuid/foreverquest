@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 const RADIUS = 0.53;
 const FOG_GROWTH = 1.6;
-const FOG_DIMMING = 0.3;
+const HALF_DISTANCE = 20;
 const MAX_ANGLE = 0.3;
 const STRENGTH = 1;
 const FADE_FROM = 0.85;
@@ -176,15 +176,16 @@ export class Halos
 
             if(this.shown[light] === 0) { continue; }
 
-            const fogged = this.fogBetween(camera, spot, fog, heightFog);
-            const radius = Math.min(RADIUS + FOG_GROWTH * fogged, distance * MAX_ANGLE);
-            const strength = this.shown[light] * (1 - THREE.MathUtils.smoothstep(distance, fog.far * FADE_FROM, fog.far)) * (1 - FOG_DIMMING * fogged) * STRENGTH * this.spots[i + 4] / MAX_LEVEL;
+            const { haze, mist } = this.fogBetween(camera, spot, fog, heightFog);
+            const radius = Math.min(RADIUS + FOG_GROWTH * mist, distance * MAX_ANGLE);
+            const byDistance = 1 / (1 + (distance / HALF_DISTANCE) ** 2);
+            const strength = this.shown[light] * byDistance * (1 - THREE.MathUtils.smoothstep(distance, fog.far * FADE_FROM, fog.far)) * (1 - haze) * STRENGTH * this.spots[i + 4] / MAX_LEVEL;
             const colour = this.spots[i + 3];
 
             spot.addScaledVector(toCamera, Math.max(0, this.zone.raycast(spot, toCamera, Math.min(radius, distance), this.isWallOrPane) - GAP));
             centres.setXYZ(count, spot.x, spot.y, spot.z);
             colours.setXYZ(count, Math.floor(colour / 65536) / 255 * strength, Math.floor(colour / 256) % 256 / 255 * strength, colour % 256 / 255 * strength);
-            sizes.setXY(count, radius, fogged);
+            sizes.setXY(count, radius, mist);
             count++;
         }
 
@@ -195,8 +196,8 @@ export class Halos
         sizes.needsUpdate = true;
     }
 
-    // The share of a point's colour that the fog replaces. Must match
-    // FOG_FRAGMENT in materials.js.
+    // The shares of a point's colour that the distance fog, `haze`, and the
+    // height fog, `mist`, replace. Must match FOG_FRAGMENT in materials.js.
     fogBetween(camera, point, fog, { base, falloff, density })
     {
         const depth = -this.scratch.inView.copy(point).applyMatrix4(camera.matrixWorldInverse).z;
@@ -207,7 +208,7 @@ export class Halos
         const share = Math.abs(rise) > 0.001 ? (Math.exp(-from) - Math.exp(-to)) / rise : Math.exp(-from);
         const byHeight = 1 - Math.exp(-density * camera.position.distanceTo(point) * share);
 
-        return 1 - (1 - byDistance) * (1 - byHeight);
+        return { haze: byDistance, mist: byHeight };
     }
 
     dispose()
