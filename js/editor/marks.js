@@ -3,7 +3,7 @@ import { ZoneData } from "../sim/zone-data.js";
 
 const CUBE = 1 / ZoneData.CUBES_PER_METRE;
 const GROW = 0.004;
-const COLOURS = { add: "#7fd36b", remove: "#e0604a", replace: "#7fb3d5", select: "#e0b04a", note: "#7fb3d5", ground: "#7fd36b", age: "#e0b04a", sculpt: "#7fb3d5" };
+const COLOURS = { add: "#7fd36b", remove: "#e0604a", replace: "#7fb3d5", select: "#e0b04a", note: "#7fb3d5", ground: "#7fd36b", age: "#e0b04a", sculpt: "#7fb3d5", link: "#7fb3d5" };
 const RING_LIFT = 0.08;
 
 
@@ -22,14 +22,17 @@ export class Marks
         this.outline = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: COLOURS.select, depthTest: false, transparent: true, fog: false }));
 
         this.ring = new THREE.LineLoop(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ depthTest: false, transparent: true, fog: false }));
+        this.links = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: COLOURS.link, depthTest: false, transparent: true, fog: false }));
 
         this.outline.renderOrder = 10;
         this.ring.renderOrder = 10;
-        this.group.add(this.ghost, this.ghostEdges, this.outline, this.ring);
+        this.links.renderOrder = 10;
+        this.group.add(this.ghost, this.ghostEdges, this.outline, this.ring, this.links);
         this.group.name = "editor marks";
         this.hideGhost();
         this.hideOutline();
         this.hideRing();
+        this.hideLinks();
         scene.add(this.group);
     }
 
@@ -86,11 +89,30 @@ export class Marks
         this.ring.visible = false;
     }
 
+    // Draws a line from the middle of `from` to the middle of each of `boxes`,
+    // all boxes of cells.
+    showLinks(from, boxes)
+    {
+        const zone = this.zone;
+        const middle = ([x0, y0, z0, x1, y1, z1]) => [(x0 + x1 + 1) / 2 * CUBE - zone.half, ((y0 + y1 + 1) / 2 - zone.base) * CUBE, (z0 + z1 + 1) / 2 * CUBE - zone.half];
+        const positions = boxes.flatMap((box) => [...middle(from), ...middle(box)]);
+
+        this.links.geometry.dispose();
+        this.links.geometry = new THREE.BufferGeometry();
+        this.links.geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(positions), 3));
+        this.links.visible = boxes.length > 0;
+    }
+
+    hideLinks()
+    {
+        this.links.visible = false;
+    }
+
     dispose()
     {
         this.group.removeFromParent();
 
-        for(const mark of [this.ghost, this.ghostEdges, this.outline, this.ring])
+        for(const mark of [this.ghost, this.ghostEdges, this.outline, this.ring, this.links])
         {
             mark.geometry.dispose();
             mark.material.dispose();

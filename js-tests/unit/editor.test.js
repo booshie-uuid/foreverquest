@@ -395,6 +395,77 @@ describe("Bench saves", () =>
     });
 });
 
+describe("Movers and triggers", () =>
+{
+    const SLIDE = { slide: [0, 3, 0], seconds: 2 };
+    const objectsOf = (session, prop) => session.index.objects.filter((entry) => entry.prop === prop);
+
+    // Testfield with a crate added, and the crate's prop number.
+    const withCrate = async () =>
+    {
+        const session = await EditSession.open("testfield", CONTENT);
+
+        await session.apply([{ type: "add", placement: { object: "crate", x: 8, z: -8 } }]);
+
+        return [session, session.zone.props.length - 1];
+    };
+
+    it("make an object a mover with an id of its own, link a lever to it and away, and unlink it when the mover goes", async () =>
+    {
+        const [testfield, plain] = await withCrate();
+        const props = () => testfield.zone.props;
+        const lever = props().findIndex((prop) => prop.trigger?.lever);
+        const id = "crate1";
+
+        await testfield.apply([{ type: "motion", prop: plain, mover: SLIDE }, { type: "link", prop: lever, mover: plain }]);
+
+        assert.deepEqual([props()[plain].id, props()[plain].mover], [id, SLIDE]);
+        assert.deepEqual(objectsOf(testfield, lever)[0].trigger.movers, ["gate", "gateLever", id]);
+        assert.ok(objectsOf(testfield, plain)[0].cellsMoved.length > 0, "The index lists the mover's cells at its other end");
+
+        await testfield.apply([{ type: "link", prop: lever, mover: plain }]);
+        assert.deepEqual(props()[lever].trigger.movers, ["gate", "gateLever"]);
+
+        await testfield.apply([{ type: "link", prop: lever, mover: plain }]);
+        await testfield.apply([{ type: "delete", prop: plain }]);
+        assert.deepEqual(props()[lever].trigger.movers, ["gate", "gateLever"]);
+
+        await testfield.undo();
+        assert.deepEqual(props()[lever].trigger.movers, ["gate", "gateLever", id]);
+    });
+
+    it("keep a trigger's movers when it turns from lever to plate, and forget a mover's id and links when it stops moving", async () =>
+    {
+        const testfield = await EditSession.open("testfield", CONTENT);
+        const props = () => testfield.zone.props;
+        const lever = props().findIndex((prop) => prop.trigger?.lever);
+        const gate = props().findIndex((prop) => prop.id === "gate");
+
+        await testfield.apply([{ type: "motion", prop: lever, trigger: "plate" }, { type: "motion", prop: gate, mover: null }]);
+
+        assert.deepEqual(props()[lever].trigger, { plate: true, movers: ["gateLever"] });
+        assert.deepEqual([props()[gate].id, props()[gate].mover], [undefined, undefined]);
+        assert.equal(objectsOf(testfield, gate)[0].mover, undefined);
+
+        await testfield.apply([{ type: "motion", prop: lever, trigger: null }]);
+        assert.equal(props()[lever].trigger, undefined);
+    });
+
+    it("refuse motion for a part of a building, a link to an object that does not move, and a track the bake would", async () =>
+    {
+        const [testfield, plain] = await withCrate();
+        const props = () => testfield.zone.props;
+        const lever = props().findIndex((prop) => prop.trigger?.lever);
+        const building = props().findIndex((prop) => prop.prefab);
+        const steps = testfield.state.steps;
+        const answer = await testfield.apply([{ type: "motion", prop: building, mover: SLIDE }, { type: "link", prop: lever, mover: plain }]);
+
+        assert.equal(answer.messages.length, 2);
+        assert.equal(answer.steps, steps);
+        await assert.rejects(testfield.apply([{ type: "motion", prop: plain, mover: { slide: [0, 0.5, 0], seconds: 2 } }]), /whole numbers/);
+    });
+});
+
 describe("New zones", () =>
 {
     const contentRoot = () =>

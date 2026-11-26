@@ -192,14 +192,21 @@ export class GameScreen
     }
 
     // The index in the zone's objects of the lever under the pointer, when
-    // nothing is in front of it, or null.
+    // no solid cell outside the lever's own box is in front of it, or null.
     pickLever()
     {
-        const hits = this.raycaster.intersectObjects([...this.world.objectMeshes.values(), ...this.world.terrainMeshes, ...this.world.glassMeshes], false);
-        const first = hits[0];
-        const entry = first?.object.isInstancedMesh ? this.world.objectOf(first.object, first.instanceId) : null;
+        const isLever = (hit) => this.world.objectOf(hit.object, hit.instanceId)?.trigger?.lever;
+        const meshes = [...this.world.objectMeshes.values()].filter((mesh) => mesh.userData.entries.some((entry) => entry.trigger?.lever));
+        const hit = this.raycaster.intersectObjects(meshes, false).find(isLever);
 
-        return entry?.trigger?.lever ? this.zone.objects.indexOf(entry) : null;
+        if(!hit) { return null; }
+
+        const entry = this.world.objectOf(hit.object, hit.instanceId);
+        const [x0, y0, z0, x1, y1, z1] = entry.box;
+        const isInFront = (x, y, z) => !(x >= x0 && x <= x1 && y >= y0 && y <= y1 && z >= z0 && z <= z1) && this.zone.isSolid(x, y, z);
+        const { origin, direction } = this.raycaster.ray;
+
+        return this.zone.raycast(origin, direction, hit.distance, isInFront) >= hit.distance ? this.zone.objects.indexOf(entry) : null;
     }
 
     onInspect(x, y)

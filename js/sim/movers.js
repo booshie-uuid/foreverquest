@@ -38,6 +38,12 @@ export class Mover
         return !this.isMoving && this.progress === this.target;
     }
 
+    // Whether its pose changed over the last tick.
+    get hasMoved()
+    {
+        return this.track.spin !== undefined || this.progress !== this.previous;
+    }
+
     setTarget(target)
     {
         this.target = target;
@@ -182,11 +188,19 @@ export class Movers
         this.triggers = zone.objects.filter((entry) => entry.trigger).map((entry) => ({ entry, isOn: false }));
 
         for(const mover of this.movers) { zone.setMoving(mover.entry.cells, block); }
+
+        this.posed = new Set(this.movers);
     }
 
     mover(id)
     {
         return this.movers.find((mover) => mover.id === id) ?? null;
+    }
+
+    // The mover of `entry`, one of the zone's objects, or null.
+    moverOf(entry)
+    {
+        return this.movers.find((mover) => mover.entry === entry) ?? null;
     }
 
     // Toggles the lever `entry`, one of the zone's objects; false when it is
@@ -246,9 +260,16 @@ export class Movers
         for(const id of trigger.entry.trigger.movers) { this.mover(id)?.setTarget(trigger.isOn ? 1 : 0); }
     }
 
+    // The poses of the movers that moved over the last tick, and once more of
+    // each that stopped; the first call poses every mover.
     poses(alpha)
     {
-        return this.movers.map((mover) => mover.pose(alpha));
+        const moved = this.movers.filter((mover) => mover.hasMoved);
+        const stopped = [...this.posed].filter((mover) => !moved.includes(mover));
+
+        this.posed = new Set(moved);
+
+        return [...moved, ...stopped].map((mover) => mover.pose(alpha));
     }
 
     dispose()

@@ -42,9 +42,17 @@ Select mode picks a placement: a prefab, a run such as a wall, an object, or a p
 | Ctrl+D | Copy a placement one metre along x, without its id |
 | Delete | Delete it |
 | Ctrl+↑ | Select the building that a part belongs to |
-| Escape | Clear the selection, or put away a capture box |
+| Escape | Stop linking, clear the selection, or put away a capture box |
 
 A name chosen in the palette's Prefabs, Objects or Buildings list makes the next click add that placement at the pointer, where a box shows the cells it will take; choosing it again, or Escape, returns to selecting.
+
+#### Movers and Triggers
+
+The inspector of an object that the zone places itself sets how it moves and what it works, as [Moving Parts](world.md#moving-parts) describes. **Track** makes the object a mover that slides, turns or spins, or one that stays put, and the fields below it set the track, the move time, and **When near** and **Every**, each 0 when off. A new slide rises the object's own height in 2 seconds, and a new turn swings 90° about the middle of its lower edge in 1 second. **Trigger** makes the object a lever or a plate. Each change is one step of the undo history, and the bake refuses a track it would refuse in the zone file, such as a solid object turned by less than a quarter turn.
+
+A mover takes an id when it is made, its object's name and a number, such as `crate1`. A line runs from the selected trigger to each mover it works, or from the selected mover to each trigger that works it. **Link movers** on a trigger makes the next clicks link the mover clicked, or unlink a mover linked already, until Escape. A mover that stops moving loses its id and its links, and a mover deleted leaves every trigger that worked it.
+
+**Play** runs the selected mover, or every mover a trigger works, to its other end and back, or a spin once round, while the game stays paused. Nothing rides a mover or stands in its way while it plays. A building's parts show their track and their links, which their prefab sets.
 
 #### Capture
 
@@ -165,8 +173,10 @@ The development server listens on 127.0.0.1 alone. The editor's routes take a ch
 | [js/editor/cube-tool.js](../js/editor/cube-tool.js), [select-tool.js](../js/editor/select-tool.js), [note-tool.js](../js/editor/note-tool.js), [terrain-tool.js](../js/editor/terrain-tool.js), [brush-tool.js](../js/editor/brush-tool.js) | The modes |
 | [js/editor/brush-stroke.js](../js/editor/brush-stroke.js) | A brush stroke: the cells and ages its dabs change |
 | [js/editor/bench.js](../js/editor/bench.js) | The bench: its scene, picking fine cubes, its tools and its own history |
+| [js/editor/rehearsal.js](../js/editor/rehearsal.js) | Movers played in the editor while the game is paused |
+| [js/editor/fields.js](../js/editor/fields.js) | The number and choice fields of a form |
 | [js/editor/editor-panel.js](../js/editor/editor-panel.js), [marks.js](../js/editor/marks.js), [fly-camera.js](../js/editor/fly-camera.js) | The controls, the marks drawn in the world and the camera |
 | [js/editor/editor-client.js](../js/editor/editor-client.js) | The requests to the server |
 | [tools/editor/routes.js](../tools/editor/routes.js) | The server's editor routes and the baked files it serves |
-| [tools/editor/session.js](../tools/editor/session.js) | A zone held in memory: its changes, the undo history, the partial bakes, saving, new zones, Lock in, capture and the bench's saves |
+| [tools/editor/session.js](../tools/editor/session.js) | A zone held in memory: its changes, the undo history, the partial bakes, saving, new zones, Lock in, capture, the bench's saves, and movers and their links |
 | [tools/terrain/](../tools/terrain/) | The terrain recipe's kinds and checks, the generator and the overhead map |

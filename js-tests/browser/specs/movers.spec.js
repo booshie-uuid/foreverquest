@@ -59,4 +59,33 @@ export const tests =
             assert.deepEqual([result.isOpen, result.handle], [true, 1]);
         },
     },
+    {
+        name: "a lever is picked from beside it, but not from under the ground",
+        run: async ({ page, baseUrl }) =>
+        {
+            await enterTestField(page, baseUrl);
+
+            const picked = await page.evaluate(() =>
+            {
+                const game = window.foreverQuest.game;
+                const lever = game.zone.objects.find((entry) => entry.object === "leverBase");
+                const ray = game.raycaster.ray;
+                const pick = (origin, direction) =>
+                {
+                    ray.origin.set(...origin);
+                    ray.direction.set(...direction).normalize();
+
+                    return game.pickLever();
+                };
+
+                return {
+                    index: game.zone.objects.indexOf(lever),
+                    beside: pick([lever.x, lever.y + 0.1, lever.z + 3], [0, 0, -1]),
+                    under: pick([lever.x, lever.y - 2, lever.z], [0, 1, 0]),
+                };
+            });
+
+            assert.deepEqual([picked.beside, picked.under], [picked.index, null]);
+        },
+    },
 ];

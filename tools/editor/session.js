@@ -272,7 +272,9 @@ export class EditSession
         if(operation.type === "add") { props.push(operation.placement); }
         if(operation.type === "copy" && prop) { this.copy(prop, operation.by ?? [0, 0, 0], messages); }
         if(operation.type === "move" && prop) { this.move(prop, operation, messages); }
-        if(operation.type === "delete" && prop && operation.part === undefined) { props.splice(operation.prop, 1); }
+        if(operation.type === "delete" && prop && operation.part === undefined) { this.remove(operation.prop); }
+        if(operation.type === "motion" && prop) { this.setMotion(prop, operation, messages); }
+        if(operation.type === "link" && prop) { this.link(prop, props[operation.mover], messages); }
         if(operation.type === "delete" && prop && operation.part !== undefined) { prop.parts = { ...prop.parts, [operation.part]: null }; }
         if(operation.type === "resetParts" && prop) { delete prop.parts; }
         if(operation.type === "applyToAll" && prop?.parts) { this.applyToAll(prop); }
@@ -342,6 +344,74 @@ export class EditSession
 
         this.zone.props.push(copied);
         this.move(copied, { by }, messages);
+    }
+
+    remove(index)
+    {
+        const [prop] = this.zone.props.splice(index, 1);
+
+        if(prop.id) { this.unlink(prop.id); }
+    }
+
+    /* MOTION *****************************************************************/
+
+    // `mover` is a mover's settings or null, and `trigger` is "lever",
+    // "plate" or null; one left out stays as it is.
+    setMotion(prop, { mover, trigger }, messages)
+    {
+        if(!prop.object)
+        {
+            messages.push("Only an object the zone places itself moves or works a mover; a building's parts are set in its prefab.");
+            return;
+        }
+
+        if(mover === null && prop.id)
+        {
+            this.unlink(prop.id);
+            delete prop.id;
+        }
+
+        if(mover === null) { delete prop.mover; }
+
+        if(mover)
+        {
+            prop.id ??= this.newId(prop.object);
+            prop.mover = mover;
+        }
+
+        if(trigger === null) { delete prop.trigger; }
+        if(trigger) { prop.trigger = { [trigger]: true, movers: prop.trigger?.movers ?? [] }; }
+    }
+
+    // Links the trigger to the mover, or unlinks it when linked already.
+    link(trigger, mover, messages)
+    {
+        if(!trigger.trigger || !mover?.mover)
+        {
+            messages.push("A link runs from a lever or a plate to a mover the zone places itself.");
+            return;
+        }
+
+        mover.id ??= this.newId(mover.object);
+
+        const movers = trigger.trigger.movers;
+
+        trigger.trigger.movers = movers.includes(mover.id) ? movers.filter((id) => id !== mover.id) : [...movers, mover.id];
+    }
+
+    unlink(id)
+    {
+        for(const prop of this.zone.props.filter((each) => each.trigger)) { prop.trigger.movers = prop.trigger.movers.filter((each) => each !== id); }
+    }
+
+    newId(object)
+    {
+        const used = new Set(this.zone.props.map((prop) => prop.id));
+        let number = 1;
+
+        while(used.has(object + number)) { number++; }
+
+        return object + number;
     }
 
     applyToAll(prop)

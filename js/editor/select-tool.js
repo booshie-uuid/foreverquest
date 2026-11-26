@@ -1,9 +1,22 @@
 import * as Controls from "../ui/controls.js";
+import * as Fields from "./fields.js";
 import { ZoneData } from "../sim/zone-data.js";
 
 const CUBES = ZoneData.CUBES_PER_METRE;
 const TABS = [["prefabs", "Prefabs"], ["objects", "Objects"], ["buildings", "Buildings"]];
 const PRECISION = 1e6;
+const FINE = 8;
+const AXES = [["x", "x"], ["y", "y"], ["z", "z"]];
+const TRACKS = [["", "Stays put"], ["slide", "Slides"], ["turn", "Turns"], ["spin", "Spins"]];
+const TRIGGERS = [["", "None"], ["lever", "Lever"], ["plate", "Plate"]];
+const SECONDS = { key: "seconds", label: "Move time", unit: "s", min: 0.1, max: 60, step: 0.1 };
+const NEAR = { key: "near", label: "When near, 0 off", unit: "m", min: 0, max: 50, step: 0.5 };
+const EVERY = { key: "every", label: "Every, 0 off", unit: "s", min: 0, max: 600, step: 0.5 };
+const SLIDE = ["x", "y", "z"].map((axis, i) => ({ key: "slide-" + axis, label: "Slide " + axis, unit: "cubes", min: -96, max: 96, step: 1, i }));
+const PIVOT = ["x", "y", "z"].map((axis, i) => ({ key: "pivot-" + axis, label: "Pivot " + axis, unit: "fine", min: -64, max: 128, step: 1, i }));
+const FROM = { key: "from", label: "From", unit: "°", min: -360, max: 360, step: 1 };
+const DEGREES = { key: "degrees", label: "Turn by", unit: "°", min: -360, max: 360, step: 1 };
+const SPIN = { key: "spin-seconds", label: "A turn takes", unit: "s", min: 0.5, max: 600, step: 0.5 };
 
 
 /******************************************************************************/
@@ -23,6 +36,7 @@ export class SelectTool
         this.selected = null;
         this.target = null;
         this.capturing = null;
+        this.isLinking = false;
     }
 
     get name()
@@ -136,14 +150,12 @@ export class SelectTool
             return;
         }
 
-        const isObjectNearer = objectHit && (!hit || objectHit.distance <= hit.distance + 0.05);
-        let entry = isObjectNearer ? objectHit.entry : null;
+        const entry = await this.entryAt(hit, objectHit);
 
-        if(!entry && hit)
+        if(this.isLinking)
         {
-            const { object } = await this.editor.client.owner(hit.cell);
-
-            entry = object === null ? null : this.editor.zone.objects[object] ?? null;
+            await this.linkTo(entry);
+            return;
         }
 
         if(!entry && hit) { this.editor.panel.say("That is the zone's own terrain; use Cubes to change it."); }
@@ -151,9 +163,29 @@ export class SelectTool
         this.select(entry);
     }
 
+    // The bake leaves a mover's cells out of the regions, so the server names
+    // no owner for them.
+    async entryAt(hit, objectHit)
+    {
+        const isObjectNearer = objectHit && (!hit || objectHit.distance <= hit.distance + 0.05);
+
+        if(isObjectNearer) { return objectHit.entry; }
+        if(!hit) { return null; }
+
+        const at = hit.cell.join();
+        const mover = this.editor.zone.objects.find((entry) => entry.mover && entry.cells.some((cell) => cell.join() === at));
+
+        if(mover) { return mover; }
+
+        const { object } = await this.editor.client.owner(hit.cell);
+
+        return object === null ? null : this.editor.zone.objects[object] ?? null;
+    }
+
     select(entry)
     {
         this.selected = entry ? { prop: entry.prop, part: entry.part } : null;
+        this.isLinking = false;
         this.editor.redraw();
     }
 
@@ -201,6 +233,12 @@ export class SelectTool
         };
 
         if(this.capturing) { return this.keyCapture(code, event); }
+
+        if(code === "Escape" && this.isLinking)
+        {
+            this.setLinking(false);
+            return true;
+        }
 
         if(code === "Escape" && (this.adding || this.selected))
         {
@@ -285,20 +323,129 @@ export class SelectTool
         ] : [];
         const more = [];
 
+        if(entry.object && !isPart) { more.push(...this.motionActions(entry)); }
         if(isPart) { more.push({ label: "Select the " + kind, key: "Ctrl+↑", action: "select-building", onClick: () => this.selectBuilding() }); }
         if(isPrefab && !isPart) { more.push({ label: "Break apart into cubes", isWarning: true, action: "break-apart", onClick: () => this.breakApart() }); }
         if(entry.object) { more.push({ label: "Open in the bench", key: "B", action: "open-bench", onClick: () => this.editor.openBench(entry.object) }); }
 
         more.push({ label: "Delete", key: "Del", action: "delete-selected", onClick: () => this.remove() });
 
+        if(isPart && entry.mover) { rows.push(["Moves", trackOf(entry.mover), false]); }
+        if(isPart && entry.trigger) { rows.push([entry.trigger.lever ? "Lever for" : "Plate for", entry.trigger.movers.join(", ") || "nothing", false]); }
+
         return {
             title: entry.object ?? entry.name,
-            detail: isPart ? "Part of the " + kind + " (prop " + entry.prop + ") at " + building.x.toFixed(1) + ", " + building.z.toFixed(1) : "Prop " + entry.prop,
+            detail: isPart ? "Part of the " + kind + " (prop " + entry.prop + ") at " + building.x.toFixed(1) + ", " + building.z.toFixed(1) : "Prop " + entry.prop + (entry.id ? ", id " + entry.id : ""),
             rows,
             note: entry.isOverride ? "● Changed in this " + kind + " only" : "",
+            content: entry.object && !isPart ? this.motionForm(entry) : [],
             actions,
             more,
         };
+    }
+
+    /* MOTION *****************************************************************/
+
+    // The movers the selected trigger works, or the triggers that work the
+    // selected mover.
+    linked()
+    {
+        const entry = this.entry;
+        const objects = this.editor.zone.objects;
+
+        if(!entry) { return []; }
+
+        const movers = entry.trigger ? objects.filter((other) => other.mover && entry.trigger.movers.includes(other.id)) : [];
+        const triggers = entry.mover && entry.id ? objects.filter((other) => other.trigger?.movers.includes(entry.id)) : [];
+
+        return [...movers, ...triggers];
+    }
+
+    motionActions(entry)
+    {
+        const actions = [];
+        const movers = entry.trigger ? this.linked().filter((other) => other.mover) : [];
+
+        if(entry.trigger) { actions.push({ label: this.isLinking ? "Stop linking" : "Link movers", key: this.isLinking ? "Esc" : "", isOn: this.isLinking, action: "link-movers", onClick: () => this.setLinking(!this.isLinking) }); }
+        if(entry.mover || movers.length > 0) { actions.push({ label: "Play", action: "play-movers", onClick: () => this.editor.play(entry.mover ? [entry] : movers) }); }
+
+        return actions;
+    }
+
+    setLinking(isLinking)
+    {
+        this.isLinking = isLinking;
+        this.editor.redraw();
+
+        if(isLinking) { this.editor.panel.say("Click a mover to link it, or a linked one to unlink it. Escape stops."); }
+    }
+
+    async linkTo(entry)
+    {
+        if(!entry?.mover || entry.part !== undefined)
+        {
+            this.editor.panel.say("That is not a mover the zone places itself; make an object a mover in its inspector first.");
+            return;
+        }
+
+        await this.editor.send([{ type: "link", prop: this.selected.prop, mover: entry.prop }]);
+    }
+
+    motionForm(entry)
+    {
+        const mover = entry.mover;
+        const track = TRACKS.find(([kind]) => kind && mover?.[kind])?.[0] ?? "";
+        const trigger = entry.trigger ? (entry.trigger.lever ? "lever" : "plate") : "";
+        const form = Controls.element("div", "editor-form");
+        const setMover = (change) => this.sendMotion({ mover: { ...mover, ...change } });
+
+        form.append(Controls.element("h4", "", "Moves"), Fields.choiceField("track", "Track", TRACKS, track, (kind) => this.sendMotion({ mover: kind ? this.newMover(entry, kind) : null })));
+
+        if(mover?.slide) { form.append(...SLIDE.map((setting) => Fields.numberField(setting, mover.slide[setting.i], (value) => setMover({ slide: mover.slide.with(setting.i, Math.round(value)) })))); }
+
+        if(mover?.turn)
+        {
+            const setTurn = (change) => setMover({ turn: { ...mover.turn, ...change } });
+
+            form.append(Fields.choiceField("axis", "Axis", AXES, mover.turn.axis, (axis) => setTurn({ axis })));
+            form.append(...PIVOT.map((setting) => Fields.numberField(setting, mover.turn.pivot[setting.i], (value) => setTurn({ pivot: mover.turn.pivot.with(setting.i, value) }))));
+            form.append(Fields.numberField(FROM, mover.turn.from ?? 0, (from) => setTurn({ from })), Fields.numberField(DEGREES, mover.turn.degrees, (degrees) => setTurn({ degrees })));
+        }
+
+        if(mover?.spin)
+        {
+            form.append(Fields.choiceField("axis", "Axis", AXES, mover.spin.axis, (axis) => setMover({ spin: { ...mover.spin, axis } })));
+            form.append(Fields.numberField(SPIN, mover.spin.seconds, (seconds) => setMover({ spin: { ...mover.spin, seconds } })));
+        }
+
+        if(mover && !mover.spin)
+        {
+            const optional = (key) => (value) => setMover({ [key]: value > 0 ? value : undefined });
+
+            form.append(Fields.numberField(SECONDS, mover.seconds, (seconds) => setMover({ seconds })));
+            form.append(Fields.numberField(NEAR, mover.near ?? 0, optional("near")), Fields.numberField(EVERY, mover.every ?? 0, optional("every")));
+        }
+
+        form.append(Controls.element("h4", "", "Works movers"), Fields.choiceField("trigger", "Trigger", TRIGGERS, trigger, (kind) => this.sendMotion({ trigger: kind || null })));
+
+        if(entry.trigger) { form.append(Controls.element("div", "editor-hint", entry.trigger.movers.length > 0 ? "Works " + entry.trigger.movers.join(", ") + "." : "Works no mover yet.")); }
+
+        return [form];
+    }
+
+    newMover(entry, kind)
+    {
+        const [width, height, depth] = this.editor.content.objects[entry.object].cells;
+
+        if(kind === "slide") { return { slide: [0, height, 0], seconds: 2 }; }
+        if(kind === "turn") { return { turn: { axis: "x", pivot: [width * FINE / 2, 0, depth * FINE / 2], from: 0, degrees: 90 }, seconds: 1 }; }
+
+        return { spin: { axis: "x", seconds: 10 } };
+    }
+
+    sendMotion(change)
+    {
+        this.editor.send([{ type: "motion", prop: this.selected.prop, ...change }]);
     }
 
     /* CAPTURE ****************************************************************/
@@ -483,4 +630,13 @@ function prefabReach(prefab)
     }
 
     return low[0] === Infinity ? [0, 0, 0, 0, 0, 0] : [...low, ...high];
+}
+
+// A mover's track in words.
+function trackOf(mover)
+{
+    if(mover.slide) { return "slides " + mover.slide.join(", ") + " cubes"; }
+    if(mover.turn) { return "turns " + mover.turn.degrees + "° about " + mover.turn.axis; }
+
+    return "spins about " + mover.spin.axis;
 }

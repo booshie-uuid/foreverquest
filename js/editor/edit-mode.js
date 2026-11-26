@@ -9,6 +9,7 @@ import { EditorPanel } from "./editor-panel.js";
 import { FlyCamera } from "./fly-camera.js";
 import { Marks } from "./marks.js";
 import { NoteTool } from "./note-tool.js";
+import { Rehearsal } from "./rehearsal.js";
 import { SelectTool } from "./select-tool.js";
 import { TerrainTool } from "./terrain-tool.js";
 import { ZoneData } from "../sim/zone-data.js";
@@ -47,6 +48,7 @@ export class EditMode
         this.isBusy = false;
         this.isActive = false;
         this.raycaster = new THREE.Raycaster();
+        this.rehearsal = new Rehearsal();
 
         for(let number = 1; number <= this.blocks.count; number++)
         {
@@ -148,6 +150,7 @@ export class EditMode
         if(!this.isActive) { return; }
 
         this.isActive = false;
+        this.rehearsal.stop();
         this.marks.dispose();
         this.marks = null;
         this.panel.setCard(null);
@@ -184,6 +187,7 @@ export class EditMode
             this.panel.setPalette(this.bench.palette());
             this.panel.setInspector(this.bench.inspector());
             this.marks.hideOutline();
+            this.marks.hideLinks();
             this.drawStatus();
             return;
         }
@@ -211,6 +215,9 @@ export class EditMode
 
         if(selected) { this.marks.showOutline(selected.box); }
         else { this.marks.hideOutline(); }
+
+        if(selected) { this.marks.showLinks(selected.box, this.tools.select.linked().map((entry) => entry.box)); }
+        else { this.marks.hideLinks(); }
 
         this.drawStatus();
     }
@@ -261,6 +268,14 @@ export class EditMode
         this.swatches.set(number, scaled.toDataURL());
 
         return this.swatches.get(number);
+    }
+
+    // Plays the movers of `entries`, some of the zone's objects.
+    play(entries)
+    {
+        const movers = this.screen.sim.movers;
+
+        this.rehearsal.start(entries.map((entry) => movers.moverOf(entry)).filter(Boolean));
     }
 
     // The selected placement's name, for a note.
@@ -388,6 +403,12 @@ export class EditMode
     {
         this.fly.update(delta, this.screen.input);
         this.tool.update?.();
+
+        if(this.rehearsal.isPlaying)
+        {
+            this.rehearsal.update(delta, this.zone);
+            this.screen.world.poseMovers(this.screen.sim.movers.poses(1));
+        }
 
         if(this.pointer)
         {
@@ -672,6 +693,7 @@ export class EditMode
             this.zone.replaceRegion({ name, ...RegionCodec.decode(await source.inflated("zones/" + id + "/" + name + ".bin")) });
         }
 
+        this.rehearsal.stop();
         this.zone.setObjects(index.objects);
         this.screen.sim.reloadMovers();
     }

@@ -330,6 +330,68 @@ export const tests =
         },
     },
     {
+        name: "a selected lever shows lines to its movers, a mover's move time changes in the inspector, Play runs the mover out and home, and Link movers unlinks a mover clicked",
+        run: async ({ page, baseUrl, screenshot }) =>
+        {
+            await page.goto(baseUrl + "/index.html?zone=testfield&edit&view=-5,3.5,9,0,0.35");
+            await page.waitFor(() => window.foreverQuest?.isReady === true && window.foreverQuest.game?.editMode.isActive, { timeout: 30000 });
+            await page.waitFor(() => window.foreverQuest.game.world.isSettled, { timeout: 30000 });
+
+            const middleOf = async (object) =>
+            {
+                const box = await page.evaluate((name) => window.foreverQuest.game.zone.objects.find((entry) => entry.object === name).box, object);
+
+                return screenPoint(page, [(box[0] + box[3]) >> 1, (box[1] + box[4]) >> 1, box[5]]);
+            };
+            const settled = (steps) => page.waitFor("window.foreverQuest.game.editMode.state.steps === " + steps + " && !window.foreverQuest.game.editMode.isBusy", { timeout: 20000 });
+
+            try
+            {
+                await page.press("2");
+                await page.clickAt(...(await middleOf("leverBase")));
+                await page.waitFor(() => window.foreverQuest.game.editMode.tools.select.entry?.object === "leverBase", { timeout: 20000 });
+                await screenshot("lever-links");
+
+                const lines = await page.evaluate(() => window.foreverQuest.game.editMode.marks.links.geometry.getAttribute("position").count);
+
+                await page.clickAt(...(await middleOf("portcullis")));
+                await page.waitFor(() => window.foreverQuest.game.editMode.tools.select.entry?.object === "portcullis", { timeout: 20000 });
+                await page.evaluate(() =>
+                {
+                    const input = document.querySelector(".editor-inspector [data-key=seconds]");
+
+                    input.value = "1";
+                    input.dispatchEvent(new Event("change"));
+                });
+                await settled(1);
+
+                const seconds = await page.evaluate(() => window.foreverQuest.game.sim.movers.mover("gate").track.seconds);
+
+                await page.click("[data-action=play-movers]");
+                await page.waitFor(() => window.foreverQuest.game.sim.movers.mover("gate").progress === 1, { timeout: 20000 });
+                await page.waitFor(() => !window.foreverQuest.game.editMode.rehearsal.isPlaying, { timeout: 20000 });
+
+                const home = await page.evaluate(() => window.foreverQuest.game.sim.movers.mover("gate").progress);
+
+                await page.clickAt(...(await middleOf("leverBase")));
+                await page.waitFor(() => window.foreverQuest.game.editMode.tools.select.entry?.object === "leverBase", { timeout: 20000 });
+                await page.click("[data-action=link-movers]");
+                await page.clickAt(...(await middleOf("portcullis")));
+                await settled(2);
+
+                const linked = await page.evaluate(() => ({ movers: window.foreverQuest.game.editMode.tools.select.entry.trigger.movers, selected: window.foreverQuest.game.editMode.tools.select.entry.object }));
+
+                assert.equal(lines, 4, "The lever's lines do not run to its two movers");
+                assert.deepEqual([seconds, home], [1, 0]);
+                assert.deepEqual(linked, { movers: ["gateLever"], selected: "leverBase" });
+            }
+            finally
+            {
+                await discard(page);
+            }
+        },
+    },
+    {
         name: "a new zone opens on its terrain recipe and map, takes a flat area dragged on the map without moving the camera, moves the camera to an empty spot clicked, and Preview bakes a changed base into the world",
         timeout: 120000,
         run: async ({ page, baseUrl, screenshot }) =>

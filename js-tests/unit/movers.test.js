@@ -6,6 +6,7 @@ import { describe, it } from "node:test";
 import { Appearance } from "../../js/character/appearance.js";
 import { Movers } from "../../js/sim/movers.js";
 import { Simulation } from "../../js/sim/simulation.js";
+import { ZoneView } from "../../js/render/zone-view.js";
 
 const TICK = 1 / 20;
 
@@ -150,6 +151,60 @@ describe("Movers", () =>
 
         assert.equal(sim.movers.mover("gate").target, 1, "The player never pulled the lever");
         sim.movers.dispose();
+    });
+
+    it("poses every mover the first time, then only those that moved, and once more each that stopped", async () =>
+    {
+        const zone = await TestAssets.zone("testfield");
+        const movers = new Movers(zone);
+        const names = () => movers.poses(1).map((pose) => pose.entry.object).sort();
+        const first = names();
+
+        movers.tick(TICK, []);
+
+        const resting = names();
+
+        movers.mover("gate").setTarget(1);
+        movers.tick(TICK, []);
+
+        const moving = names();
+
+        run(movers, 3);
+
+        const arrived = movers.poses(1);
+        const after = names();
+
+        assert.deepEqual(first, ["leverHandle", "liftPlatform", "millWheel", "portcullis"]);
+        assert.deepEqual([resting, moving, after], [["millWheel"], ["millWheel", "portcullis"], ["millWheel"]]);
+        assert.deepEqual(arrived.find((pose) => pose.entry.id === "gate").offset, [0, 7 / 3, 0]);
+        movers.dispose();
+    });
+
+    it("keeps a mover's pose when its region loads again, inside the bounds its mesh was made with", async () =>
+    {
+        const zone = await TestAssets.zone("testfield");
+        const view = new ZoneView(zone, await TestAssets.materials(), null, await TestAssets.objects());
+        const gate = zone.objects.find((entry) => entry.id === "gate");
+        const region = zone.regionOfColumn(gate.box[0], gate.box[2]);
+        const top = new THREE.Vector3(gate.x, gate.y + 7 / 3 + 2, gate.z);
+
+        view.poseMovers([{ entry: gate, offset: [0, 7 / 3, 0] }]);
+
+        const isBounded = view.objectSlots.get(gate).mesh.boundingSphere.containsPoint(top);
+
+        view.removeObjects(region);
+        view.addObjects(region);
+
+        const slot = view.objectSlots.get(gate);
+        const matrix = new THREE.Matrix4();
+
+        slot.mesh.getMatrixAt(slot.index, matrix);
+
+        const y = new THREE.Vector3().applyMatrix4(matrix).y - gate.y;
+
+        assert.ok(isBounded, "The mesh's bounds miss the raised gate's top");
+        assert.ok(Math.abs(y - 7 / 3) < 1e-6, "The raised gate dropped back when its region loaded: " + y);
+        view.dispose();
     });
 
     it("turns a cell about its pivot as the view turns the mesh", () =>

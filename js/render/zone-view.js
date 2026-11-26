@@ -18,6 +18,9 @@ const SUN_AT = [90, 220, -120];
 const LIGHT_DISTANCE = 46;
 const FLAMES = "flames:";
 const FINE_PER_METRE = FineMesher.FINE * ZoneData.CUBES_PER_METRE;
+const STEP = new THREE.Matrix4();
+const POSED = new THREE.Matrix4();
+const AXIS = new THREE.Vector3();
 
 // Daylight for every zone until a zone gives its own.
 const DAY =
@@ -49,6 +52,7 @@ export class ZoneView
         this.scene = new THREE.Scene();
         this.objectMeshes = new Map();
         this.objectSlots = new Map();
+        this.moverPoses = new WeakMap();
         this.objectGeometries = new Map(Object.entries(objects).map(([id, object]) => [id, ZoneView.objectGeometry(object, materials.atlas, zone.blocks)]));
         this.chunkArrays = new Map();
         this.floors = new Map();
@@ -561,11 +565,23 @@ export class ZoneView
     }
 
     // `size` is the object's cells in metres.
-    static objectMatrix(entry, [width, , depth])
+    static objectMatrix(entry, [width, , depth], target = new THREE.Matrix4())
     {
-        return new THREE.Matrix4().makeTranslation(entry.x, entry.y, entry.z)
-            .multiply(new THREE.Matrix4().makeRotationY(entry.turns * Math.PI / 2))
-            .multiply(new THREE.Matrix4().makeTranslation(-width / 2, 0, -depth / 2));
+        return target.makeTranslation(entry.x, entry.y, entry.z)
+            .multiply(STEP.makeRotationY(entry.turns * Math.PI / 2))
+            .multiply(STEP.makeTranslation(-width / 2, 0, -depth / 2));
+    }
+
+    // The farthest any point of a mover strays from where it stands at
+    // either end of its track, in metres.
+    static reachOf({ mover }, size)
+    {
+        if(!mover) { return 0; }
+        if(mover.slide) { return Math.hypot(...mover.slide) / ZoneData.CUBES_PER_METRE; }
+
+        const pivot = (mover.turn?.pivot ?? [0, 0, 0]).map((fine) => fine / FINE_PER_METRE);
+
+        return 2 * (Math.hypot(...size) + Math.hypot(...pivot));
     }
 
     addObjects(name)
@@ -587,8 +603,11 @@ export class ZoneView
 
             entries.forEach((entry, i) =>
             {
-                mesh.setMatrixAt(i, ZoneView.objectMatrix(entry, shared.userData.size));
-                this.objectSlots.set(entry, { mesh, index: i, entry, size: shared.userData.size });
+                const slot = { mesh, index: i, entry, size: shared.userData.size };
+                const pose = this.moverPoses.get(entry);
+
+                mesh.setMatrixAt(i, pose ? this.posedMatrix(slot, pose) : ZoneView.objectMatrix(entry, slot.size));
+                this.objectSlots.set(entry, slot);
             });
 
             mesh.name = "objects";
@@ -596,6 +615,7 @@ export class ZoneView
             mesh.receiveShadow = true;
             mesh.userData.entries = entries;
             mesh.computeBoundingSphere();
+            mesh.boundingSphere.radius += Math.max(...entries.map((entry) => ZoneView.reachOf(entry, shared.userData.size)));
             this.objectMeshes.set(name + "/" + kind, mesh);
             this.scene.add(mesh);
         }
@@ -644,7 +664,8 @@ export class ZoneView
 
     // Each pose is a mover's slide `offset` in metres, or its `angle` about
     // `axis` through `pivot`, in metres from its lower corner, or through its
-    // middle when `pivot` is null.
+    // middle when `pivot` is null. A mover's mesh bounds already hold its
+    // whole track, and each pose is kept for when its region loads again.
     poseMovers(poses)
     {
         const moved = new Set();
@@ -653,30 +674,31 @@ export class ZoneView
         {
             const slot = this.objectSlots.get(pose.entry);
 
+            this.moverPoses.set(pose.entry, pose);
+
             if(!slot) { continue; }
 
-            const matrix = ZoneView.objectMatrix(slot.entry, slot.size);
-
-            if(pose.offset) { matrix.premultiply(new THREE.Matrix4().makeTranslation(...pose.offset)); }
-            else
-            {
-                const pivot = new THREE.Vector3(...(pose.pivot ?? slot.size.map((metres) => metres / 2)));
-                const axis = new THREE.Vector3(pose.axis === "x" ? 1 : 0, pose.axis === "y" ? 1 : 0, pose.axis === "z" ? 1 : 0);
-
-                matrix.multiply(new THREE.Matrix4().makeTranslation(pivot.x, pivot.y, pivot.z))
-                    .multiply(new THREE.Matrix4().makeRotationAxis(axis, pose.angle))
-                    .multiply(new THREE.Matrix4().makeTranslation(-pivot.x, -pivot.y, -pivot.z));
-            }
-
-            slot.mesh.setMatrixAt(slot.index, matrix);
+            slot.mesh.setMatrixAt(slot.index, this.posedMatrix(slot, pose));
             moved.add(slot.mesh);
         }
 
-        for(const mesh of moved)
-        {
-            mesh.instanceMatrix.needsUpdate = true;
-            mesh.computeBoundingSphere();
-        }
+        for(const mesh of moved) { mesh.instanceMatrix.needsUpdate = true; }
+    }
+
+    // The matrix in a scratch matrix that the next call overwrites.
+    posedMatrix(slot, pose)
+    {
+        const matrix = ZoneView.objectMatrix(slot.entry, slot.size, POSED);
+
+        if(pose.offset) { return matrix.premultiply(STEP.makeTranslation(...pose.offset)); }
+
+        const [px, py, pz] = pose.pivot ?? slot.size.map((metres) => metres / 2);
+
+        AXIS.set(pose.axis === "x" ? 1 : 0, pose.axis === "y" ? 1 : 0, pose.axis === "z" ? 1 : 0);
+
+        return matrix.multiply(STEP.makeTranslation(px, py, pz))
+            .multiply(STEP.makeRotationAxis(AXIS, pose.angle))
+            .multiply(STEP.makeTranslation(-px, -py, -pz));
     }
 
     objectOf(mesh, index)
