@@ -8,6 +8,7 @@ import { EditorClient } from "./editor-client.js";
 import { EditorPanel } from "./editor-panel.js";
 import { FlyCamera } from "./fly-camera.js";
 import { Marks } from "./marks.js";
+import { MaterialLibrary } from "../engine/materials.js";
 import { NoteTool } from "./note-tool.js";
 import { Rehearsal } from "./rehearsal.js";
 import { SelectTool } from "./select-tool.js";
@@ -49,6 +50,7 @@ export class EditMode
         this.isActive = false;
         this.raycaster = new THREE.Raycaster();
         this.rehearsal = new Rehearsal();
+        this.isShowingLight = false;
 
         for(let number = 1; number <= this.blocks.count; number++)
         {
@@ -150,6 +152,8 @@ export class EditMode
         if(!this.isActive) { return; }
 
         this.isActive = false;
+        this.isShowingLight = false;
+        this.showLight();
         this.rehearsal.stop();
         this.marks.dispose();
         this.marks = null;
@@ -199,6 +203,8 @@ export class EditMode
             { label: "Undo", key: "Ctrl+Z", isDisabled: !this.state.canUndo, action: "undo", onClick: () => this.undo() },
             { label: "Redo", key: "Ctrl+Y", isDisabled: !this.state.canRedo, action: "redo", onClick: () => this.redo() },
             { label: "Grid", key: "G", isOn: this.screen.graphics.isGrid, action: "grid", onClick: () => this.screen.graphics.toggleGrid() },
+            { label: "Day", key: "T", isOn: this.screen.graphics.isDay, action: "day", onClick: () => this.toggleDay() },
+            { label: "Light levels", key: "L", isOn: this.isShowingLight, action: "light-levels", onClick: () => this.toggleLight() },
         ];
         const files =
         [
@@ -268,6 +274,29 @@ export class EditMode
         this.swatches.set(number, scaled.toDataURL());
 
         return this.swatches.get(number);
+    }
+
+    toggleDay()
+    {
+        this.screen.graphics.toggleDay();
+        this.showLight();
+        this.redraw();
+    }
+
+    toggleLight()
+    {
+        this.isShowingLight = !this.isShowingLight;
+        this.showLight();
+        this.redraw();
+    }
+
+    showLight()
+    {
+        const isDay = this.screen.graphics.isDay;
+        const shown = isDay ? "brightest" : "lamp";
+
+        this.screen.materials.setLightLevels(this.isShowingLight ? shown : null);
+        this.panel.setLegend(this.isShowingLight ? { title: isDay ? "Sky or lamp level" : "Lamp level", colours: MaterialLibrary.LEVEL_COLOURS } : null);
     }
 
     // Plays the movers of `entries`, some of the zone's objects.
@@ -381,6 +410,8 @@ export class EditMode
         else if(this.tool.key(code, event)) { this.redraw(); }
         else if(modes[code] && !isControl) { this.setTool(modes[code]); }
         else if(code === "KeyG" && !isControl) { this.screen.graphics.toggleGrid(); }
+        else if(code === "KeyT" && !isControl) { this.toggleDay(); }
+        else if(code === "KeyL" && !isControl) { this.toggleLight(); }
         else { return; }
 
         event?.preventDefault();

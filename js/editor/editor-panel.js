@@ -17,13 +17,15 @@ export class EditorPanel
         this.pins = Controls.element("div", "editor-pins");
         this.card = Controls.element("div", "panel editor-card");
         this.message = Controls.element("div", "editor-message");
+        this.legend = Controls.element("div", "panel editor-legend");
         this.messageTimer = null;
 
         this.inspector.hidden = true;
         this.card.hidden = true;
         this.message.hidden = true;
+        this.legend.hidden = true;
         this.element.hidden = true;
-        this.element.append(this.pins, this.toolbar, this.palette, this.inspector, this.status, this.card, this.message);
+        this.element.append(this.pins, this.toolbar, this.palette, this.inspector, this.status, this.legend, this.card, this.message);
         container.append(this.element);
     }
 
@@ -199,6 +201,26 @@ export class EditorPanel
         if(unsaved) { items.push(Controls.element("span", "editor-dirty", unsaved)); }
 
         this.status.replaceChildren(...items);
+    }
+
+    // `legend` holds { title, colours }, one colour a level from 0, or null.
+    setLegend(legend)
+    {
+        this.legend.hidden = !legend;
+
+        if(!legend) { return; }
+
+        const swatches = legend.colours.map((colour, level) =>
+        {
+            const swatch = Controls.element("span", "editor-legend-swatch", String(level));
+
+            swatch.style.background = colour;
+            swatch.classList.toggle("is-light", level >= legend.colours.length / 2);
+
+            return swatch;
+        });
+
+        this.legend.replaceChildren(Controls.element("b", "", legend.title), ...swatches);
     }
 
     say(text)

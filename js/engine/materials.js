@@ -60,6 +60,8 @@ uniform vec3 ambientFloor;
 uniform float glowStrength;
 uniform vec4 playerLight;
 uniform float cubeGrid;
+uniform float lightLevels;
+uniform vec3 levelColours[16];
 varying vec2 vLight;
 varying vec2 vWeather;
 varying float vGlow;
@@ -215,6 +217,14 @@ float stepFace = vStepNormal.y > 0.5 ? 1.0 : (vStepNormal.y < -0.5 ? 0.55 : (abs
 
 outgoingLight = diffuseColor.rgb * stepLight * stepFace + totalEmissiveRadiance;
 
+if(lightLevels > 0.5)
+{
+    int shownLevel = lightLevels > 1.5 ? max(skyLevel, ownLamp) : ownLamp;
+    float texelBrightness = clamp(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)) * 2.0, 0.0, 1.0);
+
+    outgoingLight = levelColours[shownLevel] * stepFace * mix(0.75, 1.15, texelBrightness);
+}
+
 if(cubeGrid > 0.5)
 {
     vec3 cubeLines = abs(fract(vStepPosition * 3.0 + 0.5) - 0.5) / max(fwidth(vStepPosition * 3.0), vec3(1e-4));
@@ -286,6 +296,8 @@ const FOG_FRAGMENT = `
 `;
 
 const NO_HEIGHT_FOG = { base: 0, falloff: 1, density: 0 };
+const LEVEL_COLOURS = ["#0b0b1a", "#1d1145", "#33106b", "#4f1180", "#6b1a7e", "#872675", "#a3336a", "#bd455b", "#d35a49", "#e47434", "#f0911d", "#f6b10f", "#f7d13d", "#f4e97b", "#f8f6b8", "#ffffff"];
+const LIGHT_LEVELS = { lamp: 1, brightest: 2 };
 const LEVELS = 16;
 const PLAYER_LIGHT = 7;
 const TAIL_EASE = 1;
@@ -305,7 +317,7 @@ export class MaterialLibrary
         this.atlasTexture = atlas.createTexture();
         this.world = this.worldMaterial();
         this.fog = { heightFog: { value: new THREE.Vector4(NO_HEIGHT_FOG.base, NO_HEIGHT_FOG.falloff, NO_HEIGHT_FOG.density, 0) } };
-        this.stepped = { skyRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.sky) }, lampRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.lamp) }, ambientFloor: { value: MaterialLibrary.floorOf(DEFAULT_AMBIENT) }, glowStrength: { value: DEFAULT_AMBIENT.glow }, playerLight: { value: new THREE.Vector4(0, 0, 0, PLAYER_LIGHT) }, cubeGrid: { value: 0 } };
+        this.stepped = { skyRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.sky) }, lampRamp: { value: MaterialLibrary.ramp(DEFAULT_STEPS.lamp) }, ambientFloor: { value: MaterialLibrary.floorOf(DEFAULT_AMBIENT) }, glowStrength: { value: DEFAULT_AMBIENT.glow }, playerLight: { value: new THREE.Vector4(0, 0, 0, PLAYER_LIGHT) }, cubeGrid: { value: 0 }, lightLevels: { value: 0 }, levelColours: { value: LEVEL_COLOURS.map((hex) => new THREE.Color(hex)) } };
         this.terrain = this.worldMaterial({ vertexColors: true }, this.stepped);
         this.objects = this.worldMaterial({}, this.stepped);
         this.glass = this.worldMaterial({ vertexColors: true, transparent: true, depthWrite: false }, this.stepped);
@@ -416,6 +428,19 @@ export class MaterialLibrary
     setGrid(isOn)
     {
         this.stepped.cubeGrid.value = isOn ? 1 : 0;
+    }
+
+    static get LEVEL_COLOURS()
+    {
+        return LEVEL_COLOURS;
+    }
+
+    // Colours each face by its light level in place of its light: "lamp"
+    // shows the lamp level, "brightest" the brighter of the sky and lamp
+    // levels, and null turns it off.
+    setLightLevels(shown)
+    {
+        this.stepped.lightLevels.value = LIGHT_LEVELS[shown] ?? 0;
     }
 
     setPlayerLight(position)

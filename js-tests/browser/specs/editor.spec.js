@@ -392,6 +392,56 @@ export const tests =
         },
     },
     {
+        name: "T switches to day and L colours the faces by light level, the sky's by day and the lamps' by night, with a legend, until the editor closes",
+        run: async ({ page, baseUrl, screenshot }) =>
+        {
+            await page.goto(baseUrl + "/index.html?zone=testfield&edit&view=4,6,11,0,1.4");
+            await page.waitFor(() => window.foreverQuest?.isReady === true && window.foreverQuest.game?.editMode.isActive, { timeout: 30000 });
+            await page.waitFor(() => window.foreverQuest.game.world.isSettled, { timeout: 30000 });
+
+            const brightness = () => page.evaluate(() =>
+            {
+                const app = window.foreverQuest;
+                const gl = app.renderer.webgl.getContext();
+                const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
+                let sum = 0;
+
+                app.game.render(app.renderer.webgl);
+                gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+                for(let i = 0; i < pixels.length; i += 4) { sum += pixels[i] * 0.2126 + pixels[i + 1] * 0.7152 + pixels[i + 2] * 0.0722; }
+
+                return sum / (pixels.length / 4) / 255;
+            });
+            const shown = () => page.evaluate(() => ({ levels: window.foreverQuest.materials.stepped.lightLevels.value, legend: document.querySelector(".editor-legend").hidden ? null : document.querySelector(".editor-legend b").textContent }));
+
+            await page.press("t");
+
+            const day = await brightness();
+
+            await page.press("l");
+            await screenshot("light-levels-day");
+
+            const dayLevels = await brightness();
+            const dayShown = await shown();
+
+            await page.press("t");
+
+            const nightLevels = await brightness();
+            const nightShown = await shown();
+
+            await screenshot("light-levels-night");
+
+            await page.press("F8");
+
+            const closed = await page.evaluate(() => window.foreverQuest.materials.stepped.lightLevels.value);
+
+            assert.ok(dayLevels > day + 0.15, "Open ground by day is not drawn at sky level 15: " + dayLevels + " against " + day);
+            assert.ok(nightLevels < 0.1, "Open ground with no lamp near is not drawn at lamp level 0: " + nightLevels);
+            assert.deepEqual([dayShown, nightShown, closed], [{ levels: 2, legend: "Sky or lamp level" }, { levels: 1, legend: "Lamp level" }, 0]);
+        },
+    },
+    {
         name: "a new zone opens on its terrain recipe and map, takes a flat area dragged on the map without moving the camera, moves the camera to an empty spot clicked, and Preview bakes a changed base into the world",
         timeout: 120000,
         run: async ({ page, baseUrl, screenshot }) =>

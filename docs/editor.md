@@ -12,7 +12,7 @@ F8 again, or the Play button, leaves the editor and lands the character where th
 
 ## Modes and Keys
 
-The tool bar along the top switches between the modes, and holds undo, redo, the grid, save, New zone and play. A locked zone has Cubes, Select, Note and Brush modes; a zone whose terrain is not locked in yet has Terrain mode in place of Cubes. The palette on the left changes with the mode, the inspector on the right shows the selection, and the status line along the bottom shows the cell under the pointer, its height above the ground, its region and age, and the number of changes not saved.
+The tool bar along the top switches between the modes, and holds undo, redo, the grid, the day, the light levels, save, New zone and play. A locked zone has Cubes, Select, Note and Brush modes; a zone whose terrain is not locked in yet has Terrain mode in place of Cubes. The palette on the left changes with the mode, the inspector on the right shows the selection, and the status line along the bottom shows the cell under the pointer, its height above the ground, its region and age, and the number of changes not saved.
 
 | Key | Action |
 |---|---|
@@ -21,8 +21,14 @@ The tool bar along the top switches between the modes, and holds undo, redo, the
 | 1, 2, 3, 4, 5 | Cubes, Select, Note, Terrain and Brush modes |
 | Ctrl+Z, Ctrl+Y, Ctrl+S | Undo, redo and save |
 | G | Outline every cube |
+| T | Switch between day and night |
+| L | Colour the faces by light level |
 | B | Open the selected object in the bench, or go back to the world |
 | F8 | Leave the editor |
+
+### Light
+
+**Day**, or T, switches the world between the zone's night and its day, as the game's settings do, so lamps and windows can be judged by night without leaving the editor. **Light levels**, or L, draws each face of the terrain and the objects in the colour of its light level, from 0, almost black, through purple and orange to 15, white, with a legend of the colours along the bottom. By night the colour shows the lamp level, as the sky gives little light; by day it shows the brighter of the sky and lamp levels. The colour takes a little of the face's texture and shading, so the shapes stay clear. Water and characters keep their own colours, and the player's own light is left out. Leaving the editor turns the light levels off.
 
 ### Cubes
 
