@@ -10,6 +10,7 @@ export const BLOCKS =
     slate: { faces: { all: "slate" }, weathers: ["moss", "chips"] },
     thatch: { faces: { all: "thatch" }, weathers: ["moss"], worn: "thatchWorn" },
     iron: { faces: { all: "iron" } },
+    steel: { faces: { all: "steel" } },
     sacking: { faces: { all: "sacking" } },
     banner: { faces: { all: "banner" } },
     window: { faces: { all: "glow" }, light: 12 },

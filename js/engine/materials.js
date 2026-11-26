@@ -425,6 +425,35 @@ export class MaterialLibrary
         material.customProgramCacheKey = () => "character-stepped";
     }
 
+    // Lit as a character is, by the `cellSky` and `cellLamp` colours in
+    // `cell`.
+    constructMaterial(cell)
+    {
+        const material = new THREE.MeshLambertMaterial();
+        const emissive = MaterialLibrary.emissiveShader(this.atlas.glowLayers);
+
+        material.onBeforeCompile = (shader) =>
+        {
+            Object.assign(shader.uniforms, { worldAtlas: { value: this.atlasTexture } }, cell, { ambientFloor: this.stepped.ambientFloor, glowStrength: this.stepped.glowStrength });
+
+            shader.vertexShader = shader.vertexShader
+                .replace("#include <common>", "#include <common>\n" + VERTEX_PARS)
+                .replace("#include <begin_vertex>", "#include <begin_vertex>\n" + VERTEX);
+
+            shader.fragmentShader = shader.fragmentShader
+                .replace("#include <common>", "#include <common>\n" + FRAGMENT_PARS + CHARACTER_FRAGMENT_PARS)
+                .replace("#include <color_fragment>", "#include <color_fragment>\n" + TILE_FRAGMENT + FRAGMENT)
+                .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n" + emissive)
+                .replace("#include <opaque_fragment>", CHARACTER_FRAGMENT + "#include <opaque_fragment>");
+
+            this.addHeightFog(shader);
+        };
+
+        material.customProgramCacheKey = () => "construct:" + this.atlas.glowLayers.join(",");
+
+        return material;
+    }
+
     setGrid(isOn)
     {
         this.stepped.cubeGrid.value = isOn ? 1 : 0;

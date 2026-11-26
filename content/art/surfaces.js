@@ -409,6 +409,15 @@ export function iron(raster, target, random, colour = "#2a2a2c")
     Pixels.speckle(raster, target, [Colour.shade(colour, 1.6)], 0.01, random);
 }
 
+// Worn plate steel: grey, with fine scratches, a little rust and grime.
+export function steel(raster, target, random, colour = "#5e6166")
+{
+    Pixels.grit(raster, target, colour, random, 0.12);
+    strokes(raster, target, random, [Colour.shade(colour, 1.22), Colour.shade(colour, 1.1)], target.w * 0.4, 3, 9, 1, 0);
+    blots(raster, target, random, "#4e3426", 3, 1, 2.5);
+    Pixels.speckle(raster, target, [Colour.shade(colour, 0.7)], 0.02, random);
+}
+
 export function weave(raster, target, random, colour)
 {
     for(let y = 0; y < target.h; y++)

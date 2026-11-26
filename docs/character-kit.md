@@ -98,7 +98,7 @@ Each bone has a `name`, a `parent` (another bone, or `root` at the feet), an opt
 | `legL`, `legR` | `root` | The hip, at the top of the leg | Hangs below the pivot |
 | `cape` | `torso` | The back of the torso, at the shoulders | None; capes and cloaks hang here so they can swing back |
 
-The bottom 5 rows of each arm are the hand, and the lower rows of each leg are the foot. Gloves, gauntlets, shoes and boots paint those rows. [quadruped.js](../content/rigs/quadruped.js) is the rig of the wolf: a body box along z, a head and snout at +z, four legs and a tail.
+The bottom 5 rows of each arm are the hand, and the lower rows of each leg are the foot. Gloves, gauntlets, shoes and boots paint those rows. [quadruped.js](../content/rigs/quadruped.js) is the rig of the wolf: a body box along z, a head and snout at +z, four legs and a tail. [chest.js](../content/rigs/chest.js) is the rig of the mimic: a base on four feet, and a lid hinged along the base's back edge, which a negative angle about x opens.
 
 ### Bodies
 
@@ -223,7 +223,7 @@ A channel moves one bone: `axis` is `x`, `y` or `z` for an angle in radians, or 
 
 [ClipPlayer](../js/kit/clip-player.js) blends the clips by speed: idle alone when standing, walk at the walk speed, run at the run speed. It advances the stride by the distance travelled, so a shorter body takes quicker steps, and interpolates between keys with a Catmull-Rom spline. It adds each bone's rest angles from the rig. A held part's `stance` adds its arm's rest angle and damps that arm's walk and run channels. An action fades in, holds and fades out over the pose below it. A rig with no clips stands at its rest angles.
 
-The humanoid clips reproduce the prototype's procedural animator within 0.025 radians. The prototype also swayed the cape with the breath while walking, which the clips leave out. The quadruped clips move the legs in diagonal pairs and wag the tail.
+The humanoid clips also have the constructs' `wake` and `shove` actions, and the chest clips open and snap the mimic's lid and make it hop. The humanoid clips reproduce the prototype's procedural animator within 0.025 radians. The prototype also swayed the cape with the breath while walking, which the clips leave out. The quadruped clips move the legs in diagonal pairs and wag the tail.
 
 ### A Clip or an Action
 
@@ -254,6 +254,27 @@ Run `npm run bake`, check the item in the [workbench](workbench.md), then run `n
 2. For a new ear shape or other feature, add a part to [feature/features.js](../content/parts/feature/features.js).
 3. Add name syllables to [names.js](../js/character/names.js), or the race's random names use the human syllables.
 4. Run `npm run bake`, check the race in the [workbench](workbench.md), then run `npm run bake -- --accept`.
+
+### A Construct
+
+A construct is built from fine cubes, as an object is, hung on the bones of a rig, so it never paints a texture sheet. Each construct is a data file in [content/constructs/](../content/constructs/), named by its id, which must not be an object's:
+
+| Field | Holds |
+|---|---|
+| `name` | The name the chat uses, such as `suit of armour` |
+| `rig` | The rig its pieces hang on |
+| `scale` | Optional. The size of the whole construct, as the golem's 2; it defaults to 1 |
+| `measures` | The collision `radius`, the `walk` and `run` speeds, the `nameplate` height and the camera `focus`, as a body's |
+| `pieces` | For each boxed bone, `{ size, palette, runs }`: its size in fine cubes and its fine cubes as an object holds them |
+| `extras` | Optional. More pieces, each as `{ bone, at, piece }` with `at` its middle in texels from the bone's joint, such as the gargoyle's wings on `cape` |
+| `dormant` | Optional. Angles `[x, y, z]` in radians that turn bones while it sleeps, such as the gargoyle's arms reaching forward |
+
+A boxed bone without a piece takes the piece of another bone of the same box, mirrored across x, so `armR` takes `armL`'s. The bake sizes each of the rig's boxes from its bones' pieces, two texels to a fine cube, so the fitter places the joints and the clips move them as they move a body's. It fails on a missing piece, bones of one box with pieces of two sizes, a piece for a bone without a box, an unknown block, runs that do not fill a piece, and more than 12,000 triangles. It writes every construct to `models/constructs.json`, with each piece mirrored out and the cubes it stands in at rest.
+
+[ConstructModel](../js/render/construct-model.js) meshes each piece with [fine-mesher.js](../js/render/fine-mesher.js) and hangs it on its joint, centred on the bone's box. Its material takes the world atlas's textures, as objects do, and the light of the cell the construct stands in, as characters do.
+
+1. Add a data file to [content/constructs/](../content/constructs/), on an existing rig, or on a new rig with clips that have `wake` and `shove` actions.
+2. Run `npm run bake`, place it in a zone with the editor's Constructs list, then run `npm run bake -- --accept`.
 
 ### A Creature
 

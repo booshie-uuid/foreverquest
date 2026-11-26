@@ -3,7 +3,8 @@ import * as Fields from "./fields.js";
 import { ZoneData } from "../sim/zone-data.js";
 
 const CUBES = ZoneData.CUBES_PER_METRE;
-const TABS = [["prefabs", "Prefabs"], ["objects", "Objects"], ["buildings", "Buildings"]];
+const TABS = [["prefabs", "Prefabs"], ["objects", "Objects"], ["buildings", "Buildings"], ["constructs", "Constructs"]];
+const KINDS = { objects: "object", constructs: "construct" };
 const PRECISION = 1e6;
 const FINE = 8;
 const AXES = [["x", "x"], ["y", "y"], ["z", "z"]];
@@ -17,6 +18,9 @@ const PIVOT = ["x", "y", "z"].map((axis, i) => ({ key: "pivot-" + axis, label: "
 const FROM = { key: "from", label: "From", unit: "°", min: -360, max: 360, step: 1 };
 const DEGREES = { key: "degrees", label: "Turn by", unit: "°", min: -360, max: 360, step: 1 };
 const SPIN = { key: "spin-seconds", label: "A turn takes", unit: "s", min: 0.5, max: 600, step: 0.5 };
+const WAKE = { key: "wake-near", label: "Wakes when near, 0 off", unit: "m", min: 0, max: 30, step: 0.5 };
+const LEASH = { key: "leash", label: "Leash", unit: "m", min: 1, max: 60, step: 1 };
+const DEFAULT_LEASH = 12;
 
 
 /******************************************************************************/
@@ -82,6 +86,7 @@ export class SelectTool
         const { prefabs, objects } = this.editor.content;
 
         if(this.tab === "objects") { return Object.keys(objects).sort(); }
+        if(this.tab === "constructs") { return [...this.editor.constructs.keys()].sort(); }
 
         const isBuilding = (id) => (prefabs[id].doors ?? []).length > 0;
 
@@ -103,7 +108,7 @@ export class SelectTool
 
     choose(id)
     {
-        this.adding = this.adding?.id === id ? null : { id, kind: this.tab === "objects" ? "object" : "prefab" };
+        this.adding = this.adding?.id === id ? null : { id, kind: KINDS[this.tab] ?? "prefab" };
         this.editor.redraw();
     }
 
@@ -130,7 +135,7 @@ export class SelectTool
         }
 
         const cell = hit.normal ? hit.cell.map((value, axis) => value + hit.normal[axis]) : hit.cell;
-        const reach = this.adding.kind === "object" ? [0, 0, 0, ...this.editor.content.objects[this.adding.id].cells.map((count) => count - 1)] : prefabReach(this.editor.content.prefabs[this.adding.id]);
+        const reach = this.adding.kind === "prefab" ? prefabReach(this.editor.content.prefabs[this.adding.id]) : [0, 0, 0, ...this.cellsOf(this.adding).map((count) => count - 1)];
 
         this.target = cell;
         this.editor.marks.showGhost(reach.map((offset, i) => cell[i % 3] + offset), "add");
@@ -197,17 +202,23 @@ export class SelectTool
         this.select(this.editor.zone.objects.find((entry) => entry.prop === newest && entry.part === undefined) ?? null);
     }
 
+    // The cubes an object or a construct stands in, across, up and along.
+    cellsOf({ id, kind })
+    {
+        return kind === "object" ? this.editor.content.objects[id].cells : this.editor.constructs.get(id).footprint;
+    }
+
     async add(cell)
     {
         const zone = this.editor.zone;
         const round = (value) => Math.round(value * PRECISION) / PRECISION;
         let placement;
 
-        if(this.adding.kind === "object")
+        if(this.adding.kind !== "prefab")
         {
-            const [width, , depth] = this.editor.content.objects[this.adding.id].cells;
+            const [width, , depth] = this.cellsOf(this.adding);
 
-            placement = { object: this.adding.id, x: round((cell[0] + width / 2) / CUBES - zone.half), z: round((cell[2] + depth / 2) / CUBES - zone.half), y: round(zone.metresY(cell[1])), angle: 0 };
+            placement = { [this.adding.kind]: this.adding.id, x: round((cell[0] + width / 2) / CUBES - zone.half), z: round((cell[2] + depth / 2) / CUBES - zone.half), y: round(zone.metresY(cell[1])), angle: 0 };
         }
         else
         {
@@ -305,7 +316,7 @@ export class SelectTool
         const zone = this.editor.zone;
         const building = zone.objects.find((other) => other.prop === entry.prop && other.part === undefined);
         const isPart = entry.part !== undefined;
-        const isPrefab = !entry.object && !entry.name.startsWith("run ");
+        const isPrefab = !entry.object && !entry.construct && !entry.name.startsWith("run ");
         const kind = (isPart ? building : entry).name;
         const hasOverrides = zone.objects.some((other) => other.prop === entry.prop && other.isOverride);
         const [x0, y0, z0, x1, y1, z1] = entry.box;
@@ -338,7 +349,7 @@ export class SelectTool
             detail: isPart ? "Part of the " + kind + " (prop " + entry.prop + ") at " + building.x.toFixed(1) + ", " + building.z.toFixed(1) : "Prop " + entry.prop + (entry.id ? ", id " + entry.id : ""),
             rows,
             note: entry.isOverride ? "● Changed in this " + kind + " only" : "",
-            content: entry.object && !isPart ? this.motionForm(entry) : [],
+            content: this.formOf(entry, isPart),
             actions,
             more,
         };
@@ -355,8 +366,8 @@ export class SelectTool
 
         if(!entry) { return []; }
 
-        const movers = entry.trigger ? objects.filter((other) => other.mover && entry.trigger.movers.includes(other.id)) : [];
-        const triggers = entry.mover && entry.id ? objects.filter((other) => other.trigger?.movers.includes(entry.id)) : [];
+        const movers = entry.trigger ? objects.filter((other) => (other.mover || other.construct) && entry.trigger.movers.includes(other.id)) : [];
+        const triggers = (entry.mover || entry.construct) && entry.id ? objects.filter((other) => other.trigger?.movers.includes(entry.id)) : [];
 
         return [...movers, ...triggers];
     }
@@ -382,13 +393,34 @@ export class SelectTool
 
     async linkTo(entry)
     {
-        if(!entry?.mover || entry.part !== undefined)
+        if(!(entry?.mover || entry?.construct) || entry.part !== undefined)
         {
-            this.editor.panel.say("That is not a mover the zone places itself; make an object a mover in its inspector first.");
+            this.editor.panel.say("That is not a mover or a construct the zone places itself; make an object a mover in its inspector first.");
             return;
         }
 
         await this.editor.send([{ type: "link", prop: this.selected.prop, mover: entry.prop }]);
+    }
+
+    formOf(entry, isPart)
+    {
+        if(entry.construct) { return this.constructForm(entry); }
+
+        return entry.object && !isPart ? this.motionForm(entry) : [];
+    }
+
+    // A wake distance of 0 leaves a construct to its triggers.
+    constructForm(entry)
+    {
+        const form = Controls.element("div", "editor-form");
+        const send = (change) => this.editor.send([{ type: "guard", prop: this.selected.prop, ...change }]);
+        const triggers = this.linked().filter((other) => other.trigger);
+
+        form.append(Controls.element("h4", "", "Wakes and pursues"));
+        form.append(Fields.numberField(WAKE, entry.wake?.near ?? 0, (near) => send({ near })), Fields.numberField(LEASH, entry.leash ?? DEFAULT_LEASH, (leash) => send({ leash })));
+        form.append(Controls.element("div", "editor-hint", triggers.length > 0 ? "Woken also by " + triggers.map((trigger) => trigger.object + " (prop " + trigger.prop + ")").join(", ") + "." : "Link a lever or a plate to it to wake it by a trigger."));
+
+        return [form];
     }
 
     motionForm(entry)

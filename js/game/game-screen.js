@@ -110,18 +110,33 @@ export class GameScreen
         this.sim.enter(zone);
         this.world = new ZoneView(zone, this.materials, this.workers, this.content.objects);
 
-        for(const entity of this.sim.entities)
-        {
-            const view = new EntityView(entity, this.materials);
-
-            this.views.set(entity.id, view);
-            this.world.scene.add(view.root);
-        }
-
+        this.syncViews();
         this.applyGraphics();
         this.hud.setZone(zone.id);
 
         for(const line of zone.welcome) { this.hud.system(line); }
+    }
+
+    syncViews()
+    {
+        const ids = new Set(this.sim.entities.map((entity) => entity.id));
+
+        for(const [id, view] of this.views)
+        {
+            if(ids.has(id)) { continue; }
+
+            this.hud.forget(view);
+            view.dispose();
+            this.views.delete(id);
+        }
+
+        for(const entity of this.sim.entities.filter((each) => !this.views.has(each.id)))
+        {
+            const view = new EntityView(entity, this.materials, this.content.blocks);
+
+            this.views.set(entity.id, view);
+            this.world.scene.add(view.root);
+        }
     }
 
     applyGraphics()
@@ -167,6 +182,18 @@ export class GameScreen
         }
 
         if(event.type === "running") { this.hud.setRunning(event.isRunning); }
+
+        if(event.type === "woke")
+        {
+            view?.act("wake");
+            this.hud.system("The " + event.name + " stirs.");
+        }
+
+        if(event.type === "shoved")
+        {
+            view?.act("shove");
+            this.hud.system("The " + event.name + " shoves you back.");
+        }
     }
 
     /* INPUT ******************************************************************/

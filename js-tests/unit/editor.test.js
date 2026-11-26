@@ -464,6 +464,24 @@ describe("Movers and triggers", () =>
         assert.equal(answer.steps, steps);
         await assert.rejects(testfield.apply([{ type: "motion", prop: plain, mover: { slide: [0, 0.5, 0], seconds: 2 } }]), /whole numbers/);
     });
+
+    it("set a construct's wake distance and leash, leave it to its triggers at 0, and link a lever to it", async () =>
+    {
+        const testfield = await EditSession.open("testfield", CONTENT);
+        const props = () => testfield.zone.props;
+        const armour = props().findIndex((prop) => prop.construct === "armour");
+        const lever = props().findIndex((prop) => prop.trigger?.lever);
+
+        await testfield.apply([{ type: "guard", prop: armour, near: 5, leash: 20 }]);
+
+        const guarded = objectsOf(testfield, armour)[0];
+
+        await testfield.apply([{ type: "guard", prop: armour, near: 0 }, { type: "link", prop: lever, mover: armour }]);
+
+        assert.deepEqual([guarded.wake, guarded.leash, guarded.construct], [{ near: 5 }, 20, "armour"]);
+        assert.equal(props()[armour].wake, undefined);
+        assert.deepEqual(props()[lever].trigger.movers, ["gate", "gateLever", "armour"]);
+    });
 });
 
 describe("New zones", () =>

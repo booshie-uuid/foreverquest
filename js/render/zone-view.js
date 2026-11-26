@@ -1,4 +1,5 @@
 import * as CubeMesher from "./cube-mesher.js";
+import * as FineGeometry from "./fine-geometry.js";
 import * as FineMesher from "./fine-mesher.js";
 import * as RegionCodec from "../sim/region-codec.js";
 import * as THREE from "three";
@@ -503,15 +504,8 @@ export class ZoneView
 
     static objectGeometry(object, atlas, blocks)
     {
-        const geometry = new THREE.BufferGeometry();
-        const mesh = FineMesher.mesh(FineMesher.decode(object), (block) => blocks.block(blocks.number(block)).faces, atlas.uvPerMetre);
+        const geometry = FineGeometry.build(FineMesher.decode(object), atlas, blocks);
 
-        geometry.setAttribute("position", new THREE.Float32BufferAttribute(mesh.positions, 3));
-        geometry.setAttribute("normal", new THREE.Float32BufferAttribute(mesh.normals, 3));
-        geometry.setAttribute("uv", new THREE.Float32BufferAttribute(mesh.uvs, 2));
-        geometry.setAttribute("layer", new THREE.Float32BufferAttribute(mesh.layers.map((texture) => atlas.layer(mesh.textures[texture])), 1));
-        geometry.setIndex(mesh.indices);
-        geometry.computeBoundingSphere();
         geometry.userData.size = object.cells.map((count) => count / ZoneData.CUBES_PER_METRE);
         geometry.userData.lamp = object.lights ? blocks.light(blocks.number("objectLight")) - 1 : 0;
         geometry.userData.flames = object.lights ? ZoneView.flamesOf(FineMesher.decode(object), blocks) : [];

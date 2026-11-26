@@ -179,11 +179,14 @@ function isInside(zone, entity, [x, y, z])
 // `every` goes to its other end after that many seconds at rest.
 export class Movers
 {
-    constructor(zone)
+    // `wake(id)` hears each id a trigger sends that names no mover, as a
+    // construct's does.
+    constructor(zone, wake = () => {})
     {
         const block = zone.blocks.number("object");
 
         this.zone = zone;
+        this.wake = wake;
         this.movers = zone.objects.filter((entry) => entry.mover).map((entry) => new Mover(entry, block));
         this.triggers = zone.objects.filter((entry) => entry.trigger).map((entry) => ({ entry, isOn: false }));
 
@@ -215,7 +218,8 @@ export class Movers
         {
             const mover = this.mover(id);
 
-            mover?.setTarget(1 - mover.target);
+            if(mover) { mover.setTarget(1 - mover.target); }
+            else { this.wake(id); }
         }
 
         return true;
@@ -257,7 +261,13 @@ export class Movers
 
     send(trigger)
     {
-        for(const id of trigger.entry.trigger.movers) { this.mover(id)?.setTarget(trigger.isOn ? 1 : 0); }
+        for(const id of trigger.entry.trigger.movers)
+        {
+            const mover = this.mover(id);
+
+            if(mover) { mover.setTarget(trigger.isOn ? 1 : 0); }
+            else if(trigger.isOn) { this.wake(id); }
+        }
     }
 
     // The poses of the movers that moved over the last tick, and once more of

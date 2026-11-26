@@ -269,7 +269,7 @@ export function placeObjects(cells, zone, placements, objects, numbers, groundOf
         const stated = placement.y === undefined ? undefined : () => Math.round(placement.y * CUBES + zone.base);
         const floor = { top: () => topOf(cells, zone, middle, groundOf), ceiling: () => ceilingOf(cells, zone, middle, groundOf) - height }[placement.on]?.() ?? stated?.() ?? floorOf(cells, zone, middle, groundOf);
 
-        if(!occupied.has(placement.object)) { occupied.set(placement.object, occupiedCells(object)); }
+        if(object.isSolid && !occupied.has(placement.object)) { occupied.set(placement.object, occupiedCells(object)); }
 
         const solid = object.isSolid ? occupied.get(placement.object) : [];
         const toWorld = (local) =>

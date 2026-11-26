@@ -38,7 +38,7 @@ The palette lists the block types by their file in `content/blocks/`, with a sea
 
 ### Select
 
-Select mode picks a placement: a prefab, a run such as a wall, an object, or a part of a building such as the inn's table. The inspector shows its corner cell, its turn and its size, and a gold outline marks it in the world.
+Select mode picks a placement: a prefab, a run such as a wall, an object, a construct, or a part of a building such as the inn's table. The inspector shows its corner cell, its turn and its size, and a gold outline marks it in the world.
 
 | Key | Action |
 |---|---|
@@ -50,13 +50,15 @@ Select mode picks a placement: a prefab, a run such as a wall, an object, or a p
 | Ctrl+↑ | Select the building that a part belongs to |
 | Escape | Stop linking, clear the selection, or put away a capture box |
 
-A name chosen in the palette's Prefabs, Objects or Buildings list makes the next click add that placement at the pointer, where a box shows the cells it will take; choosing it again, or Escape, returns to selecting.
+A name chosen in the palette's Prefabs, Objects, Buildings or Constructs list makes the next click add that placement at the pointer, where a box shows the cells it will take; choosing it again, or Escape, returns to selecting.
 
 #### Movers and Triggers
 
 The inspector of an object that the zone places itself sets how it moves and what it works, as [Moving Parts](world.md#moving-parts) describes. **Track** makes the object a mover that slides, turns or spins, or one that stays put, and the fields below it set the track, the move time, and **When near** and **Every**, each 0 when off. A new slide rises the object's own height in 2 seconds, and a new turn swings 90° about the middle of its lower edge in 1 second. **Trigger** makes the object a lever or a plate. Each change is one step of the undo history, and the bake refuses a track it would refuse in the zone file, such as a solid object turned by less than a quarter turn.
 
 A mover takes an id when it is made, its object's name and a number, such as `crate1`. A line runs from the selected trigger to each mover it works, or from the selected mover to each trigger that works it. **Link movers** on a trigger makes the next clicks link the mover clicked, or unlink a mover linked already, until Escape. A mover that stops moving loses its id and its links, and a mover deleted leaves every trigger that worked it.
+
+The inspector of a construct sets **Wakes when near**, its wake distance in metres, 0 leaving it to its triggers, and its **Leash**, and names the levers and plates that wake it. **Link movers** on a lever or plate links a construct clicked as it links a mover, and a construct sleeps in the editor whatever wakes it.
 
 **Play** runs the selected mover, or every mover a trigger works, to its other end and back, or a spin once round, while the game stays paused. Nothing rides a mover or stands in its way while it plays. A building's parts show their track and their links, which their prefab sets.
 

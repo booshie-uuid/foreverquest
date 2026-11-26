@@ -38,9 +38,10 @@ export function encode(data)
     return runs;
 }
 
-export function decode({ cells, palette, runs })
+// A grid gives its `size` in fine cubes, or its `cells` in world cubes.
+export function decode({ cells, size: fineSize, palette, runs })
 {
-    const size = cells.map((count) => count * FINE);
+    const size = fineSize ?? cells.map((count) => count * FINE);
     const data = new Uint8Array(size[0] * size[1] * size[2]);
     let at = 0;
 

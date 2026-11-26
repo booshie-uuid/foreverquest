@@ -65,5 +65,28 @@ export const CLIPS =
                 { bone: "armR", axis: "z", period: TAU / 10, keys: keys((phase) => -2.6 + 0.3 * Math.sin(phase)) },
             ],
         },
+        wake:
+        {
+            seconds: 1.6,
+            fade: 0.2,
+            channels:
+            [
+                { bone: "head", axis: "x", period: 1.6, keys: keys((phase) => 0.35 * Math.cos(phase / 2)) },
+                { bone: "armL", axis: "z", period: 1.6, keys: keys((phase) => 0.6 * Math.sin(phase / 2)) },
+                { bone: "armR", axis: "z", period: 1.6, keys: keys((phase) => -0.6 * Math.sin(phase / 2)) },
+                { bone: "torso", axis: "x", period: 1.6, keys: keys((phase) => -0.12 * Math.sin(phase / 2)) },
+            ],
+        },
+        shove:
+        {
+            seconds: 0.8,
+            fade: 0.1,
+            channels:
+            [
+                { bone: "armL", axis: "x", period: 0.8, keys: keys((phase) => -1.4 * Math.sin(phase / 2)) },
+                { bone: "armR", axis: "x", period: 0.8, keys: keys((phase) => -1.4 * Math.sin(phase / 2)) },
+                { bone: "torso", axis: "x", period: 0.8, keys: keys((phase) => 0.15 * Math.sin(phase / 2)) },
+            ],
+        },
     },
 };

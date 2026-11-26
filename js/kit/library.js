@@ -6,8 +6,9 @@ const MIGRATIONS = "migrations.json";
 
 export class Library
 {
-    constructor({ rigs, bodies, parts = [], stamps = null, palettes = {}, archetypes = [], appearance = null, clips = [], migrations })
+    constructor({ rigs, bodies, parts = [], stamps = null, palettes = {}, archetypes = [], appearance = null, clips = [], constructs = {}, migrations })
     {
+        this.constructs = new Map(Object.entries(constructs));
         this.clipSets = new Map(clips.map((set) => [set.rig, set]));
         this.palettes = palettes;
         this.archetypes = archetypes;
@@ -35,6 +36,7 @@ export class Library
             archetypes: await source.json("models/archetypes.json"),
             appearance: await source.json("models/appearance.json"),
             clips: await Promise.all((await source.json("models/clips/index.json")).map((rig) => source.json("models/clips/" + rig + ".json"))),
+            constructs: await source.json("models/constructs.json"),
             migrations: await source.json(MIGRATIONS),
         });
     }
@@ -47,6 +49,11 @@ export class Library
     body(id)
     {
         return this.bodies.get(id) ?? null;
+    }
+
+    construct(id)
+    {
+        return this.constructs.get(id) ?? null;
     }
 
     part(slot, id)

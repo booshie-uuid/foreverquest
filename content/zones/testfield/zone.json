@@ -197,6 +197,63 @@
                     "seconds": 10
                 }
             }
+        },
+        {
+            "construct": "armour",
+            "x": -3,
+            "z": 0,
+            "angle": 0,
+            "id": "armour",
+            "wake": {
+                "near": 3
+            }
+        },
+        {
+            "construct": "gargoyle",
+            "x": 12,
+            "z": 6,
+            "angle": -1.570796,
+            "id": "gargoyle",
+            "wake": {
+                "near": 4
+            }
+        },
+        {
+            "object": "chest",
+            "x": -4.5,
+            "z": -6,
+            "angle": 0
+        },
+        {
+            "construct": "mimic",
+            "x": -2,
+            "z": -6,
+            "angle": 0,
+            "id": "mimic",
+            "wake": {
+                "near": 1.5
+            },
+            "leash": 8
+        },
+        {
+            "construct": "golem",
+            "x": -12,
+            "z": 0,
+            "angle": 1.570796,
+            "id": "golem",
+            "leash": 10
+        },
+        {
+            "object": "runner",
+            "x": -8,
+            "z": 2,
+            "angle": 0,
+            "trigger": {
+                "plate": true,
+                "movers": [
+                    "golem"
+                ]
+            }
         }
     ]
 }

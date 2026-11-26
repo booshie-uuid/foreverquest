@@ -119,6 +119,17 @@ export async function bakeZone(zone, folder, people, context, where, problems, o
             continue;
         }
 
+        if(prop.construct)
+        {
+            if(!context.constructs?.[prop.construct]) { problems.push(where + " prop " + i + " is an unknown construct: " + prop.construct); continue; }
+            if(!(Math.abs(prop.x) < half && Math.abs(prop.z) < half)) { problems.push(where + " prop " + i + " is outside the zone"); }
+            if(!(prop.wake === undefined || (prop.wake.near === undefined || prop.wake.near > 0))) { problems.push(where + " prop " + i + " needs a wake distance above 0"); }
+            if(!(prop.leash === undefined || prop.leash > 0)) { problems.push(where + " prop " + i + " needs a leash above 0"); }
+
+            objects.push({ ...prop, index: i, object: prop.construct });
+            continue;
+        }
+
         if(prop.object)
         {
             if(!context.objects[prop.object]) { problems.push(where + " prop " + i + " is an unknown object: " + prop.object); continue; }
@@ -147,7 +158,10 @@ export async function bakeZone(zone, folder, people, context, where, problems, o
     const terrainTop = (column, row) => terrain.surfaces[row * zone.columns + column];
     const placed = Voxelise.zoneCells(zone, props, runs, context.prefabs, numbers, where, problems, terrainTop);
 
-    placed.objects.push(...Voxelise.placeObjects(placed.cells, zone, objects, context.objects, numbers, terrainTop, placed.objects.length));
+    const shapes = { ...context.objects, ...Object.fromEntries(Object.entries(context.constructs ?? {}).map(([id, construct]) => [id, { cells: construct.footprint, isSolid: false }])) };
+    const standing = Voxelise.placeObjects(placed.cells, zone, objects, shapes, numbers, terrainTop, placed.objects.length);
+
+    placed.objects.push(...standing.map((entry, i) => (objects[i].construct ? constructEntry(entry, objects[i]) : entry)));
 
     if(problems.length > before) { return null; }
 
@@ -234,12 +248,27 @@ function checkMotion(objects, baked, where, problems)
         if(trigger !== undefined && !((trigger.lever === true) !== (trigger.plate === true) && Array.isArray(trigger.movers))) { problems.push(at + " needs a trigger that is a lever or a plate, with a list of movers"); }
     }
 
-    const movers = new Set(objects.filter((object) => object.mover).map((object) => object.id));
+    const worked = new Set(objects.filter((object) => object.mover || object.construct).map((object) => object.id));
 
     for(const object of objects.filter((each) => each.trigger))
     {
-        for(const id of object.trigger.movers ?? []) { if(!movers.has(id)) { problems.push(where + " prop " + object.index + " works an unknown mover: " + id); } }
+        for(const id of object.trigger.movers ?? []) { if(!worked.has(id)) { problems.push(where + " prop " + object.index + " works an unknown mover or construct: " + id); } }
     }
+}
+
+// A construct stands where the bake finds its floor, as an object does, and
+// takes no cells.
+function constructEntry(entry, placement)
+{
+    const { object, ...rest } = entry;
+
+    return {
+        ...rest,
+        name: "construct " + object,
+        construct: object,
+        ...(placement.wake ? { wake: placement.wake } : {}),
+        ...(placement.leash ? { leash: placement.leash } : {}),
+    };
 }
 
 function isAge(age)

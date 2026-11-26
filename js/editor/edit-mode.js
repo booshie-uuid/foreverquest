@@ -74,6 +74,11 @@ export class EditMode
         return this.screen.content;
     }
 
+    get constructs()
+    {
+        return this.screen.sim.library.constructs;
+    }
+
     // The scene the screen draws: the bench's while it is open.
     get scene()
     {
@@ -333,13 +338,18 @@ export class EditMode
         return this.zone.pick(origin, direction, RANGE);
     }
 
-    // Objects that are not solid have no cells, so only their meshes find them.
+    // Objects that are not solid have no cells, and constructs take none, so
+    // only their meshes find them.
     pickObject(x, y)
     {
         this.ray(x, y);
 
-        const hit = this.raycaster.intersectObjects([...this.screen.world.objectMeshes.values()], false)[0];
-        const entry = hit ? this.screen.world.objectOf(hit.object, hit.instanceId) : null;
+        const constructs = [...this.screen.views.values()].filter((view) => view.entity.construct).map((view) => view.root);
+        const hit = this.raycaster.intersectObjects([...this.screen.world.objectMeshes.values(), ...constructs], true)[0];
+
+        if(!hit) { return null; }
+
+        const entry = hit.object.isInstancedMesh ? this.screen.world.objectOf(hit.object, hit.instanceId) : viewOf(hit.object)?.entity.construct;
 
         return entry ? { entry, distance: hit.distance } : null;
     }
@@ -727,5 +737,13 @@ export class EditMode
         this.rehearsal.stop();
         this.zone.setObjects(index.objects);
         this.screen.sim.reloadMovers();
+        this.screen.syncViews();
     }
+}
+
+function viewOf(node)
+{
+    while(node && !node.userData.view) { node = node.parent; }
+
+    return node?.userData.view ?? null;
 }

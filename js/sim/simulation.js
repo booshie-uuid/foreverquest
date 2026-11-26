@@ -1,5 +1,7 @@
 import * as Pathfinder from "./pathfinder.js";
 import { Appearance } from "../character/appearance.js";
+import { ConstructBrain } from "./construct-brain.js";
+import { ConstructLook } from "../character/construct-look.js";
 import { Entity } from "./entity.js";
 import { Movers } from "./movers.js";
 import { NpcBrain } from "./npc-brain.js";
@@ -15,7 +17,7 @@ const USE_RANGE = 2.2;
 /******************************************************************************/
 
 // Commands queue until the next tick. Events go to every listener as they
-// happen: "entered", "said", "waved", "running" and "used".
+// happen: "entered", "said", "waved", "running", "used", "woke" and "shoved".
 export class Simulation
 {
     static TICK = TICK;
@@ -39,7 +41,12 @@ export class Simulation
 
     get npcs()
     {
-        return this.entities.filter((entity) => entity !== this.player);
+        return this.entities.filter((entity) => entity !== this.player && !entity.construct);
+    }
+
+    get constructs()
+    {
+        return this.entities.filter((entity) => entity.construct);
     }
 
     entity(id)
@@ -62,22 +69,45 @@ export class Simulation
 
         this.movers?.dispose();
         this.zone = zone;
-        this.movers = new Movers(zone);
+        this.movers = new Movers(zone, (id) => this.wakeConstruct(id));
         this.talkTarget = null;
         this.useTarget = null;
         this.commands = [];
         this.player.stop();
         this.player.placeAt(spawn.x, spawn.z, zone, spawn.heading);
-        this.entities = [this.player, ...this.populate(zone.people)];
+        this.entities = [this.player, ...this.populate(zone.people), ...this.constructsOf(zone)];
         this.emit({ type: "entered", zone });
     }
 
-    // After the zone's objects change, as the editor changes them.
+    // After the zone's objects change, as the editor changes them; the
+    // constructs start again, asleep.
     reloadMovers()
     {
         this.movers.dispose();
-        this.movers = new Movers(this.zone);
+        this.movers = new Movers(this.zone, (id) => this.wakeConstruct(id));
         this.useTarget = null;
+        this.entities = [...this.entities.filter((entity) => !entity.construct), ...this.constructsOf(this.zone)];
+    }
+
+    constructsOf(zone)
+    {
+        return zone.objects.filter((entry) => entry.construct).map((entry) =>
+        {
+            const look = new ConstructLook(this.library, entry.construct);
+            const entity = new Entity(this.nextId++, look);
+            const wakeSeconds = this.library.clips(look.construct.rig)?.actions.wake?.seconds;
+
+            entity.construct = entry;
+            entity.placeOn(entry, entry.turns * Math.PI / 2);
+            entity.brain = new ConstructBrain(entity, entry, this, wakeSeconds);
+
+            return entity;
+        });
+    }
+
+    wakeConstruct(id)
+    {
+        this.constructs.find((entity) => entity.construct.id === id)?.brain.wake();
     }
 
     populate(people)
@@ -148,6 +178,8 @@ export class Simulation
                 this.emit({ type: "running", isRunning: player.isRunning });
                 break;
             case "talk":
+                if(!this.entity(command.id)?.brain?.greet) { break; }
+
                 this.talkTarget = command.id;
                 player.moveTo(this.entity(command.id).position);
                 break;
@@ -181,7 +213,25 @@ export class Simulation
 
         for(const entity of awake) { entity.tick(TICK, this.zone); }
 
+        this.keepApart();
         this.ticks++;
+    }
+
+    keepApart()
+    {
+        const player = this.player;
+
+        for(const construct of this.constructs)
+        {
+            const away = { x: player.position.x - construct.position.x, z: player.position.z - construct.position.z };
+            const distance = Math.hypot(away.x, away.z);
+            const least = player.radius + construct.radius;
+            const height = construct.appearance.construct.footprint[1] / 3;
+
+            if(distance >= least || distance === 0 || Math.abs(player.position.y - construct.position.y) > height) { continue; }
+
+            player.nudge(player.position.x + (away.x / distance) * (least - distance), player.position.z + (away.z / distance) * (least - distance), this.zone);
+        }
     }
 
     isAwake(entity)

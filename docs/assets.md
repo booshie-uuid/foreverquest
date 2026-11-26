@@ -84,6 +84,7 @@ export const IDS =
 | `models/clips/index.json`, `models/clips/<rig>.json` | The rigs that have clips, and each rig's clips and actions |
 | `models/palettes.json`, `models/archetypes.json`, `models/appearance.json` | The colour palettes, the villager archetypes, and the appearance defaults and random rules |
 | `objects.json` | Every fine-cube object: its cells, whether it is solid, the block types it uses, and its fine cubes as runs of block and count |
+| `models/constructs.json` | Every construct: its name, rig, scale and body, a piece of fine cubes for each boxed bone, its extras, its dormant pose and the cubes it stands in |
 | `props/prefabs.json` | Every prefab's blocks, colliders and light spots |
 | `zones/index.json`, `zones/<id>/index.json`, `zones/<id>/<x>-<z>.bin` | The zone ids, each zone's settings and props with its runs built, and its compressed region files |
 | `npcs.json` | Every villager, and the shared lines crowds say |
@@ -97,7 +98,7 @@ Texels are stored as 8-bit RGBA PNG, so any image viewer opens them. The bake wr
 
 The game decodes PNG itself in [png.js](../js/engine/png.js), with the `DecompressionStream` that both browsers and Node provide. A browser's image decoder may convert colour spaces or premultiply alpha, which would change the texels.
 
-[Library](../js/kit/library.js) loads the rigs, the bodies and the id maps. [WorldAtlas](../js/engine/world-atlas.js) loads the world texture image and index. It maps texture names to layers, lists the glow layers for the world material, and flips each layer's rows for upload, because images store rows top-down and textures upload them bottom-up.
+[Library](../js/kit/library.js) loads the rigs, the bodies, the constructs and the id maps. [WorldAtlas](../js/engine/world-atlas.js) loads the world texture image and index. It maps texture names to layers, lists the glow layers for the world material, and flips each layer's rows for upload, because images store rows top-down and textures upload them bottom-up.
 
 ## Adding Content
 

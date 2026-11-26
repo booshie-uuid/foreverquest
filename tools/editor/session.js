@@ -1,5 +1,7 @@
 import * as Blocks from "../bake/blocks.js";
+import * as Constructs from "../bake/constructs.js";
 import * as FineMesher from "../../js/render/fine-mesher.js";
+import * as Models from "../bake/models.js";
 import * as Objects from "../bake/objects.js";
 import * as Props from "../bake/props.js";
 import * as Recipe from "../terrain/recipe.js";
@@ -83,7 +85,7 @@ export class EditSession
         const problems = [];
         const context = {};
 
-        for(const baker of [WorldTextures, Blocks, Props, Objects]) { await baker.bake(problems, context); }
+        for(const baker of [WorldTextures, Blocks, Models, Props, Objects, Constructs]) { await baker.bake(problems, context); }
 
         if(problems.length > 0) { throw new Error(problems.join("\n")); }
 
@@ -275,6 +277,7 @@ export class EditSession
         if(operation.type === "delete" && prop && operation.part === undefined) { this.remove(operation.prop); }
         if(operation.type === "motion" && prop) { this.setMotion(prop, operation, messages); }
         if(operation.type === "link" && prop) { this.link(prop, props[operation.mover], messages); }
+        if(operation.type === "guard" && prop?.construct) { this.setGuard(prop, operation); }
         if(operation.type === "delete" && prop && operation.part !== undefined) { prop.parts = { ...prop.parts, [operation.part]: null }; }
         if(operation.type === "resetParts" && prop) { delete prop.parts; }
         if(operation.type === "applyToAll" && prop?.parts) { this.applyToAll(prop); }
@@ -316,7 +319,7 @@ export class EditSession
         const index = this.zone.props.indexOf(prop);
         const placed = this.index.objects.find((entry) => entry.prop === index && entry.part === undefined);
 
-        if(prop.object) { return placed?.y ?? 0; }
+        if(prop.object || prop.construct) { return placed?.y ?? 0; }
 
         return Voxelise.standingHeight(prop, this.context.prefabs[prop.prefab], Terrain.heightsOf(this.zone, this.terrain.surfaces));
     }
@@ -383,16 +386,26 @@ export class EditSession
         if(trigger) { prop.trigger = { [trigger]: true, movers: prop.trigger?.movers ?? [] }; }
     }
 
-    // Links the trigger to the mover, or unlinks it when linked already.
+    // A wake distance of 0 takes the construct's away, and a leash replaces
+    // its own.
+    setGuard(prop, { near, leash })
+    {
+        if(near === 0) { delete prop.wake; }
+        if(near > 0) { prop.wake = { near }; }
+        if(leash > 0) { prop.leash = leash; }
+    }
+
+    // Links the trigger to the mover or construct, or unlinks it when linked
+    // already.
     link(trigger, mover, messages)
     {
-        if(!trigger.trigger || !mover?.mover)
+        if(!trigger.trigger || !(mover?.mover || mover?.construct))
         {
-            messages.push("A link runs from a lever or a plate to a mover the zone places itself.");
+            messages.push("A link runs from a lever or a plate to a mover or a construct the zone places itself.");
             return;
         }
 
-        mover.id ??= this.newId(mover.object);
+        mover.id ??= this.newId(mover.object ?? mover.construct);
 
         const movers = trigger.trigger.movers;
 
@@ -474,7 +487,7 @@ export class EditSession
             const [left, , back, right, , front] = entry.box;
             const isWithin = left <= x1 && right >= x0 && back <= z1 && front >= z0;
 
-            if(!isWithin || entry.prop === index || entry.part !== undefined || !prop.object) { continue; }
+            if(!isWithin || entry.prop === index || entry.part !== undefined || !(prop.object || prop.construct)) { continue; }
 
             prop.y = round(entry.y);
             delete prop.on;

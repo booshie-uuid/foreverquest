@@ -3,6 +3,9 @@ const PASS_DISTANCE = 0.3;
 const TURN_RATE = 10;
 const GRAVITY = 20;
 const MOVING_SPEED = 0.05;
+const SHOVE_SPEED = 6;
+const SHOVE_DECAY = 0.75;
+const STILL = 0.01;
 
 export class Entity
 {
@@ -20,7 +23,9 @@ export class Entity
         this.fallSpeed = 0;
         this.riding = null;
         this.direction = { x: 0, z: 0 };
+        this.push = { x: 0, z: 0 };
         this.brain = null;
+        this.construct = null;
     }
 
     get name()
@@ -58,6 +63,14 @@ export class Entity
     placeAt(x, z, zone, heading = this.heading)
     {
         this.position = zone.openGround(x, z, this.radius);
+        this.heading = heading;
+        this.desiredHeading = heading;
+    }
+
+    // Stands at the point { x, y, z } as it is, as the bake placed a construct.
+    placeOn(point, heading)
+    {
+        this.position = { x: point.x, y: point.y, z: point.z };
         this.heading = heading;
         this.desiredHeading = heading;
     }
@@ -100,6 +113,27 @@ export class Entity
         this.desiredHeading = Math.atan2(point.x - this.position.x, point.z - this.position.z);
     }
 
+    turnTo(heading)
+    {
+        this.desiredHeading = heading;
+    }
+
+    // Pushes the entity along the unit direction (x, z), slowing over a few
+    // ticks, and drops its route.
+    shove(x, z)
+    {
+        this.push = { x: x * SHOVE_SPEED, z: z * SHOVE_SPEED };
+        this.clearTarget();
+    }
+
+    // Moves the entity towards (x, z), as far as the zone lets it.
+    nudge(x, z, zone)
+    {
+        const resolved = zone.resolveMove(this.position, { x, z }, this.radius);
+
+        this.position = { ...this.position, x: resolved.x, z: resolved.z };
+    }
+
     setRunning(isRunning)
     {
         this.isRunning = isRunning;
@@ -122,7 +156,8 @@ export class Entity
             return;
         }
 
-        const velocity = this.desiredVelocity();
+        const own = this.desiredVelocity();
+        const velocity = { x: own.x + this.push.x, z: own.z + this.push.z };
         const isMoving = velocity.x !== 0 || velocity.z !== 0;
         const length = Math.hypot(velocity.x, velocity.z);
 
@@ -138,8 +173,9 @@ export class Entity
         this.speed = delta > 0 ? moved / delta : 0;
         this.position = { x: resolved.x, y: this.settle(resolved.floor, delta), z: resolved.z };
 
-        if(isMoving) { this.desiredHeading = Math.atan2(velocity.x, velocity.z); }
+        if(own.x !== 0 || own.z !== 0) { this.desiredHeading = Math.atan2(own.x, own.z); }
 
+        this.push = Math.hypot(this.push.x, this.push.z) < STILL ? { x: 0, z: 0 } : { x: this.push.x * SHOVE_DECAY, z: this.push.z * SHOVE_DECAY };
         this.turn(delta);
     }
 
