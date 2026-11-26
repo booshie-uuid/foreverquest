@@ -22,13 +22,18 @@
 
 ## When a Rule Is Added or Corrected
 
-Run the `gu-lint-rules` skill when the owner corrects how code is written, or when a rule joins
+Run the `gu-lint-rules` skill when the creator corrects how code is written, or when a rule joins
 `.claude/rules/coding-style.md` or `js-tests/README.md`. The skill turns a rule that a machine can
 check exactly into a lint rule or a guard test, and removes the prose that the check replaces.
 
 ## When Writing Documentation
 
 Load the `gu-tech-writer` skill before writing.
+
+## Project/Scope/Backlog Management
+
+When the creator raises a new idea or requests a new feature, use the `gu-understanding` skill to ensure you fully understand the request, 
+and then use the `feq-issue-writer` skill to add issues to the GitHub project board.
 
 ## Local Scratchpad
 

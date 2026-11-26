@@ -50,7 +50,7 @@ Content may import game modules, such as the colour maths in [js/art/](../js/art
 
 ## The Lock File
 
-The lock file records what the owner has accepted. After each bake, the asset lock test compares `assets/manifest.json` with `assets.lock.json` and fails when a file was added, changed or removed. An art change is therefore deliberate:
+The lock file records what the creator has accepted. After each bake, the asset lock test compares `assets/manifest.json` with `assets.lock.json` and fails when a file was added, changed or removed. An art change is therefore deliberate:
 
 1. Change the content and run `npm run bake`. The bake lists the files that differ from the lock file.
 2. Review the changed assets, for example by opening the PNG files or running the game.

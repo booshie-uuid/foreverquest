@@ -473,7 +473,7 @@ function shafts(layout, spec)
     }
 }
 
-// The owner's rules: every upper storey is reached by a stair, a lift or a
+// The creator's rules: every upper storey is reached by a stair, a lift or a
 // locked stair door on a storey below it; a stair has STAIR_ENTRY cubes of
 // floor before its first step and a cube of floor after its last; and a
 // footprint has even sides so it sits on whole cubes.

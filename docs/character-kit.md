@@ -149,7 +149,7 @@ Each character paints with a random generator seeded from its name and body id, 
 
 ## Baked Parts
 
-Every face, nose, hair style, beard, marking, feature and equipment item is a part in [content/parts/](../content/parts/), one folder per slot. The bake checks each part and writes it to `assets/models/parts/`. Each part places its blocks exactly where the prototype's code did, on every playable body and variant; the stamps changed the texels a little, which the owner accepted.
+Every face, nose, hair style, beard, marking, feature and equipment item is a part in [content/parts/](../content/parts/), one folder per slot. The bake checks each part and writes it to `assets/models/parts/`. Each part places its blocks exactly where the prototype's code did, on every playable body and variant; the stamps changed the texels a little, which the creator accepted.
 
 ### Sockets, Regions and Slots
 

@@ -2,7 +2,7 @@
 
 A zone is content: a folder in [content/zones/](../content/zones/) that holds a zone file and the zone's cubes. The zone file lists its lighting, its people and the props placed on it. The props are prefabs, built from blocks by the functions in [content/art/props.js](../content/art/props.js) and listed in [content/props/prefabs.js](../content/props/prefabs.js). The bake checks every zone and prefab, builds each zone's cubes, and writes them to `assets/`. The game loads a zone's baked files, holds its data in [ZoneData](../js/sim/zone-data.js), and draws it with [ZoneView](../js/render/zone-view.js).
 
-Three zones exist: Hearthmere, the village; the Test Field, a small zone that the tests travel to; and the Expanse, a generated zone one kilometre square that tests how far the engine stretches. Hearthmere was rebuilt for the cube world on 25 November 2026 as a walled village 192 metres square, laid out from the owner's plan, with its buildings from the building kit.
+Three zones exist: Hearthmere, the village; the Test Field, a small zone that the tests travel to; and the Expanse, a generated zone one kilometre square that tests how far the engine stretches. Hearthmere was rebuilt for the cube world on 25 November 2026 as a walled village 192 metres square, laid out from the creator's plan, with its buildings from the building kit.
 
 ## Cubes and Cells
 
