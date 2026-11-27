@@ -399,6 +399,118 @@ export function leaves(raster, target, random, colour = "#3a3f24")
 
 
 /******************************************************************************/
+/* SMALL OBJECTS                                                              */
+/******************************************************************************/
+
+// Each wave repeats a whole number of times across the area, so the swell
+// tiles.
+function smooth(raster, target, random, colour, swell, spread)
+{
+    const waves = [0, 1].map(() => ({ across: 1 + Math.floor(random.next() * 2), down: 1 + Math.floor(random.next() * 2), phase: random.next() * Math.PI * 2 }));
+
+    for(let y = 0; y < target.h; y++)
+    {
+        for(let x = 0; x < target.w; x++)
+        {
+            const wave = waves.reduce((sum, { across, down, phase }) => sum + Math.cos(2 * Math.PI * (across * x / target.w + down * y / target.h) + phase), 0) / waves.length;
+
+            Pixels.dot(raster, target, x, y, tone(Colour.shade(colour, 1 + wave * swell), random, spread));
+        }
+    }
+}
+
+export function bottleGlass(raster, target, random, colour)
+{
+    smooth(raster, target, random, colour, 0.1, 0.03);
+    strokes(raster, target, random, [Colour.shade(colour, 1.35), Colour.shade(colour, 1.2)], target.w * 0.25, 3, 8, 0, 1);
+    Pixels.speckle(raster, target, [Colour.shade(colour, 1.9)], 0.006, random);
+}
+
+// Dark runs where the glaze pooled as it fired, and a few bright glints.
+export function glaze(raster, target, random, colour)
+{
+    smooth(raster, target, random, colour, 0.08, 0.03);
+    strokes(raster, target, random, [Colour.shade(colour, 0.82)], target.w * 0.3, 4, 12, 0, 1);
+    strokes(raster, target, random, [Colour.shade(colour, 1.5)], target.w * 0.15, 2, 5, 0, 1);
+}
+
+// Fine polish lines, a soft shine and a few spots of tarnish.
+export function polishedMetal(raster, target, random, colour, tarnish)
+{
+    smooth(raster, target, random, colour, 0.08, 0.04);
+    strokes(raster, target, random, [Colour.shade(colour, 1.14)], target.h * 0.25, 4, 12, 1, 0);
+    blots(raster, target, random, Colour.mix(colour, tarnish, 0.5), 3, 1, 2.5);
+    Pixels.speckle(raster, target, [Colour.shade(colour, 1.6)], 0.005, random);
+}
+
+export function polishedWood(raster, target, random, colour)
+{
+    smooth(raster, target, random, colour, 0.06, 0.03);
+    strokes(raster, target, random, [Colour.shade(colour, 0.8), Colour.shade(colour, 0.88)], target.w * 1.5, 8, 24, 1, 0);
+    strokes(raster, target, random, [Colour.shade(colour, 1.15)], target.w * 0.3, 4, 10, 1, 0);
+}
+
+export function leather(raster, target, random, colour)
+{
+    smooth(raster, target, random, colour, 0.1, 0.06);
+    Pixels.speckle(raster, target, [Colour.shade(colour, 0.78)], 0.04, random);
+    strokes(raster, target, random, [Colour.shade(colour, 0.7)], target.w * 0.25, 2, 5, 1, 1);
+    Pixels.speckle(raster, target, [Colour.shade(colour, 1.2)], 0.015, random);
+}
+
+export function parchment(raster, target, random, colour)
+{
+    smooth(raster, target, random, colour, 0.08, 0.04);
+    blots(raster, target, random, Colour.shade(colour, 0.9), 5, 2, 6);
+    Pixels.speckle(raster, target, [Colour.shade(colour, 0.7)], 0.01, random);
+}
+
+// A line of type on every third row, broken into words.
+export function print(raster, target, random, colour, ink = "#5a4a3a")
+{
+    parchment(raster, target, random, colour);
+
+    for(let y = 1; y < target.h; y += 3)
+    {
+        for(let x = 0; x < target.w;)
+        {
+            const word = 2 + Math.floor(random.next() * 5);
+
+            for(let i = 0; i < word; i++) { Pixels.dot(raster, target, x + i, y, tone(ink, random, 0.2)); }
+
+            x += word + 1 + Math.floor(random.next() * 3);
+        }
+    }
+}
+
+// Runs where the wax dripped.
+export function wax(raster, target, random, colour)
+{
+    smooth(raster, target, random, colour, 0.05, 0.02);
+    strokes(raster, target, random, [Colour.shade(colour, 0.92)], target.w * 0.2, 3, 8, 0, 1);
+}
+
+// Strands over and under in squares of four texels, each dark in the gap
+// before it and lit along its first row.
+export function wicker(raster, target, random, colour)
+{
+    const size = 4;
+
+    for(let y = 0; y < target.h; y++)
+    {
+        for(let x = 0; x < target.w; x++)
+        {
+            const isAcross = (Math.floor(x / size) + Math.floor(y / size)) % 2 === 0;
+            const step = isAcross ? y % size : x % size;
+            const factor = step === 0 ? 0.62 : (step === 1 ? 1.15 : 1);
+
+            Pixels.dot(raster, target, x, y, tone(Colour.shade(colour, factor), random, 0.1));
+        }
+    }
+}
+
+
+/******************************************************************************/
 /* METAL, CLOTH AND LIGHT                                                     */
 /******************************************************************************/
 

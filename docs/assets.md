@@ -125,7 +125,7 @@ Each block type also needs a type in the catalogue; see [Types and Packs](#types
 
 ## Types and Packs
 
-[content/catalogue.js](../content/catalogue.js) gives each block type, prefab and object a type and a pack, so the editor's palettes can show one type, such as Wood or Lighting, or one pack. `BLOCK_TYPES` and `PIECE_TYPES` list the types in the order the palettes show them, each with its label and its ids. A prefab variant, such as `pine.3`, takes the type of `pine`. `PACKS` lists the packs: a block or piece that no other pack names is in the `core` pack. A pack such as `hearthmere` names its `blocks` and its `pieces` by id.
+[content/catalogue.js](../content/catalogue.js) gives each block type, prefab and object a type and a pack, so the editor's palettes can show one type, such as Wood or Lighting, or one pack. `BLOCK_TYPES` and `PIECE_TYPES` list the types in the order the palettes show them, each with its label and its ids. A prefab variant, such as `pine.3`, takes the type of `pine`. `PACKS` lists the packs: a block or piece that no other pack names is in the `core` pack. A pack such as `hearthmere` names its `blocks` and its `pieces` by id. A zone's [showcase](world.md#showcases) lays a pack out for viewing.
 
 The bake fails on an id that no block, prefab or object has, an id listed under two types or two packs, a pack that names an id with no type, and a block type, other than a hidden `object` block, with no type. A prefab or object with no type, such as one just saved from the editor, shows under Other in the editor's palettes, and a unit test fails until the catalogue gives it a type.
 
@@ -148,5 +148,7 @@ A fine cube takes the textures of its block type, so a timber fine cube shows en
 
 1. Add an entry to `TEXTURES` in [content/world-textures.js](../content/world-textures.js) with a `name`, a whole-number `seed` that no other texture uses, a `paint` function from [content/art/surfaces.js](../content/art/surfaces.js) or [content/art/weathering.js](../content/art/weathering.js), `glow: true` if the texture lights itself, `overlay: true` for a weathering overlay, whose alpha is the level from 1 to 255 at which each texel appears, and `glass: true` for a glass texture, whose alpha is how much of what lies behind each texel hides. `Surfaces.glass` paints the four glass textures: `clearGlass`, `leadedGlass` in diamond quarries, `stainedGlass` with each quarry one colour, and `grimyGlass`, whose dirt gathers towards the bottom of each cube.
 2. Run `npm run bake`, check the new layer in `assets/textures/world.png`, then run `npm run bake -- --accept`.
+
+A fine cube's face shows only 2 by 2 texels, so grit that varies from texel to texel makes a small object look like cloth. The materials of small objects, in [content/blocks/wares.js](../content/blocks/wares.js) and the bottle glass, are painted smooth instead: an even colour that swells gently across the texture, with a few marks of the material, such as glints on glass, polish lines and tarnish on pewter and brass, grain on polished wood, lines of type on `print`, and drips on wax.
 
 Each texture has its own seed, so adding or moving a texture leaves the texels of the others unchanged. The bake fails on an invalid or repeated name, a missing seed or a texel that is not opaque, except in an overlay or a glass texture.

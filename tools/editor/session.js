@@ -1,4 +1,5 @@
 import * as Blocks from "../bake/blocks.js";
+import * as Catalogue from "../bake/catalogue.js";
 import * as Constructs from "../bake/constructs.js";
 import * as FineMesher from "../../js/render/fine-mesher.js";
 import * as Models from "../bake/models.js";
@@ -85,7 +86,7 @@ export class EditSession
         const problems = [];
         const context = {};
 
-        for(const baker of [WorldTextures, Blocks, Models, Props, Objects, Constructs]) { await baker.bake(problems, context); }
+        for(const baker of [WorldTextures, Blocks, Models, Props, Objects, Catalogue, Constructs]) { await baker.bake(problems, context); }
 
         if(problems.length > 0) { throw new Error(problems.join("\n")); }
 
@@ -260,6 +261,12 @@ export class EditSession
     {
         const props = this.zone.props;
         const prop = props[operation.prop];
+
+        if(Number.isInteger(operation.prop) && operation.prop >= props.length)
+        {
+            messages.push("The zone's showcase places this piece from the catalogue, so it cannot change here.");
+            return;
+        }
 
         if(!this.isLocked && ["cubes", "breakApart", "ages"].includes(operation.type))
         {
@@ -487,7 +494,7 @@ export class EditSession
             const [left, , back, right, , front] = entry.box;
             const isWithin = left <= x1 && right >= x0 && back <= z1 && front >= z0;
 
-            if(!isWithin || entry.prop === index || entry.part !== undefined || !(prop.object || prop.construct)) { continue; }
+            if(!isWithin || entry.prop === index || entry.part !== undefined || !(prop?.object || prop?.construct)) { continue; }
 
             prop.y = round(entry.y);
             delete prop.on;

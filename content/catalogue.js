@@ -4,13 +4,13 @@
 export const BLOCK_TYPES =
 {
     ground: { label: "Ground", ids: ["grass", "moss", "earth", "mud", "sand", "cobble", "rock", "water"] },
-    stone: { label: "Stone", ids: ["stone", "rubble", "slab", "slate", "plaster", "pottery"] },
-    wood: { label: "Wood", ids: ["timber", "planks", "oldPlanks", "bark", "thatch"] },
-    metal: { label: "Metal", ids: ["iron", "steel"] },
+    stone: { label: "Stone", ids: ["stone", "rubble", "slab", "slate", "plaster", "pottery", "glaze"] },
+    wood: { label: "Wood", ids: ["timber", "planks", "oldPlanks", "bark", "thatch", "polishedWood", "wicker"] },
+    metal: { label: "Metal", ids: ["iron", "steel", "pewter", "brass"] },
     glass: { label: "Glass", ids: ["window", "clearGlass", "leadedGlass", "stainedGlass", "grimyGlass", "glassGreen", "glassBrown"] },
-    cloth: { label: "Cloth", ids: ["sacking", "banner", "linen"] },
+    cloth: { label: "Cloth", ids: ["sacking", "banner", "linen", "leather", "parchment", "print"] },
     plants: { label: "Plants", ids: ["needles", "leaves", "petalRed", "petalYellow", "petalWhite", "petalBlue", "apple"] },
-    light: { label: "Light", ids: ["embers"] },
+    light: { label: "Light", ids: ["embers", "wax"] },
 };
 
 export const PIECE_TYPES =
@@ -37,5 +37,10 @@ export const PIECE_TYPES =
 export const PACKS =
 {
     core: { label: "Core" },
-    hearthmere: { label: "Hearthmere", blocks: [], pieces: [] },
+    hearthmere:
+    {
+        label: "Hearthmere",
+        blocks: ["glassGreen", "glassBrown", "glaze", "pewter", "brass", "polishedWood", "leather", "parchment", "print", "wax", "wicker"],
+        pieces: ["bottles", "jug", "bowl", "books", "candlestick"],
+    },
 };

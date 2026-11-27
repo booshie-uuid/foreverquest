@@ -3,6 +3,7 @@ import * as Generator from "../terrain/generator.js";
 import * as Prefabs from "../../content/props/prefabs.js";
 import * as PropBaker from "./props.js";
 import * as RegionCodec from "../../js/sim/region-codec.js";
+import * as Showcase from "./showcase.js";
 import * as Terrain from "./terrain.js";
 import * as Voxelise from "./voxelise.js";
 import * as fs from "node:fs";
@@ -102,11 +103,13 @@ export async function bakeZone(zone, folder, people, context, where, problems, o
     if(problems.length > before) { return null; }
 
     const heightAt = Terrain.heightsOf(zone, terrain.surfaces);
+    const shown = zone.showcase === undefined ? { props: [], prefabs: {} } : Showcase.expand(zone.showcase, context, where, problems);
+    const prefabs = { ...context.prefabs, ...shown.prefabs };
     const runs = [];
     const props = [];
     const objects = [];
 
-    for(const [i, prop] of (zone.props ?? []).entries())
+    for(const [i, prop] of [...(zone.props ?? []), ...shown.props].entries())
     {
         if(prop.run)
         {
@@ -140,15 +143,15 @@ export async function bakeZone(zone, folder, people, context, where, problems, o
             continue;
         }
 
-        if(!context.prefabs[prop.prefab]) { problems.push(where + " prop " + i + " is an unknown prefab: " + prop.prefab); continue; }
+        if(!prefabs[prop.prefab]) { problems.push(where + " prop " + i + " is an unknown prefab: " + prop.prefab); continue; }
         if(!(Math.abs(prop.x) < half && Math.abs(prop.z) < half)) { problems.push(where + " prop " + i + " is outside the zone"); }
         if(prop.age !== undefined && !isAge(prop.age)) { problems.push(where + " prop " + i + " needs an age that is a whole number from 0 to 100"); }
 
         if(prop.y !== undefined && !Number.isFinite(prop.y)) { problems.push(where + " prop " + i + " needs a height in metres"); }
         if(prop.parts !== undefined && !Voxelise.areParts(prop.parts)) { problems.push(where + " prop " + i + " needs parts that map a part number to null or { at, angle, on }"); }
 
-        props.push({ ...prop, index: i, y: prop.y ?? Voxelise.standingHeight(prop, context.prefabs[prop.prefab], heightAt) });
-        objects.push(...Voxelise.prefabObjects(props.at(-1), context.prefabs[prop.prefab]));
+        props.push({ ...prop, index: i, y: prop.y ?? Voxelise.standingHeight(prop, prefabs[prop.prefab], heightAt) });
+        objects.push(...Voxelise.prefabObjects(props.at(-1), prefabs[prop.prefab]));
     }
 
     checkMotion(objects, context.objects, where, problems);
@@ -156,7 +159,7 @@ export async function bakeZone(zone, folder, people, context, where, problems, o
     if(problems.length > before) { return null; }
 
     const terrainTop = (column, row) => terrain.surfaces[row * zone.columns + column];
-    const placed = Voxelise.zoneCells(zone, props, runs, context.prefabs, numbers, where, problems, terrainTop);
+    const placed = Voxelise.zoneCells(zone, props, runs, prefabs, numbers, where, problems, terrainTop);
 
     const shapes = { ...context.objects, ...Object.fromEntries(Object.entries(context.constructs ?? {}).map(([id, construct]) => [id, { cells: construct.footprint, isSolid: false }])) };
     const standing = Voxelise.placeObjects(placed.cells, zone, objects, shapes, numbers, terrainTop, placed.objects.length);

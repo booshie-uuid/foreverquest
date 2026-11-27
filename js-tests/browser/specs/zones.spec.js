@@ -41,6 +41,23 @@ export const tests =
         },
     },
     {
+        name: "the Hearthmere Test Field opens with each piece of the Hearthmere kit in its room and in the open, and no villagers",
+        run: async ({ page, baseUrl, screenshot }) =>
+        {
+            await enter(page, baseUrl, "?zone=kitfield");
+
+            const field = await page.evaluate(() =>
+            {
+                const game = window.foreverQuest.game;
+
+                return { zone: game.zone.id, npcs: game.npcs.length, jugs: game.zone.objects.filter((entry) => entry.object === "jug").length, room: game.zone.objects.some((entry) => entry.name === "showcase.room") };
+            });
+
+            assert.deepEqual(field, { zone: "kitfield", npcs: 0, jugs: 2, room: true });
+            await screenshot("kitfield");
+        },
+    },
+    {
         name: "the zone picker takes the player to the zone chosen",
         run: async ({ page, baseUrl }) =>
         {
@@ -59,7 +76,7 @@ export const tests =
 
             const picked = await page.evaluate(() => document.querySelector(".hud [data-action=zone]").value);
 
-            assert.deepEqual(options, ["expanse", "hearthmere", "testfield", "tutorial"]);
+            assert.deepEqual(options, ["expanse", "hearthmere", "kitfield", "testfield", "tutorial"]);
             assert.equal(picked, "testfield");
         },
     },

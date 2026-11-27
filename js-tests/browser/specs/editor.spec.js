@@ -306,9 +306,9 @@ export const tests =
 
             const lighting = await shown();
 
-            assert.deepEqual(metal, ["iron", "steel"]);
+            assert.deepEqual(metal, ["iron", "steel", "pewter", "brass"]);
             assert.deepEqual(recent, ["steel"]);
-            assert.deepEqual(kit, []);
+            assert.ok(kit.includes("brass") && kit.includes("glassGreen") && !kit.includes("cobble"), "The Hearthmere pack showed " + kit.join(", "));
             assert.deepEqual(picked, { type: "all", lit: [await page.evaluate(() => { const editMode = window.foreverQuest.game.editMode; return editMode.zone.blocks.block(editMode.zone.blockAt(...editMode.pickCell(640, 500).cell)).id; })] });
             assert.ok(lighting.includes("candlestick") && !lighting.includes("bed"), "Lighting showed " + lighting.join(", "));
         },

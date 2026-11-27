@@ -1,0 +1,71 @@
+{
+    "id": "kitfield",
+    "name": "the Hearthmere Test Field",
+    "welcome": [
+        "You arrive in the Hearthmere Test Field, where the Hearthmere kit is laid out."
+    ],
+    "columns": 96,
+    "height": 64,
+    "base": 16,
+    "water": 8,
+    "lighting": {
+        "sky": {
+            "top": "#0e1118",
+            "horizon": "#262b34"
+        },
+        "fog": {
+            "near": 14,
+            "far": 58
+        },
+        "hemisphere": {
+            "sky": "#6a7488",
+            "ground": "#221b14",
+            "intensity": 1.5
+        },
+        "moon": {
+            "colour": "#a8b8d8",
+            "intensity": 1.7
+        },
+        "ambient": {
+            "base": "#1c2030",
+            "level": 0.2,
+            "glow": 0.4
+        }
+    },
+    "spawn": {
+        "x": 0,
+        "z": 7,
+        "heading": 3.141593
+    },
+    "people": {
+        "seed": 1,
+        "residents": []
+    },
+    "terrain": {
+        "base": {
+            "kind": "flat",
+            "height": 0
+        },
+        "edges": {
+            "north": {
+                "kind": "none"
+            },
+            "east": {
+                "kind": "none"
+            },
+            "south": {
+                "kind": "none"
+            },
+            "west": {
+                "kind": "none"
+            }
+        },
+        "features": []
+    },
+    "showcase": {
+        "pack": "hearthmere",
+        "x": -14,
+        "z": -14
+    },
+    "props": []
+}

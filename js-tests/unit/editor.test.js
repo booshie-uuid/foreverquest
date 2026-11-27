@@ -177,6 +177,18 @@ describe("Edit sessions", () =>
         assert.deepEqual(hearthmere.zone.props[well], before);
     });
 
+    it("refuses to change a placement that the zone's showcase makes, and says why", async () =>
+    {
+        const session = await EditSession.open("kitfield", CONTENT);
+        const before = JSON.stringify(session.zone);
+        const shown = session.zone.props.length;
+        const answer = await session.apply([{ type: "move", prop: shown, by: [3, 0, 0], turns: 0 }, { type: "delete", prop: shown + 1 }]);
+
+        assert.equal(JSON.stringify(session.zone), before);
+        assert.equal(answer.messages.length, 2);
+        assert.match(answer.messages[0], /showcase/);
+    });
+
     it("keeps a placement on the half-cube grid and its turn under a full turn, however often it moves", async () =>
     {
         const well = hearthmere.zone.props.findIndex((prop) => prop.object === "well");

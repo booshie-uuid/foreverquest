@@ -7,12 +7,15 @@ const CORE = "core";
 /* BAKE                                                                       */
 /******************************************************************************/
 
-// Runs after the blocks, prefabs and objects have baked into `context`.
+// Runs after the blocks, prefabs and objects have baked into `context`, and
+// before the zones, whose showcases read the catalogue.
 export function bake(problems, context)
 {
     const blockIds = context.blocks.filter((block) => block.kind !== "object").map((block) => block.id);
     const pieceIds = [...new Set([...Object.keys(context.prefabs), ...Object.keys(context.objects)])];
     const catalogue = bakeCatalogue(Catalogue, blockIds, pieceIds, problems);
+
+    context.catalogue = catalogue;
 
     return {
         files: [{ path: "catalogue.json", bytes: Buffer.from(JSON.stringify(catalogue, null, 4) + "\n") }],

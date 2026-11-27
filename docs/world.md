@@ -2,7 +2,7 @@
 
 A zone is content: a folder in [content/zones/](../content/zones/) that holds a zone file and the zone's cubes. The zone file lists its lighting, its people and the props placed on it. The props are prefabs, built from blocks by the functions in [content/art/props.js](../content/art/props.js) and listed in [content/props/prefabs.js](../content/props/prefabs.js). The bake checks every zone and prefab, builds each zone's cubes, and writes them to `assets/`. The game loads a zone's baked files, holds its data in [ZoneData](../js/sim/zone-data.js), and draws it with [ZoneView](../js/render/zone-view.js).
 
-Three zones exist: Hearthmere, the village; the Test Field, a small zone that the tests travel to; and the Expanse, a generated zone one kilometre square that tests how far the engine stretches. Hearthmere was rebuilt for the cube world on 25 November 2026 as a walled village 192 metres square, laid out from the creator's plan, with its buildings from the building kit.
+Four zones exist: Hearthmere, the village; the Test Field, a small zone that the tests travel to; the Hearthmere Test Field, which lays out the Hearthmere kit; and the Expanse, a generated zone one kilometre square that tests how far the engine stretches. Hearthmere was rebuilt for the cube world on 25 November 2026 as a walled village 192 metres square, laid out from the creator's plan, with its buildings from the building kit.
 
 ## Cubes and Cells
 
@@ -35,6 +35,17 @@ A zone folder holds `zone.json` and the zone's terrain. Regions are named `<x>-<
 | `spawn` | Where the player arrives, in metres, and the heading they face |
 | `people` | The residents and the crowd; see [People](#people) |
 | `props` | Prefab placements `{ prefab, x, z, angle, scale, age, parts }` and runs `{ run, points }`, in metres; a placement's `age` overrides the zone's over the columns its prefab covers, and its `parts` change the objects a building places, as [Building Parts and Layouts](editor.md#building-parts-and-layouts) describes |
+| `showcase` | Optional. `{ pack, x, z }`, a pack to lay out from the corner at x, z, in metres; see [Showcases](#showcases) |
+
+### Showcases
+
+A zone's `showcase` lays out every block and piece of a pack from [content/catalogue.js](../content/catalogue.js), so a new piece shows after the next bake without being placed by hand. The Hearthmere Test Field, `?zone=kitfield`, shows the `hearthmere` pack on flat ground.
+
+1. A room of stone, with a plank floor, a slate roof and a doorway facing +z, stands at the corner. A candelabra in each corner lights it. Inside, a small sample of each of the pack's blocks stands in rows, followed by each of its objects, so they can be judged by lamplight.
+2. In the open, south of the room, a sample wall 4 cubes wide and 6 high shows each block, so it can be judged by day and by moonlight.
+3. The pack's prefabs and objects follow in rows, one or more for each type in the catalogue's order.
+
+The bake adds these placements after the zone's own `props`, and names each prefab it makes with `showcase.` first, such as `showcase.room` and `showcase.brass`. The editor shows them, but refuses to move or delete them, as the catalogue places them.
 
 ### Terrain Sources and Locked Cubes
 
