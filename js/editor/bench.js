@@ -177,7 +177,7 @@ export class Bench
             { label: "Back to the world", key: "B", action: "bench-back", onClick: () => this.editor.closeBench() },
         ];
 
-        return [actions, sizes, [mirror], history, files];
+        return { modes: [{ label: "Bench: " + this.id, isOn: true, action: "bench" }], globals: [history, files], tools: actions, options: [{ label: "Size", items: sizes }, { items: [mirror] }] };
     }
 
     palette()

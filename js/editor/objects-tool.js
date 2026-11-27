@@ -4,7 +4,14 @@ import { PaletteFilter } from "./palette-filter.js";
 import { ZoneData } from "../sim/zone-data.js";
 
 const CUBES = ZoneData.CUBES_PER_METRE;
+const ACTIONS = [["select", "Select"], ["place", "Place"], ["capture", "Capture"]];
 const TABS = [["prefabs", "Prefabs"], ["objects", "Objects"], ["buildings", "Buildings"], ["constructs", "Constructs"]];
+const HINTS =
+{
+    select: "Click a placement to select it, or a name here to place one.",
+    place: "Click in the world to place the chosen name at the pointer. Escape goes back to Select.",
+    capture: "Click one corner of the box's footprint, then the opposite corner, then the top.",
+};
 const KINDS = { objects: "object", constructs: "construct" };
 const PRECISION = 1e6;
 const FINE = 8;
@@ -25,16 +32,17 @@ const DEFAULT_LEASH = 12;
 
 
 /******************************************************************************/
-/* SELECT TOOL                                                                */
+/* OBJECTS TOOL                                                               */
 /******************************************************************************/
 
 // A selection is the prop number and, for a part, its part number, which stay
 // the same when the zone bakes again.
-export class SelectTool
+export class ObjectsTool
 {
     constructor(editor)
     {
         this.editor = editor;
+        this.action = "select";
         this.tab = "objects";
         this.search = "";
         this.filter = new PaletteFilter({ types: editor.content.catalogue.pieceTypes, packs: editor.content.catalogue.packs, entries: editor.content.catalogue.pieces });
@@ -43,11 +51,12 @@ export class SelectTool
         this.target = null;
         this.capturing = null;
         this.isLinking = false;
+        this.revealing = null;
     }
 
     get name()
     {
-        return "select";
+        return "objects";
     }
 
     get entry()
@@ -61,30 +70,119 @@ export class SelectTool
 
     toolbar()
     {
+        const tools = ACTIONS.map(([id, label]) => ({ label, isOn: this.action === id, action: "objects-" + id, onClick: () => this.setAction(id) }));
+
+        return { tools, options: this.options() };
+    }
+
+    options()
+    {
+        if(this.action === "place") { return [{ hint: this.adding ? "Click to place " + this.adding.id + " at the pointer." : "Pick a name in the list, then click to place it." }]; }
+
+        if(this.action === "capture")
+        {
+            const canMove = Boolean(this.capturing.box) && !this.capturing.isRaising;
+
+            return [{
+                items:
+                [
+                    { label: "Raise", key: "PgUp", isDisabled: !canMove, action: "capture-raise", onClick: () => this.moveBoxEdge(1, false) },
+                    { label: "Lower", key: "PgDn", isDisabled: !canMove, action: "capture-lower", onClick: () => this.moveBoxEdge(-1, false) },
+                    { label: "Cancel", key: "Esc", isDisabled: !this.capturing.start, action: "capture-clear", onClick: () => this.clearCapture() },
+                ],
+            }];
+        }
+
         const isSelected = this.entry !== null;
 
-        return [[
-            { label: "Capture", isOn: this.capturing !== null, action: "capture", onClick: () => this.startCapture() },
-            { label: "Move", key: "←↑→↓ PgUp PgDn", isDisabled: !isSelected, action: "move", onClick: () => this.move([1, 0, 0]) },
-            { label: "Turn", key: "R", isDisabled: !isSelected, action: "turn", onClick: () => this.turn(1) },
-            { label: "Copy", key: "Ctrl+D", isDisabled: !isSelected || this.entry.part !== undefined, action: "copy", onClick: () => this.copy() },
-            { label: "Delete", key: "Del", isDisabled: !isSelected, action: "delete", onClick: () => this.remove() },
-        ]];
+        return [{
+            items:
+            [
+                { label: "Move", key: "←↑→↓ PgUp PgDn", isDisabled: !isSelected, action: "move", onClick: () => this.move([1, 0, 0]) },
+                { label: "Turn", key: "R", isDisabled: !isSelected, action: "turn", onClick: () => this.turn(1) },
+                { label: "Copy", key: "Ctrl+D", isDisabled: !isSelected || this.entry.part !== undefined, action: "copy", onClick: () => this.copy() },
+                { label: "Delete", key: "Del", isDisabled: !isSelected, action: "delete", onClick: () => this.remove() },
+            ],
+        }];
+    }
+
+    setAction(action)
+    {
+        this.action = action;
+        this.adding = null;
+        this.isLinking = false;
+        this.capturing = null;
+        this.editor.panel.setCard(null);
+        this.editor.marks.hideGhost();
+
+        if(action === "capture")
+        {
+            this.selected = null;
+            this.restartCapture();
+        }
+
+        this.editor.redraw();
+    }
+
+    cycle()
+    {
+        const index = ACTIONS.findIndex(([id]) => id === this.action);
+
+        this.setAction(ACTIONS[(index + 1) % ACTIONS.length][0]);
+    }
+
+    // A capture box does not outlast a change of mode.
+    deactivate()
+    {
+        if(this.action === "capture") { this.restartCapture(); }
     }
 
     /* PALETTE ****************************************************************/
 
     palette()
     {
-        const tabs = TABS.map(([id, label]) => ({ label, isOn: this.tab === id, onClick: () => this.setTab(id) }));
         const isFiltered = this.tab !== "constructs";
         const ids = this.ids();
+        const listed = this.action === "select" && this.entry ? this.listedOf(this.entry) : null;
         const shown = ids.filter((id) => (!isFiltered || this.filter.matches(id)) && id.toLowerCase().includes(this.search.toLowerCase()));
-        const items = shown.map((id) => ({ id, label: id, swatch: null, isOn: this.adding?.id === id }));
-        const filters = isFiltered ? this.filter.fields(ids, () => this.editor.redraw()) : [];
-        const hint = this.adding ? "Click in the world to add " + this.adding.id + " at the pointer. Click it again in the list, or press Escape, to select instead." : "Click a placement to select it, or a name here to add one.";
+        const items = shown.map((id) => ({ id, label: id, swatch: null, isOn: this.adding ? this.adding.id === id : listed?.tab === this.tab && listed.id === id }));
+        const list = [{ key: "list", choices: TABS, value: this.tab, onChange: (tab) => this.setTab(tab) }];
+        const filters = isFiltered ? [list, this.filter.fields(ids, () => this.editor.redraw())] : [list];
+        const reveal = this.revealing;
 
-        return { title: TABS.find(([id]) => id === this.tab)[1], tabs, items, onPick: (id) => this.choose(id), hint, search: { value: this.search, onInput: (text) => this.setSearch(text) }, filters };
+        this.revealing = null;
+
+        return { title: TABS.find(([id]) => id === this.tab)[1], items, onPick: (id) => this.choose(id), hint: HINTS[this.action], search: { value: this.search, onInput: (text) => this.setSearch(text) }, filters, reveal };
+    }
+
+    // The palette list and name of a placement, or null for a run, which no
+    // list holds. A part that is not an object lists as its building.
+    listedOf(entry)
+    {
+        const owner = entry.part !== undefined && !entry.object ? this.editor.zone.objects.find((other) => other.prop === entry.prop && other.part === undefined) : entry;
+
+        if(owner.construct) { return { tab: "constructs", id: owner.construct }; }
+        if(owner.object) { return { tab: "objects", id: owner.object }; }
+
+        const prefab = this.editor.content.prefabs[owner.name];
+
+        if(!prefab) { return null; }
+
+        return { tab: (prefab.doors ?? []).length > 0 ? "buildings" : "prefabs", id: owner.name };
+    }
+
+    reveal(entry)
+    {
+        const listed = entry ? this.listedOf(entry) : null;
+
+        if(!listed) { return; }
+
+        this.tab = listed.tab;
+
+        if(listed.tab !== "constructs") { this.filter.reveal(listed.id); }
+        if(!listed.id.toLowerCase().includes(this.search.toLowerCase())) { this.search = ""; }
+
+        this.revealing = listed.id;
     }
 
     ids()
@@ -114,7 +212,11 @@ export class SelectTool
 
     choose(id)
     {
-        this.adding = this.adding?.id === id ? null : { id, kind: KINDS[this.tab] ?? "prefab" };
+        const isChosen = this.adding?.id === id;
+
+        if(this.action !== "place") { this.setAction("place"); }
+
+        this.adding = isChosen ? null : { id, kind: KINDS[this.tab] ?? "prefab" };
         this.editor.redraw();
     }
 
@@ -128,7 +230,7 @@ export class SelectTool
     {
         this.target = null;
 
-        if(this.capturing)
+        if(this.action === "capture")
         {
             this.hoverCapture(hit);
             return;
@@ -149,15 +251,17 @@ export class SelectTool
 
     async click(hit, objectHit)
     {
-        if(this.capturing)
+        if(this.action === "capture")
         {
             this.clickCapture(hit);
             return;
         }
 
-        if(this.adding)
+        if(this.action === "place")
         {
-            if(this.target) { await this.add(this.target); }
+            if(!this.adding) { this.editor.panel.say("Pick a name in the list to place."); }
+            else if(this.target) { await this.add(this.target); }
+
             return;
         }
 
@@ -197,6 +301,7 @@ export class SelectTool
     {
         this.selected = entry ? { prop: entry.prop, part: entry.part } : null;
         this.isLinking = false;
+        this.reveal(entry);
         this.editor.redraw();
     }
 
@@ -249,7 +354,13 @@ export class SelectTool
             PageDown: [0, -1, 0],
         };
 
-        if(this.capturing) { return this.keyCapture(code, event); }
+        if(this.action === "capture") { return this.keyCapture(code, event); }
+
+        if(code === "Escape" && this.action === "place")
+        {
+            this.setAction("select");
+            return true;
+        }
 
         if(code === "Escape" && this.isLinking)
         {
@@ -257,14 +368,13 @@ export class SelectTool
             return true;
         }
 
-        if(code === "Escape" && (this.adding || this.selected))
+        if(code === "Escape" && this.selected)
         {
-            this.adding = null;
             this.select(null);
             return true;
         }
 
-        if(!this.entry) { return false; }
+        if(this.action !== "select" || !this.entry) { return false; }
 
         if(code === "ArrowUp" && event?.ctrlKey) { this.selectBuilding(); }
         else if(moves[code]) { this.move(moves[code]); }
@@ -488,15 +598,17 @@ export class SelectTool
 
     /* CAPTURE ****************************************************************/
 
-    startCapture()
+    restartCapture()
     {
-        this.capturing = this.capturing ? null : { start: null, box: null, isRaising: false, name: "", isReplacing: true };
-        this.adding = null;
-        this.select(null);
+        this.capturing = { start: null, box: null, isRaising: false, name: "", isReplacing: true };
         this.editor.panel.setCard(null);
+        this.editor.marks.hideGhost();
+    }
 
-        if(this.capturing) { this.editor.panel.say("Click one corner of the box's footprint, then the opposite corner."); }
-        else { this.editor.marks.hideGhost(); }
+    clearCapture()
+    {
+        this.restartCapture();
+        this.editor.redraw();
     }
 
     // The footprint lies flat at the first corner's height until it is
@@ -577,19 +689,25 @@ export class SelectTool
 
         if(code === "Escape")
         {
-            this.startCapture();
+            this.restartCapture();
             return true;
         }
 
         if(!box || this.capturing.isRaising || (code !== "PageUp" && code !== "PageDown")) { return false; }
 
-        const step = code === "PageUp" ? 1 : -1;
-        const face = event?.shiftKey ? 1 : 4;
-
-        box[face] = Math.max(face === 1 ? 0 : box[1], Math.min(face === 1 ? box[4] : this.editor.zone.height - 1, box[face] + step));
-        this.showCaptureCard();
+        this.moveBoxEdge(code === "PageUp" ? 1 : -1, event?.shiftKey);
 
         return true;
+    }
+
+    moveBoxEdge(step, isBottom)
+    {
+        const box = this.capturing.box;
+        const face = isBottom ? 1 : 4;
+
+        box[face] = Math.max(isBottom ? 0 : box[1], Math.min(isBottom ? box[4] : this.editor.zone.height - 1, box[face] + step));
+        this.showCaptureCard();
+        this.editor.redraw();
     }
 
     showCaptureCard()
@@ -621,7 +739,7 @@ export class SelectTool
             [
                 { label: "Save as prefab", isOn: true, action: "capture-prefab", onClick: () => save("prefab") },
                 { label: "Save as object", action: "capture-object", onClick: () => save("object") },
-                { label: "Cancel", action: "capture-cancel", onClick: () => this.startCapture() },
+                { label: "Cancel", action: "capture-cancel", onClick: () => this.clearCapture() },
             ],
         });
     }

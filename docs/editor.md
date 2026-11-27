@@ -12,13 +12,13 @@ F8 again, or the Play button, leaves the editor and lands the character where th
 
 ## Modes and Keys
 
-The tool bar along the top switches between the modes, and holds undo, redo, the grid, the day, the light levels, save, New zone and play. A locked zone has Cubes, Select, Note and Brush modes; a zone whose terrain is not locked in yet has Terrain mode in place of Cubes. The palette on the left changes with the mode, the inspector on the right shows the selection, and the status line along the bottom shows the cell under the pointer, its height above the ground, its region and age, and the number of changes not saved.
+The tool bar along the top shows each mode as a tab, with the mode's number key on a key cap. A locked zone has Cubes, Objects, Brush and Notes modes; a zone whose terrain is not locked in yet has Terrain mode in place of Cubes, on the same key, and no Brush mode. The Zone tab follows the modes. Undo, redo, save and play sit at the right of the tabs. The row under the open tab shows the mode's tools, then, after a divider, the options of the tool that is on. A tool acts in the world only while its mode is open, so the Zone tab, which holds settings, turns the tool off. The palette on the left changes with the mode, the inspector on the right shows the selection, and the status line along the bottom shows the cell under the pointer, its height above the ground, its region and age, and the number of changes not saved.
 
 | Key | Action |
 |---|---|
 | W A S D, Space, C | Fly forward, back, sideways, up and down; Shift flies faster |
 | Drag with either button | Look around; in Brush mode the left button paints and the right button looks |
-| 1, 2, 3, 4, 5 | Cubes, Select, Note, Terrain and Brush modes |
+| 1, 2, 3, 4 | Cubes or Terrain, Objects, Brush and Notes modes; pressing the key of the mode already open moves to its next tool: Add, Remove and Replace in Cubes mode, Select, Place and Capture in Objects mode, and Ground, Age and Sculpt in Brush mode |
 | Ctrl+Z, Ctrl+Y, Ctrl+S | Undo, redo and save |
 | G | Outline every cube |
 | T | Switch between day and night |
@@ -28,7 +28,7 @@ The tool bar along the top switches between the modes, and holds undo, redo, the
 
 ### Light
 
-**Day**, or T, switches the world between the zone's night and its day, as the game's settings do, so lamps and windows can be judged by night without leaving the editor. **Light levels**, or L, draws each face of the terrain and the objects in the colour of its light level, from 0, almost black, through purple and orange to 15, white, with a legend of the colours along the bottom. By night the colour shows the lamp level, as the sky gives little light; by day it shows the brighter of the sky and lamp levels. The colour takes a little of the face's texture and shading, so the shapes stay clear. Water and characters keep their own colours, and the player's own light is left out. Leaving the editor turns the light levels off.
+The Zone tab holds **Grid**, or G, which outlines every cube, and the two light settings. **Day**, or T, switches the world between the zone's night and its day, as the game's settings do, so lamps and windows can be judged by night without leaving the editor. **Light levels**, or L, draws each face of the terrain and the objects in the colour of its light level, from 0, almost black, through purple and orange to 15, white, with a legend of the colours along the bottom. By night the colour shows the lamp level, as the sky gives little light; by day it shows the brighter of the sky and lamp levels. The colour takes a little of the face's texture and shading, so the shapes stay clear. Water and characters keep their own colours, and the player's own light is left out. Leaving the editor turns the light levels off.
 
 ### Cubes
 
@@ -36,9 +36,11 @@ Cube mode adds, removes and replaces cubes, the terrain's included, so the same 
 
 The palette lists the block types, with a search and two choices under it: one shows a single type, such as Wood, or the blocks used most recently, and the other a single pack, such as Hearthmere. [Types and Packs](assets.md#types-and-packs) describes where each block's type and pack come from. The mouse wheel steps through the blocks shown, and a middle click picks the block of the cube under the pointer.
 
-### Select
+### Objects
 
-Select mode picks a placement: a prefab, a run such as a wall, an object, a construct, or a part of a building such as the inn's table. The inspector shows its corner cell, its turn and its size, and a gold outline marks it in the world.
+Objects mode has three tools. Select picks a placement and changes it, Place adds a piece from the palette, and Capture saves cubes as a new piece.
+
+Select picks a placement: a prefab, a run such as a wall, an object, a construct, or a part of a building such as the inn's table. The inspector shows its corner cell, its turn and its size, and a gold outline marks it in the world.
 
 | Key | Action |
 |---|---|
@@ -48,9 +50,9 @@ Select mode picks a placement: a prefab, a run such as a wall, an object, a cons
 | Ctrl+D | Copy a placement one metre along x, without its id |
 | Delete | Delete it |
 | Ctrl+↑ | Select the building that a part belongs to |
-| Escape | Stop linking, clear the selection, or put away a capture box |
+| Escape | Stop linking, or clear the selection; in Place, go back to Select; in Capture, put the box away |
 
-The Prefabs, Objects and Buildings lists can show a single type or a single pack, as the Blocks palette can. A name chosen in the palette's Prefabs, Objects, Buildings or Constructs list makes the next click add that placement at the pointer, where a box shows the cells it will take; choosing it again, or Escape, returns to selecting.
+The palette lists the prefabs, the objects, the buildings or the constructs, chosen in a drop-down under its search. The first three lists can show a single type or a single pack, as the Blocks palette can. Selecting a placement in the world finds it in the palette: the palette opens its list, shows every type and pack if they hide it, and scrolls to it. A middle click in Cubes mode finds the block in the Blocks palette the same way. Choosing a name in the palette switches to Place, where each click adds that piece at the pointer and a box shows the cells it will take. Choosing the name again puts it down.
 
 #### Movers and Triggers
 
@@ -66,10 +68,10 @@ The inspector of a construct sets **Wakes when near**, its wake distance in metr
 
 Capture saves the cubes in a box as a new prefab or object, as a data file in `content/`. The steps:
 
-1. Choose **Capture** in Select mode's tool bar.
+1. Choose **Capture** in Objects mode's tool bar.
 2. Click one corner of the box's footprint, then the opposite corner. A click on the top of the ground marks the cube above it, so the box stands on the ground and leaves it out; Shift+Page Down later takes the ground in, as for a paved floor. The footprint lies flat at the lower corner's height.
-3. Move the pointer up or down: the box's top follows it, starting at the highest cube in the footprint. Click to set it. Page Up or Page Down then moves the top a cube, and with Shift the bottom.
-4. Name the piece, and choose **Save as prefab** or **Save as object**. Escape or Cancel puts the box away.
+3. Move the pointer up or down: the box's top follows it, starting at the highest cube in the footprint. Click to set it. Page Up or Page Down, or **Raise** and **Lower**, then moves the top a cube, and with Shift the bottom.
+4. Name the piece, and choose **Save as prefab** or **Save as object**. Escape or Cancel puts the box away, ready for a new one.
 
 The box shrinks to the cubes it holds, without water. A placement's cubes are copied too, so a building's doorway can become a piece of its own. **Put the new piece in the cubes' place**, on by default, removes the cubes and places the new piece where they stood, as one step of the undo history; when a placement owns some of the cubes, they stay, and only the file is written.
 
@@ -97,11 +99,11 @@ The bench keeps its own undo history, with Ctrl+Z and Ctrl+Y. **Save object**, o
 
 ### Notes
 
-Note mode pins a note on the cube under a click. The note keeps the zone, the cell, the selection and the camera's view. A numbered pin marks each note; blue is open, gold is answered and grey is done. **N** moves the camera to the next note.
+Notes mode pins a note on the cube under a click. The note keeps the zone, the cell, the selection and the camera's view. A numbered pin marks each note; blue is open, gold is answered and grey is done. **N** moves the camera to the next note.
 
 ### Brush
 
-Brush mode shapes and paints a locked zone's ground under a round brush. Pressing the left button starts a stroke and releasing it ends the stroke; the world shows each dab at once, and the whole stroke goes to the server as one step of the undo history. A ring on the ground shows the brush's reach. The tool bar chooses the brush, and the palette its settings: a circle, or a square whose side is twice the radius, the radius, and the brush's own settings. A square brush's strength falls off towards its sides as a circle's does towards its edge.
+Brush mode shapes and paints a locked zone's ground under a round brush. Pressing the left button starts a stroke and releasing it ends the stroke; the world shows each dab at once, and the whole stroke goes to the server as one step of the undo history. A ring on the ground shows the brush's reach. The tool bar chooses the brush and its shape, a circle, or a square whose side is twice the radius. The palette holds the radius and the brush's own settings. A square brush's strength falls off towards its sides as a circle's does towards its edge.
 
 | Brush | Effect |
 |---|---|
@@ -137,7 +139,7 @@ Lock in is open only when the world shows the recipe the panel holds. It writes 
 
 ### New Zones
 
-New zone opens a form for the zone's id, name and size, 128, 256, 512 or 1,024 metres across. The new zone is 256 cells high with its base 48 cells up, takes the lighting of the zone open in the editor, and starts from rolling hills closed by cliffs on every side. It lives only in the server's session until the builder saves it: the server serves its baked files and adds them to the asset manifest it serves, so the game can load a zone the bake has not seen. The game then opens the new zone in the editor, with the camera above its middle looking north. A zone saved before Lock in keeps its recipe in its zone file, and the bake runs the recipe.
+**New zone**, in the Zone tab, opens a form for the zone's id, name and size, 128, 256, 512 or 1,024 metres across. The new zone is 256 cells high with its base 48 cells up, takes the lighting of the zone open in the editor, and starts from rolling hills closed by cliffs on every side. It lives only in the server's session until the builder saves it: the server serves its baked files and adds them to the asset manifest it serves, so the game can load a zone the bake has not seen. The game then opens the new zone in the editor, with the camera above its middle looking north. A zone saved before Lock in keeps its recipe in its zone file, and the bake runs the recipe.
 
 ## How a Change Reaches the World
 
@@ -178,7 +180,9 @@ The development server listens on 127.0.0.1 alone. The editor's routes take a ch
 | File | Holds |
 |---|---|
 | [js/editor/edit-mode.js](../js/editor/edit-mode.js) | The mode: entering and leaving, picking, the request queue and reloading what the server baked |
-| [js/editor/cube-tool.js](../js/editor/cube-tool.js), [select-tool.js](../js/editor/select-tool.js), [note-tool.js](../js/editor/note-tool.js), [terrain-tool.js](../js/editor/terrain-tool.js), [brush-tool.js](../js/editor/brush-tool.js) | The modes |
+| [js/editor/cube-tool.js](../js/editor/cube-tool.js), [objects-tool.js](../js/editor/objects-tool.js), [note-tool.js](../js/editor/note-tool.js), [terrain-tool.js](../js/editor/terrain-tool.js), [brush-tool.js](../js/editor/brush-tool.js) | The modes |
+| [js/editor/settings-tab.js](../js/editor/settings-tab.js) | The Zone tab, which holds settings and acts on nothing in the world |
+| [js/editor/palette-filter.js](../js/editor/palette-filter.js) | A palette's choice of type and pack |
 | [js/editor/brush-stroke.js](../js/editor/brush-stroke.js) | A brush stroke: the cells and ages its dabs change |
 | [js/editor/bench.js](../js/editor/bench.js) | The bench: its scene, picking fine cubes, its tools and its own history |
 | [js/editor/rehearsal.js](../js/editor/rehearsal.js) | Movers played in the editor while the game is paused |

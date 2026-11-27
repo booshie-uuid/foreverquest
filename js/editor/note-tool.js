@@ -45,7 +45,7 @@ export class NoteTool
         const counts = (status) => this.notes.filter((note) => note.status === status).length;
         const filters = STATUSES.map(([id, label]) => ({ label: label + " (" + counts(id) + ")", isOn: this.shown.has(id), action: "show-" + id, onClick: () => this.toggle(id) }));
 
-        return [filters, [{ label: "Go to next", key: "N", action: "next-note", onClick: () => this.next() }]];
+        return { options: [{ label: "Show", items: filters }, { items: [{ label: "Go to next", key: "N", action: "next-note", onClick: () => this.next() }] }] };
     }
 
     toggle(status)

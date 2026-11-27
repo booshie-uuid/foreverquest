@@ -527,13 +527,122 @@ button
     top: 10px;
     left: 50%;
     display: flex;
+    flex-direction: column;
+    max-width: calc(100% - 20px);
+    transform: translateX(-50%);
+}
+
+.editor-tab-row
+{
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    padding: 6px 8px 0;
+    border-bottom: 1px solid var(--panel-edge-soft);
+}
+
+.editor-tab
+{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: -1px;
+    padding: 4px 11px 5px;
+    border: 1px solid transparent;
+    border-radius: 4px 4px 0 0;
+    background: none;
+    color: var(--ink-soft);
+    font-family: var(--font-display);
+    font-size: 15px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.editor-tab:hover
+{
+    color: var(--ink);
+}
+
+.editor-tab.is-on
+{
+    border-color: var(--panel-edge-soft);
+    border-bottom-color: #2a231a;
+    background: rgba(224, 176, 74, 0.14);
+    color: var(--ink);
+}
+
+.editor-cap
+{
+    min-width: 18px;
+    padding: 0 4px;
+    border: 1px solid var(--ink-soft);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    background: #1a1510;
+    color: var(--ink);
+    font: 600 12px/15px var(--font-body);
+    text-align: center;
+}
+
+.editor-tab.is-on .editor-cap
+{
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.editor-tab-gap
+{
+    width: 10px;
+}
+
+.editor-spacer
+{
+    flex: 1;
+    min-width: 24px;
+}
+
+.editor-globals
+{
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding-bottom: 5px;
+}
+
+.editor-tool-row
+{
+    display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: center;
-    gap: 5px;
-    max-width: calc(100% - 20px);
+    gap: 4px;
+    min-height: 36px;
     padding: 6px 8px;
-    transform: translateX(-50%);
+    border-radius: 0 0 6px 6px;
+    background: rgba(224, 176, 74, 0.06);
+}
+
+.editor-row-label
+{
+    margin-right: 2px;
+    color: var(--ink-soft);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.editor-divider
+{
+    align-self: stretch;
+    width: 1px;
+    margin: 0 6px;
+    background: var(--panel-edge);
+}
+
+.editor-row-hint
+{
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    font-style: italic;
 }
 
 .editor-button
@@ -593,7 +702,7 @@ button
 .editor-palette
 {
     position: absolute;
-    top: 64px;
+    top: 100px;
     bottom: 46px;
     left: 10px;
     display: flex;
@@ -705,7 +814,7 @@ button
 .editor-inspector
 {
     position: absolute;
-    top: 64px;
+    top: 100px;
     right: 10px;
     width: 260px;
     padding: 8px 10px;
@@ -891,7 +1000,7 @@ button
 .editor-card
 {
     position: absolute;
-    top: 64px;
+    top: 100px;
     right: 280px;
     width: 280px;
     padding: 8px 10px;

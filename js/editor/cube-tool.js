@@ -22,6 +22,7 @@ export class CubeTool
         this.filter = new PaletteFilter({ types: editor.content.catalogue.blockTypes, packs: editor.content.catalogue.packs, entries: editor.content.catalogue.blocks, extras: [[RECENT_TYPE, "Recent"]] });
         this.recent = [];
         this.search = "";
+        this.revealing = null;
         this.boxStart = null;
         this.target = null;
     }
@@ -36,13 +37,20 @@ export class CubeTool
         const actions = ACTIONS.map(([id, label]) => ({ label, isOn: this.action === id, action: "cube-" + id, onClick: () => this.setAction(id) }));
         const sizes = SIZES.map(([id, label]) => ({ label, isOn: this.size === id, action: "size-" + id, onClick: () => this.setSize(id) }));
 
-        return [actions, sizes];
+        return { tools: actions, options: [{ label: "Size", items: sizes }] };
     }
 
     setAction(action)
     {
         this.action = action;
         this.editor.redraw();
+    }
+
+    cycle()
+    {
+        const index = ACTIONS.findIndex(([id]) => id === this.action);
+
+        this.setAction(ACTIONS[(index + 1) % ACTIONS.length][0]);
     }
 
     setSize(size)
@@ -60,11 +68,15 @@ export class CubeTool
         const search = this.search.toLowerCase();
         const shown = listed.filter((number) => this.filter.matches(idOf(number)) && idOf(number).toLowerCase().includes(search));
         const chosen = blocks.block(this.block);
+        const reveal = this.revealing;
+
+        this.revealing = null;
 
         return {
             title: "Blocks",
             search: { value: this.search, onInput: (text) => this.setSearch(text) },
-            filters: this.filter.fields(this.editor.blockNumbers.map(idOf), () => this.editor.redraw()),
+            filters: [this.filter.fields(this.editor.blockNumbers.map(idOf), () => this.editor.redraw())],
+            reveal,
             items: shown.map((number) => ({ id: number, label: blocks.block(number).id, swatch: this.editor.swatch(number), isOn: number === this.block })),
             onPick: (number) => this.choose(number),
             hint: "The wheel steps through the blocks shown; middle-click a cube to pick its block.",
@@ -82,6 +94,7 @@ export class CubeTool
     {
         this.block = number;
         this.recent = [number, ...this.recent.filter((entry) => entry !== number)].slice(0, RECENT);
+        this.revealing = number;
         this.editor.redraw();
     }
 
@@ -178,7 +191,15 @@ export class CubeTool
     {
         const block = hit ? this.editor.zone.blockAt(...hit.cell) : 0;
 
-        if(block !== 0 && this.editor.blockNumbers.includes(block)) { this.choose(block); }
+        if(block === 0 || !this.editor.blockNumbers.includes(block)) { return; }
+
+        const id = this.editor.blocks.block(block).id;
+
+        this.filter.reveal(id);
+
+        if(!id.toLowerCase().includes(this.search.toLowerCase())) { this.search = ""; }
+
+        this.choose(block);
     }
 
     key(code)

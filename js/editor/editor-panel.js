@@ -47,9 +47,49 @@ export class EditorPanel
 
     /* TOOL BAR ***************************************************************/
 
-    // `groups` is a list of groups, each a list of { label, key, isOn,
-    // isDisabled, action, onClick }.
-    setToolbar(groups)
+    // `modes` and `settings` hold tabs { label, key, isOn, action, onClick },
+    // with `key` shown on a key cap. `globals` is a list of groups of
+    // buttons { label, key, isOn, isDisabled, action, onClick }. The row under
+    // the tabs shows `tools`, a list of buttons, then `options`, a list of
+    // { label, items } groups of buttons or { hint } texts.
+    setToolbar({ modes = [], settings = [], globals = [], tools = [], options = [] })
+    {
+        const tabRow = Controls.element("div", "editor-tab-row");
+        const globalRow = Controls.element("div", "editor-globals");
+        const toolRow = Controls.element("div", "editor-tool-row");
+
+        tabRow.append(...modes.map(EditorPanel.tab), Controls.element("span", "editor-tab-gap"), ...settings.map(EditorPanel.tab), Controls.element("span", "editor-spacer"), globalRow);
+        globalRow.append(...EditorPanel.groups(globals));
+
+        if(tools.length > 0) { toolRow.append(Controls.element("span", "editor-row-label", "Tool"), ...tools.map(EditorPanel.button)); }
+        if(tools.length > 0 && options.length > 0) { toolRow.append(Controls.element("span", "editor-divider")); }
+
+        options.forEach((group, i) =>
+        {
+            if(i > 0) { toolRow.append(Controls.element("span", "editor-sep")); }
+            if(group.hint) { toolRow.append(Controls.element("span", "editor-row-hint", group.hint)); }
+            if(group.label) { toolRow.append(Controls.element("span", "editor-row-label", group.label)); }
+
+            toolRow.append(...(group.items ?? []).map(EditorPanel.button));
+        });
+
+        this.toolbar.replaceChildren(tabRow, toolRow);
+    }
+
+    static tab({ label, key, isOn = false, action, onClick })
+    {
+        const tab = Controls.button("", onClick, "editor-tab");
+
+        if(key) { tab.append(Controls.element("span", "editor-cap", key)); }
+
+        tab.append(label);
+        tab.classList.toggle("is-on", isOn);
+        tab.dataset.action = action;
+
+        return tab;
+    }
+
+    static groups(groups)
     {
         const parts = [];
 
@@ -57,10 +97,10 @@ export class EditorPanel
         {
             if(i > 0) { parts.push(Controls.element("span", "editor-sep")); }
 
-            for(const item of group) { parts.push(EditorPanel.button(item)); }
+            parts.push(...group.map(EditorPanel.button));
         });
 
-        this.toolbar.replaceChildren(...parts);
+        return parts;
     }
 
     static button({ label, key, isOn = false, isDisabled = false, isWarning = false, action, onClick })
@@ -80,10 +120,11 @@ export class EditorPanel
     /* PALETTE ****************************************************************/
 
     // `items` holds { id, label, swatch, isOn } with `swatch` an image URL or
-    // null; `tabs` holds { label, isOn, onClick }; `filters` holds { key,
-    // choices, value, onChange } with `choices` as [value, text] pairs.
-    // `content` holds nodes a tool built itself, shown in place of the items.
-    setPalette({ title, tabs = [], items = [], onPick, hint = "", footer = "", search = null, filters = [], content = null })
+    // null; `tabs` holds { label, isOn, onClick }; `filters` holds rows of
+    // { key, choices, value, onChange } with `choices` as [value, text]
+    // pairs. `reveal` is the id of an item to scroll into view. `content`
+    // holds nodes a tool built itself, shown in place of the items.
+    setPalette({ title, tabs = [], items = [], onPick, hint = "", footer = "", search = null, filters = [], reveal = null, content = null })
     {
         const heading = Controls.element("h3", "", title);
         const tabRow = Controls.element("div", "editor-tabs");
@@ -113,7 +154,7 @@ export class EditorPanel
             parts.push(input);
         }
 
-        if(filters.length > 0) { parts.push(EditorPanel.filterRow(filters)); }
+        for(const row of filters) { parts.push(EditorPanel.filterRow(row)); }
         if(tabs.length > 0) { parts.push(tabRow); }
 
         for(const item of items)
@@ -137,8 +178,12 @@ export class EditorPanel
         if(footer) { parts.push(Controls.element("div", "editor-hint editor-footer", footer)); }
 
         const focused = document.activeElement?.classList.contains("editor-search");
+        const scrolled = this.palette.querySelector(".editor-list, .editor-swatches")?.scrollTop ?? 0;
 
         this.palette.replaceChildren(...parts);
+        list.scrollTop = scrolled;
+
+        if(reveal !== null) { list.querySelector("[data-id=\"" + CSS.escape(String(reveal)) + "\"]")?.scrollIntoView({ block: "nearest" }); }
 
         if(focused)
         {

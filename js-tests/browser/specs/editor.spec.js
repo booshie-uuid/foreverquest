@@ -106,7 +106,7 @@ export const tests =
         },
     },
     {
-        name: "selecting the well and pressing the up arrow moves it a cube away from the camera",
+        name: "selecting the well finds it in the palette, and pressing the up arrow moves it a cube away from the camera",
         run: async ({ page, baseUrl }) =>
         {
             await openEditor(page, baseUrl);
@@ -119,13 +119,17 @@ export const tests =
                 const [x, y] = await screenPoint(page, [(well.box[0] + well.box[3]) >> 1, well.box[1] + 1, well.box[5]]);
 
                 await page.clickAt(x, y);
-                await page.waitFor(() => window.foreverQuest.game.editMode.tools.select.entry?.name === "well", { timeout: 20000 });
+                await page.waitFor(() => window.foreverQuest.game.editMode.tools.objects.entry?.name === "well", { timeout: 20000 });
+
+                const listed = await page.evaluate(() => ({ list: document.querySelector(".editor-palette select[data-key=list]").value, lit: [...document.querySelectorAll(".editor-palette .editor-item.is-on")].map((item) => item.dataset.id) }));
+
                 await page.press("ArrowUp");
                 await page.waitFor(() => window.foreverQuest.game.editMode.state.steps === 1 && !window.foreverQuest.game.editMode.isBusy, { timeout: 20000 });
 
-                const moved = await page.evaluate(() => window.foreverQuest.game.editMode.tools.select.entry.box);
+                const moved = await page.evaluate(() => window.foreverQuest.game.editMode.tools.objects.entry.box);
 
                 assert.deepEqual(moved, [well.box[0], well.box[1], well.box[2] - 1, well.box[3], well.box[4], well.box[5] - 1]);
+                assert.deepEqual(listed, { list: "prefabs", lit: ["well"] }, "Selecting the well did not find it in the palette");
             }
             finally
             {
@@ -138,7 +142,7 @@ export const tests =
         run: async ({ page, baseUrl }) =>
         {
             await openEditor(page, baseUrl);
-            await page.press("3");
+            await page.press("4");
             await page.clickAt(600, 500);
             await page.waitFor(() => document.querySelector(".editor-note-text") !== null, { timeout: 20000 });
             await page.evaluate(() =>
@@ -227,7 +231,44 @@ export const tests =
         },
     },
     {
-        name: "The Blocks palette shows one type, one pack or the recent blocks, and the Select palette's objects show one type",
+        name: "Pressing a mode's number key again cycles its tools, the tool bar lights the mode and the tool that are on, and the Zone tab turns the tool off",
+        run: async ({ page, baseUrl }) =>
+        {
+            await openEditor(page, baseUrl);
+
+            const lit = () => page.evaluate(() => [...document.querySelectorAll(".editor-bar .is-on")].map((button) => button.dataset.action).filter((action) => /^(mode|cube|brush|objects)-(?!circle|square)/.test(action)));
+            const seen = [await lit()];
+
+            for(const key of ["1", "1", "1", "3", "3", "3", "3", "2", "2", "2", "2"])
+            {
+                await page.press(key);
+                seen.push(await lit());
+            }
+
+            await page.click("[data-action=mode-zone]");
+
+            const zone = { lit: await lit(), buttons: await page.evaluate(() => [...document.querySelectorAll(".editor-tool-row [data-action]")].map((button) => button.dataset.action)), tool: await page.evaluate(() => window.foreverQuest.game.editMode.tool.name) };
+
+            assert.deepEqual(seen,
+            [
+                ["mode-cubes", "cube-add"],
+                ["mode-cubes", "cube-remove"],
+                ["mode-cubes", "cube-replace"],
+                ["mode-cubes", "cube-add"],
+                ["mode-brush", "brush-ground"],
+                ["mode-brush", "brush-age"],
+                ["mode-brush", "brush-sculpt"],
+                ["mode-brush", "brush-ground"],
+                ["mode-objects", "objects-select"],
+                ["mode-objects", "objects-place"],
+                ["mode-objects", "objects-capture"],
+                ["mode-objects", "objects-select"],
+            ]);
+            assert.deepEqual(zone, { lit: ["mode-zone"], buttons: ["grid", "day", "light-levels", "new-zone"], tool: "zone" });
+        },
+    },
+    {
+        name: "The Blocks palette shows one type, one pack or the recent blocks, a middle-clicked block shows in it, and the Objects palette's objects show one type",
         run: async ({ page, baseUrl }) =>
         {
             await openEditor(page, baseUrl);
@@ -255,7 +296,12 @@ export const tests =
 
             const kit = await shown();
 
-            await page.click("[data-action=mode-select]");
+            await choose("type", "metal");
+            await page.evaluate(() => window.foreverQuest.game.editMode.pick(640, 500));
+
+            const picked = await page.evaluate(() => ({ type: document.querySelector(".editor-palette select[data-key=type]").value, lit: [...document.querySelectorAll(".editor-palette .editor-swatch.is-on")].map((entry) => entry.title) }));
+
+            await page.click("[data-action=mode-objects]");
             await choose("type", "lighting");
 
             const lighting = await shown();
@@ -263,31 +309,32 @@ export const tests =
             assert.deepEqual(metal, ["iron", "steel"]);
             assert.deepEqual(recent, ["steel"]);
             assert.deepEqual(kit, []);
+            assert.deepEqual(picked, { type: "all", lit: [await page.evaluate(() => { const editMode = window.foreverQuest.game.editMode; return editMode.zone.blocks.block(editMode.zone.blockAt(...editMode.pickCell(640, 500).cell)).id; })] });
             assert.ok(lighting.includes("candlestick") && !lighting.includes("bed"), "Lighting showed " + lighting.join(", "));
         },
     },
     {
-        name: "Capture in Select mode takes a footprint on the ground from two clicked corners, then a top that follows the pointer up until a click, Page Up raises it a cube, and Cancel puts the box away; a prefab chosen to add shows its whole size at the pointer",
+        name: "Capture in Objects mode takes a footprint on the ground from two clicked corners, then a top that follows the pointer up until a click, Page Up raises it a cube, and Cancel puts the box away; a prefab chosen in the list switches to Place and shows its whole size at the pointer",
         run: async ({ page, baseUrl }) =>
         {
             await openEditor(page, baseUrl);
-            await page.click("[data-action=mode-select]");
-            await page.click("[data-action=capture]");
+            await page.click("[data-action=mode-objects]");
+            await page.click("[data-action=objects-capture]");
 
             const ground = await page.evaluate(() => window.foreverQuest.game.editMode.pickCell(600, 500).cell[1]);
 
             await page.clickAt(600, 500);
             await page.clickAt(680, 440);
 
-            const flat = await page.evaluate(() => [...window.foreverQuest.game.editMode.tools.select.capturing.box]);
+            const flat = await page.evaluate(() => [...window.foreverQuest.game.editMode.tools.objects.capturing.box]);
 
             await page.mouseMove(640, 200);
-            await page.waitFor(() => window.foreverQuest.game.editMode.tools.select.capturing.box[4] > window.foreverQuest.game.editMode.tools.select.capturing.box[1] + 3);
+            await page.waitFor(() => window.foreverQuest.game.editMode.tools.objects.capturing.box[4] > window.foreverQuest.game.editMode.tools.objects.capturing.box[1] + 3);
             await page.clickAt(640, 200);
             await page.waitFor(() => !document.querySelector(".editor-card").hidden);
 
             const sizeOf = () => page.evaluate(() => document.querySelector(".editor-card h3").textContent.match(/(\d+) × (\d+) × (\d+)/).slice(1).map(Number));
-            const [before, box] = [await sizeOf(), await page.evaluate(() => window.foreverQuest.game.editMode.tools.select.capturing.box)];
+            const [before, box] = [await sizeOf(), await page.evaluate(() => window.foreverQuest.game.editMode.tools.objects.capturing.box)];
 
             await page.press("PageUp");
 
@@ -295,21 +342,25 @@ export const tests =
 
             await page.click("[data-action=capture-cancel]");
 
-            const closed = await page.evaluate(() => ({ isHidden: document.querySelector(".editor-card").hidden, capturing: window.foreverQuest.game.editMode.tools.select.capturing }));
+            const closed = await page.evaluate(() => ({ isHidden: document.querySelector(".editor-card").hidden, box: window.foreverQuest.game.editMode.tools.objects.capturing.box }));
 
             assert.deepEqual([box[0], box[1], box[2], box[3], box[5]], [flat[0], flat[1], flat[2], flat[3], flat[5]], "Raising the top moved the footprint");
             assert.deepEqual(before, [box[3] - box[0] + 1, box[4] - box[1] + 1, box[5] - box[2] + 1]);
             assert.deepEqual(after, [before[0], before[1] + 1, before[2]]);
-            assert.deepEqual(closed, { isHidden: true, capturing: null });
+            assert.deepEqual(closed, { isHidden: true, box: null });
             assert.equal(flat[1], ground + 1, "The capture box takes in the ground");
 
             await page.evaluate(() =>
             {
-                const select = window.foreverQuest.game.editMode.tools.select;
+                const select = window.foreverQuest.game.editMode.tools.objects;
 
                 select.setTab("prefabs");
                 select.choose("well");
             });
+
+            const placing = await page.evaluate(() => [...document.querySelectorAll(".editor-bar .is-on")].map((button) => button.dataset.action));
+
+            assert.ok(placing.includes("objects-place"), "Choosing a name lit " + placing.join(", "));
             await page.mouseMove(640, 470);
             await page.waitFor(() => window.foreverQuest.game.editMode.marks.ghost.visible);
 
@@ -389,13 +440,13 @@ export const tests =
             {
                 await page.press("2");
                 await page.clickAt(...(await middleOf("leverBase")));
-                await page.waitFor(() => window.foreverQuest.game.editMode.tools.select.entry?.object === "leverBase", { timeout: 20000 });
+                await page.waitFor(() => window.foreverQuest.game.editMode.tools.objects.entry?.object === "leverBase", { timeout: 20000 });
                 await screenshot("lever-links");
 
                 const lines = await page.evaluate(() => window.foreverQuest.game.editMode.marks.links.geometry.getAttribute("position").count);
 
                 await page.clickAt(...(await middleOf("portcullis")));
-                await page.waitFor(() => window.foreverQuest.game.editMode.tools.select.entry?.object === "portcullis", { timeout: 20000 });
+                await page.waitFor(() => window.foreverQuest.game.editMode.tools.objects.entry?.object === "portcullis", { timeout: 20000 });
                 await page.evaluate(() =>
                 {
                     const input = document.querySelector(".editor-inspector [data-key=seconds]");
@@ -414,12 +465,12 @@ export const tests =
                 const home = await page.evaluate(() => window.foreverQuest.game.sim.movers.mover("gate").progress);
 
                 await page.clickAt(...(await middleOf("leverBase")));
-                await page.waitFor(() => window.foreverQuest.game.editMode.tools.select.entry?.object === "leverBase", { timeout: 20000 });
+                await page.waitFor(() => window.foreverQuest.game.editMode.tools.objects.entry?.object === "leverBase", { timeout: 20000 });
                 await page.click("[data-action=link-movers]");
                 await page.clickAt(...(await middleOf("portcullis")));
                 await settled(2);
 
-                const linked = await page.evaluate(() => ({ movers: window.foreverQuest.game.editMode.tools.select.entry.trigger.movers, selected: window.foreverQuest.game.editMode.tools.select.entry.object }));
+                const linked = await page.evaluate(() => ({ movers: window.foreverQuest.game.editMode.tools.objects.entry.trigger.movers, selected: window.foreverQuest.game.editMode.tools.objects.entry.object }));
 
                 assert.equal(lines, 4, "The lever's lines do not run to its two movers");
                 assert.deepEqual([seconds, home], [1, 0]);
@@ -487,6 +538,7 @@ export const tests =
         run: async ({ page, baseUrl, screenshot }) =>
         {
             await openEditor(page, baseUrl);
+            await page.click("[data-action=mode-zone]");
             await page.click("[data-action=new-zone]");
             await page.evaluate(() =>
             {
@@ -512,7 +564,7 @@ export const tests =
                     return { modes: [...document.querySelectorAll("[data-action^=mode-]")].map((button) => button.dataset.action), drawn: drawn / (map.width * map.height) };
                 });
 
-                assert.deepEqual(opened.modes, ["mode-terrain", "mode-select", "mode-notes"]);
+                assert.deepEqual(opened.modes, ["mode-terrain", "mode-objects", "mode-notes", "mode-zone"]);
                 assert.ok(opened.drawn > 0.95, "The map is drawn over only " + opened.drawn + " of its canvas");
 
                 const box = await page.evaluate(() => { const rect = document.querySelector(".editor-map").getBoundingClientRect(); return [rect.left, rect.top, rect.width]; });

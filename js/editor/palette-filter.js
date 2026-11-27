@@ -46,7 +46,16 @@ export class PaletteFilter
         if(key === "pack") { this.pack = value; }
     }
 
-    // The type list offers Other only when one of `ids` is untyped.
+    reveal(id)
+    {
+        if(this.matches(id)) { return; }
+
+        this.type = ALL;
+        this.pack = ALL;
+    }
+
+    // A row of two choices; the type list offers Other only when one of `ids`
+    // is untyped.
     fields(ids, onChange)
     {
         const hasOther = ids.some((id) => this.entries[id] === undefined);

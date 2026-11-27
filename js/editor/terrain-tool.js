@@ -91,11 +91,14 @@ export class TerrainTool
 
     toolbar()
     {
-        return [[
+        const items =
+        [
             { label: "New seed", action: "terrain-seed", isDisabled: this.recipe.base.seed === undefined, onClick: () => this.newSeed() },
             { label: "Preview", isOn: !this.isPreviewed, isDisabled: this.isPreviewed, action: "terrain-preview", onClick: () => this.preview() },
             { label: "Lock in", isWarning: true, isDisabled: !this.isPreviewed, action: "terrain-lock", onClick: () => this.confirmLock() },
-        ]];
+        ];
+
+        return { options: [{ items }] };
     }
 
     palette()

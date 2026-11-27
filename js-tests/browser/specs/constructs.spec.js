@@ -69,7 +69,7 @@ export const tests =
                 });
 
                 await page.clickAt(...at);
-                await page.waitFor(() => window.foreverQuest.game.editMode.tools.select.entry?.construct === "armour", { timeout: 20000 });
+                await page.waitFor(() => window.foreverQuest.game.editMode.tools.objects.entry?.construct === "armour", { timeout: 20000 });
                 await page.evaluate(() =>
                 {
                     const input = document.querySelector(".editor-inspector [data-key=wake-near]");
@@ -84,7 +84,7 @@ export const tests =
                     const game = window.foreverQuest.game;
                     const armour = game.sim.constructs.find((entity) => entity.construct.construct === "armour");
 
-                    game.editMode.tools.select.setTab("constructs");
+                    game.editMode.tools.objects.setTab("constructs");
 
                     return { near: armour.construct.wake?.near, isAsleep: armour.brain.isDormant, listed: [...document.querySelectorAll(".editor-palette .editor-item")].map((item) => item.dataset.id) };
                 });

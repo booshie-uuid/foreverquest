@@ -10,8 +10,9 @@ import { FlyCamera } from "./fly-camera.js";
 import { Marks } from "./marks.js";
 import { MaterialLibrary } from "../engine/materials.js";
 import { NoteTool } from "./note-tool.js";
+import { ObjectsTool } from "./objects-tool.js";
 import { Rehearsal } from "./rehearsal.js";
-import { SelectTool } from "./select-tool.js";
+import { SettingsTab } from "./settings-tab.js";
 import { TerrainTool } from "./terrain-tool.js";
 import { ZoneData } from "../sim/zone-data.js";
 
@@ -19,6 +20,9 @@ const CUBES = ZoneData.CUBES_PER_METRE;
 const RANGE = 90;
 const SWATCH_SIZE = 16;
 const NEW_ZONE = { sizes: [128, 256, 512, 1024], size: 1024, height: 60, pitch: 0.5 };
+const LOCKED_MODES = [["cubes", "Cubes", "1"], ["objects", "Objects", "2"], ["brush", "Brush", "3"], ["notes", "Notes", "4"]];
+const TERRAIN_MODES = [["terrain", "Terrain", "1"], ["objects", "Objects", "2"], ["notes", "Notes", "4"]];
+const SETTINGS = [["zone", "Zone"]];
 
 
 /******************************************************************************/
@@ -116,7 +120,15 @@ export class EditMode
         this.isActive = true;
         this.kinds = this.state.kinds;
         this.marks = new Marks(this.screen.world.scene, this.zone);
-        this.tools = { cubes: new CubeTool(this), select: new SelectTool(this), notes: new NoteTool(this), terrain: new TerrainTool(this), brush: new BrushTool(this) };
+        this.tools =
+        {
+            cubes: new CubeTool(this),
+            objects: new ObjectsTool(this),
+            notes: new NoteTool(this),
+            terrain: new TerrainTool(this),
+            brush: new BrushTool(this),
+            zone: new SettingsTab(this, { name: "zone", title: "Zone", hint: "Grid, Day and Light levels change only what the editor shows; G, T and L work from any tab. New zone starts another zone from rolling hills.", options: () => this.zoneOptions() }),
+        };
         this.bench = new Bench(this);
         this.tools.terrain.sync(this.state);
         this.tool = this.state.isLocked ? this.tools.cubes : this.tools.terrain;
@@ -173,8 +185,7 @@ export class EditMode
 
     setTool(name)
     {
-        if(this.tools.select.capturing) { this.tools.select.startCapture(); }
-
+        this.tool.deactivate?.();
         this.tool = this.tools[name];
         this.marks.hideGhost();
         this.marks.hideRing();
@@ -198,36 +209,43 @@ export class EditMode
             return;
         }
 
-        const names = this.state.isLocked ? [["cubes", "Cubes", "1"], ["select", "Select", "2"], ["notes", "Note", "3"], ["brush", "Brush", "5"]] : [["terrain", "Terrain", "4"], ["select", "Select", "2"], ["notes", "Note", "3"]];
-        const modes = names.map(([name, label, key]) => ({ label, key, isOn: this.tool.name === name, action: "mode-" + name, onClick: () => this.setTool(name) }));
+        const tab = ([name, label, key]) => ({ label, key, isOn: this.tool.name === name, action: "mode-" + name, onClick: () => this.setTool(name) });
         const history =
         [
             { label: "Undo", key: "Ctrl+Z", isDisabled: !this.state.canUndo, action: "undo", onClick: () => this.undo() },
             { label: "Redo", key: "Ctrl+Y", isDisabled: !this.state.canRedo, action: "redo", onClick: () => this.redo() },
-            { label: "Grid", key: "G", isOn: this.screen.graphics.isGrid, action: "grid", onClick: () => this.screen.graphics.toggleGrid() },
-            { label: "Day", key: "T", isOn: this.screen.graphics.isDay, action: "day", onClick: () => this.toggleDay() },
-            { label: "Light levels", key: "L", isOn: this.isShowingLight, action: "light-levels", onClick: () => this.toggleLight() },
         ];
         const files =
         [
             { label: "Save", key: "Ctrl+S", isDisabled: !this.state.isDirty, action: "save", onClick: () => this.save() },
-            { label: "New zone", action: "new-zone", onClick: () => this.showNewZone() },
             { label: "Play", key: "F8", action: "play", onClick: () => this.leave() },
         ];
 
-        this.panel.setToolbar([modes, ...this.tool.toolbar(), history, files]);
+        this.panel.setToolbar({ modes: (this.state.isLocked ? LOCKED_MODES : TERRAIN_MODES).map(tab), settings: SETTINGS.map(tab), globals: [history, files], ...this.tool.toolbar() });
         this.panel.setPalette(this.tool.palette());
         this.panel.setInspector(this.tool.inspector?.() ?? null);
 
-        const selected = this.tools.select.entry;
+        const selected = this.tools.objects.entry;
 
         if(selected) { this.marks.showOutline(selected.box); }
         else { this.marks.hideOutline(); }
 
-        if(selected) { this.marks.showLinks(selected.box, this.tools.select.linked().map((entry) => entry.box)); }
+        if(selected) { this.marks.showLinks(selected.box, this.tools.objects.linked().map((entry) => entry.box)); }
         else { this.marks.hideLinks(); }
 
         this.drawStatus();
+    }
+
+    zoneOptions()
+    {
+        const view =
+        [
+            { label: "Grid", key: "G", isOn: this.screen.graphics.isGrid, action: "grid", onClick: () => this.toggleGrid() },
+            { label: "Day", key: "T", isOn: this.screen.graphics.isDay, action: "day", onClick: () => this.toggleDay() },
+            { label: "Light levels", key: "L", isOn: this.isShowingLight, action: "light-levels", onClick: () => this.toggleLight() },
+        ];
+
+        return [{ items: view }, { items: [{ label: "New zone", action: "new-zone", onClick: () => this.showNewZone() }] }];
     }
 
     drawStatus()
@@ -278,6 +296,12 @@ export class EditMode
         return this.swatches.get(number);
     }
 
+    toggleGrid()
+    {
+        this.screen.graphics.toggleGrid();
+        this.redraw();
+    }
+
     toggleDay()
     {
         this.screen.graphics.toggleDay();
@@ -312,7 +336,7 @@ export class EditMode
     // The selected placement's name, for a note.
     selectedName()
     {
-        const entry = this.tools.select.entry;
+        const entry = this.tools.objects.entry;
 
         return entry ? (entry.object ?? entry.name) + " (prop " + entry.prop + ")" : null;
     }
@@ -371,7 +395,7 @@ export class EditMode
         this.pointer = { x, y };
         this.hit = hit;
         this.tool.hover(hit);
-        await this.tool.click(hit, this.tool === this.tools.select ? this.pickObject(x, y) : null);
+        await this.tool.click(hit, this.tool === this.tools.objects ? this.pickObject(x, y) : null);
     }
 
     stroke(phase, x, y)
@@ -402,7 +426,7 @@ export class EditMode
     key(code, event)
     {
         const isControl = event?.ctrlKey || event?.metaKey;
-        const modes = this.state.isLocked ? { Digit1: "cubes", Digit2: "select", Digit3: "notes", Digit5: "brush" } : { Digit2: "select", Digit3: "notes", Digit4: "terrain" };
+        const modes = Object.fromEntries((this.state.isLocked ? LOCKED_MODES : TERRAIN_MODES).map(([name, , key]) => ["Digit" + key, name]));
 
         if(this.bench.isOpen && this.benchKey(code, isControl))
         {
@@ -415,8 +439,9 @@ export class EditMode
         else if(isControl && code === "KeyY") { this.redo(); }
         else if(isControl && code === "KeyS") { this.save(); }
         else if(this.tool.key(code, event)) { this.redraw(); }
+        else if(modes[code] && !isControl && this.tool.name === modes[code] && this.tool.cycle) { this.tool.cycle(); }
         else if(modes[code] && !isControl) { this.setTool(modes[code]); }
-        else if(code === "KeyG" && !isControl) { this.screen.graphics.toggleGrid(); }
+        else if(code === "KeyG" && !isControl) { this.toggleGrid(); }
         else if(code === "KeyT" && !isControl) { this.toggleDay(); }
         else if(code === "KeyL" && !isControl) { this.toggleLight(); }
         else { return; }
@@ -595,7 +620,7 @@ export class EditMode
 
         this.panel.setCard(null);
         this.bench.close();
-        this.tool = this.tools.select;
+        this.tool = this.tools.objects;
         this.redraw();
     }
 

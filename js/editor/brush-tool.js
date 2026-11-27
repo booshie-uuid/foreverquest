@@ -44,12 +44,15 @@ export class BrushTool
 
     toolbar()
     {
-        return [KINDS.map(([id, label]) => ({ label, isOn: this.brush.kind === id, action: "brush-" + id, onClick: () => this.set("kind", id) }))];
+        const kinds = KINDS.map(([id, label]) => ({ label, isOn: this.brush.kind === id, action: "brush-" + id, onClick: () => this.set("kind", id) }));
+        const shapes = SHAPES.map(([id, label]) => ({ label, isOn: this.brush.shape === id, action: "brush-" + id, onClick: () => this.set("shape", id) }));
+
+        return { tools: kinds, options: [{ label: "Shape", items: shapes }] };
     }
 
     palette()
     {
-        const content = [this.choices(SHAPES, "shape", "brush-"), numberField(RADIUS, this.brush.radius, (value) => this.set("radius", value))];
+        const content = [numberField(RADIUS, this.brush.radius, (value) => this.set("radius", value))];
 
         if(this.brush.kind === "ground") { content.push(this.choices(EDGES, "edge", "brush-"), this.groundList()); }
         if(this.brush.kind === "sculpt") { content.push(this.choices(ACTIONS, "action", "sculpt-")); }
@@ -98,6 +101,13 @@ export class BrushTool
     {
         this.brush[key] = value;
         this.editor.redraw();
+    }
+
+    cycle()
+    {
+        const index = KINDS.findIndex(([id]) => id === this.brush.kind);
+
+        this.set("kind", KINDS[(index + 1) % KINDS.length][0]);
     }
 
     /* TOOL EVENTS ************************************************************/
