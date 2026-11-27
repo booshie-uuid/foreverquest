@@ -34,7 +34,7 @@ The tool bar along the top switches between the modes, and holds undo, redo, the
 
 Cube mode adds, removes and replaces cubes, the terrain's included, so the same tool digs a pond or raises a bank. A see-through box shows where a click acts. Add places cubes against the face under the pointer; Remove and Replace act on the cube itself. The brush places one cube, a square of 3 by 3 or 5 by 5 across the face, or, with Box, every cube between two clicked corners, up to 40,000 at once. Escape cancels a box.
 
-The palette lists the block types by their file in `content/blocks/`, with a search and the blocks used most recently. The mouse wheel steps through the blocks shown, and a middle click picks the block of the cube under the pointer.
+The palette lists the block types, with a search and two choices under it: one shows a single type, such as Wood, or the blocks used most recently, and the other a single pack, such as Hearthmere. [Types and Packs](assets.md#types-and-packs) describes where each block's type and pack come from. The mouse wheel steps through the blocks shown, and a middle click picks the block of the cube under the pointer.
 
 ### Select
 
@@ -50,7 +50,7 @@ Select mode picks a placement: a prefab, a run such as a wall, an object, a cons
 | Ctrl+↑ | Select the building that a part belongs to |
 | Escape | Stop linking, clear the selection, or put away a capture box |
 
-A name chosen in the palette's Prefabs, Objects, Buildings or Constructs list makes the next click add that placement at the pointer, where a box shows the cells it will take; choosing it again, or Escape, returns to selecting.
+The Prefabs, Objects and Buildings lists can show a single type or a single pack, as the Blocks palette can. A name chosen in the palette's Prefabs, Objects, Buildings or Constructs list makes the next click add that placement at the pointer, where a box shows the cells it will take; choosing it again, or Escape, returns to selecting.
 
 #### Movers and Triggers
 

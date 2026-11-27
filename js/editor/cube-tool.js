@@ -1,6 +1,9 @@
+import { PaletteFilter } from "./palette-filter.js";
+
 const ACTIONS = [["add", "Add"], ["remove", "Remove"], ["replace", "Replace"]];
 const SIZES = [[1, "1"], [3, "3×3"], [5, "5×5"], ["box", "Box"]];
 const RECENT = 10;
+const RECENT_TYPE = "recent";
 const MAX_BOX = 40000;
 
 
@@ -16,7 +19,7 @@ export class CubeTool
         this.action = "add";
         this.size = 1;
         this.block = editor.blockNumbers.find((number) => editor.blocks.block(number).id === "cobble") ?? editor.blockNumbers[0];
-        this.group = editor.blocks.block(this.block).group;
+        this.filter = new PaletteFilter({ types: editor.content.catalogue.blockTypes, packs: editor.content.catalogue.packs, entries: editor.content.catalogue.blocks, extras: [[RECENT_TYPE, "Recent"]] });
         this.recent = [];
         this.search = "";
         this.boxStart = null;
@@ -52,27 +55,21 @@ export class CubeTool
     palette()
     {
         const blocks = this.editor.blocks;
-        const tabs = [...this.editor.blockGroups, "recent"].map((group) => ({ label: group.charAt(0).toUpperCase() + group.slice(1), isOn: this.group === group, onClick: () => this.setGroup(group) }));
-        const shown = this.group === "recent" ? this.recent : this.editor.blockNumbers.filter((number) => blocks.block(number).group === this.group);
-        const searched = this.search ? this.editor.blockNumbers.filter((number) => blocks.block(number).id.toLowerCase().includes(this.search.toLowerCase())) : shown;
+        const idOf = (number) => blocks.block(number).id;
+        const listed = this.filter.type === RECENT_TYPE ? this.recent : this.editor.blockNumbers;
+        const search = this.search.toLowerCase();
+        const shown = listed.filter((number) => this.filter.matches(idOf(number)) && idOf(number).toLowerCase().includes(search));
         const chosen = blocks.block(this.block);
 
         return {
             title: "Blocks",
-            tabs,
             search: { value: this.search, onInput: (text) => this.setSearch(text) },
-            items: searched.map((number) => ({ id: number, label: blocks.block(number).id, swatch: this.editor.swatch(number), isOn: number === this.block })),
+            filters: this.filter.fields(this.editor.blockNumbers.map(idOf), () => this.editor.redraw()),
+            items: shown.map((number) => ({ id: number, label: blocks.block(number).id, swatch: this.editor.swatch(number), isOn: number === this.block })),
             onPick: (number) => this.choose(number),
             hint: "The wheel steps through the blocks shown; middle-click a cube to pick its block.",
             footer: "Selected: " + chosen.id + " · " + chosen.kind + (chosen.light ? " · light " + chosen.light : ""),
         };
-    }
-
-    setGroup(group)
-    {
-        this.group = group;
-        this.search = "";
-        this.editor.redraw();
     }
 
     setSearch(text)

@@ -1,5 +1,6 @@
 import * as Controls from "../ui/controls.js";
 import * as Fields from "./fields.js";
+import { PaletteFilter } from "./palette-filter.js";
 import { ZoneData } from "../sim/zone-data.js";
 
 const CUBES = ZoneData.CUBES_PER_METRE;
@@ -36,6 +37,7 @@ export class SelectTool
         this.editor = editor;
         this.tab = "objects";
         this.search = "";
+        this.filter = new PaletteFilter({ types: editor.content.catalogue.pieceTypes, packs: editor.content.catalogue.packs, entries: editor.content.catalogue.pieces });
         this.adding = null;
         this.selected = null;
         this.target = null;
@@ -75,10 +77,14 @@ export class SelectTool
     palette()
     {
         const tabs = TABS.map(([id, label]) => ({ label, isOn: this.tab === id, onClick: () => this.setTab(id) }));
-        const items = this.ids().filter((id) => id.toLowerCase().includes(this.search.toLowerCase())).map((id) => ({ id, label: id, swatch: null, isOn: this.adding?.id === id }));
+        const isFiltered = this.tab !== "constructs";
+        const ids = this.ids();
+        const shown = ids.filter((id) => (!isFiltered || this.filter.matches(id)) && id.toLowerCase().includes(this.search.toLowerCase()));
+        const items = shown.map((id) => ({ id, label: id, swatch: null, isOn: this.adding?.id === id }));
+        const filters = isFiltered ? this.filter.fields(ids, () => this.editor.redraw()) : [];
         const hint = this.adding ? "Click in the world to add " + this.adding.id + " at the pointer. Click it again in the list, or press Escape, to select instead." : "Click a placement to select it, or a name here to add one.";
 
-        return { title: TABS.find(([id]) => id === this.tab)[1], tabs, items, onPick: (id) => this.choose(id), hint, search: { value: this.search, onInput: (text) => this.setSearch(text) } };
+        return { title: TABS.find(([id]) => id === this.tab)[1], tabs, items, onPick: (id) => this.choose(id), hint, search: { value: this.search, onInput: (text) => this.setSearch(text) }, filters };
     }
 
     ids()

@@ -35,7 +35,6 @@ export class EditMode
         this.fly = new FlyCamera(screen.camera);
         this.blocks = screen.content.blocks;
         this.blockNumbers = [];
-        this.blockGroups = [];
         this.swatches = new Map();
         this.client = null;
         this.marks = null;
@@ -59,8 +58,6 @@ export class EditMode
             if(block.kind === "object") { continue; }
 
             this.blockNumbers.push(number);
-
-            if(!this.blockGroups.includes(block.group)) { this.blockGroups.push(block.group); }
         }
     }
 

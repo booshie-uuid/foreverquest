@@ -47,7 +47,7 @@ export class App
         {
             this.library = await Library.load(this.assets);
             this.materials = new MaterialLibrary(await WorldAtlas.load(this.assets));
-            this.content = { prefabs: await this.assets.json("props/prefabs.json"), objects: await this.assets.json("objects.json"), people: await this.assets.json("npcs.json"), zones: await this.assets.json("zones/index.json"), blocks: await BlockSet.load(this.assets) };
+            this.content = { prefabs: await this.assets.json("props/prefabs.json"), objects: await this.assets.json("objects.json"), catalogue: await this.assets.json("catalogue.json"), people: await this.assets.json("npcs.json"), zones: await this.assets.json("zones/index.json"), blocks: await BlockSet.load(this.assets) };
             this.streamer = await this.loadZone(this.startZone);
         }
         finally

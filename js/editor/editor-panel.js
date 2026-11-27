@@ -80,9 +80,10 @@ export class EditorPanel
     /* PALETTE ****************************************************************/
 
     // `items` holds { id, label, swatch, isOn } with `swatch` an image URL or
-    // null; `tabs` holds { label, isOn, onClick }. `content` holds nodes a
-    // tool built itself, shown in place of the items.
-    setPalette({ title, tabs = [], items = [], onPick, hint = "", footer = "", search = null, content = null })
+    // null; `tabs` holds { label, isOn, onClick }; `filters` holds { key,
+    // choices, value, onChange } with `choices` as [value, text] pairs.
+    // `content` holds nodes a tool built itself, shown in place of the items.
+    setPalette({ title, tabs = [], items = [], onPick, hint = "", footer = "", search = null, filters = [], content = null })
     {
         const heading = Controls.element("h3", "", title);
         const tabRow = Controls.element("div", "editor-tabs");
@@ -112,6 +113,7 @@ export class EditorPanel
             parts.push(input);
         }
 
+        if(filters.length > 0) { parts.push(EditorPanel.filterRow(filters)); }
         if(tabs.length > 0) { parts.push(tabRow); }
 
         for(const item of items)
@@ -145,6 +147,31 @@ export class EditorPanel
             input.focus();
             input.setSelectionRange(input.value.length, input.value.length);
         }
+    }
+
+    static filterRow(filters)
+    {
+        const row = Controls.element("div", "editor-filters");
+
+        for(const filter of filters)
+        {
+            const select = Controls.element("select", "editor-choice");
+
+            for(const [value, text] of filter.choices)
+            {
+                const option = Controls.element("option", "", text);
+
+                option.value = value;
+                select.append(option);
+            }
+
+            select.value = filter.value;
+            select.dataset.key = filter.key;
+            select.addEventListener("change", () => filter.onChange(select.value));
+            row.append(select);
+        }
+
+        return row;
     }
 
     /* INSPECTOR **************************************************************/

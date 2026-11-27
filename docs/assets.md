@@ -83,6 +83,7 @@ export const IDS =
 | `models/stamps.preview.png` | A viewable copy of the stamp sheet, which the game does not read |
 | `models/clips/index.json`, `models/clips/<rig>.json` | The rigs that have clips, and each rig's clips and actions |
 | `models/palettes.json`, `models/archetypes.json`, `models/appearance.json` | The colour palettes, the villager archetypes, and the appearance defaults and random rules |
+| `catalogue.json` | The type and pack of every block type, prefab and object in [content/catalogue.js](../content/catalogue.js), for the editor's palettes |
 | `objects.json` | Every fine-cube object: its cells, whether it is solid, the block types it uses, and its fine cubes as runs of block and count |
 | `models/constructs.json` | Every construct: its name, rig, scale and body, a piece of fine cubes for each boxed bone, its extras, its dormant pose and the cubes it stands in |
 | `props/prefabs.json` | Every prefab's blocks, colliders and light spots |
@@ -119,6 +120,14 @@ A block type is one world cube's material. The files in [content/blocks/](../con
 | `worn` | Optional. The world texture an old block takes, such as `plasterWorn` |
 
 [BlockSet](../js/sim/block-set.js) numbers the block types from 1 in the baked order, file by file in name order, and keeps 0 for air. The simulation and the views both read it. The bake fails on a repeated id, an unknown texture, face or kind, a block without a texture on every face, a light out of range, an unknown way of weathering or one on a block that is not solid, an unknown worn texture, a glow on a block with no light or of a colour that light-colours.js does not name, a glass block with a texture that is not glass or a glass texture on a block that is not glass, and a glass block without a dimming or another block with one.
+
+Each block type also needs a type in the catalogue; see [Types and Packs](#types-and-packs).
+
+## Types and Packs
+
+[content/catalogue.js](../content/catalogue.js) gives each block type, prefab and object a type and a pack, so the editor's palettes can show one type, such as Wood or Lighting, or one pack. `BLOCK_TYPES` and `PIECE_TYPES` list the types in the order the palettes show them, each with its label and its ids. A prefab variant, such as `pine.3`, takes the type of `pine`. `PACKS` lists the packs: a block or piece that no other pack names is in the `core` pack. A pack such as `hearthmere` names its `blocks` and its `pieces` by id.
+
+The bake fails on an id that no block, prefab or object has, an id listed under two types or two packs, a pack that names an id with no type, and a block type, other than a hidden `object` block, with no type. A prefab or object with no type, such as one just saved from the editor, shows under Other in the editor's palettes, and a unit test fails until the catalogue gives it a type.
 
 ## Adding an Object
 

@@ -227,6 +227,46 @@ export const tests =
         },
     },
     {
+        name: "The Blocks palette shows one type, one pack or the recent blocks, and the Select palette's objects show one type",
+        run: async ({ page, baseUrl }) =>
+        {
+            await openEditor(page, baseUrl);
+
+            const shown = () => page.evaluate(() => [...document.querySelectorAll(".editor-palette [data-id]")].map((entry) => entry.title));
+            const choose = (key, value) => page.evaluate(([name, choice]) =>
+            {
+                const select = document.querySelector(".editor-palette select[data-key=" + name + "]");
+
+                select.value = choice;
+                select.dispatchEvent(new Event("change"));
+            }, [key, value]);
+
+            await choose("type", "metal");
+
+            const metal = await shown();
+
+            await page.click(".editor-palette [title=steel]");
+            await choose("type", "recent");
+
+            const recent = await shown();
+
+            await choose("type", "all");
+            await choose("pack", "hearthmere");
+
+            const kit = await shown();
+
+            await page.click("[data-action=mode-select]");
+            await choose("type", "lighting");
+
+            const lighting = await shown();
+
+            assert.deepEqual(metal, ["iron", "steel"]);
+            assert.deepEqual(recent, ["steel"]);
+            assert.deepEqual(kit, []);
+            assert.ok(lighting.includes("candlestick") && !lighting.includes("bed"), "Lighting showed " + lighting.join(", "));
+        },
+    },
+    {
         name: "Capture in Select mode takes a footprint on the ground from two clicked corners, then a top that follows the pointer up until a click, Page Up raises it a cube, and Cancel puts the box away; a prefab chosen to add shows its whole size at the pointer",
         run: async ({ page, baseUrl }) =>
         {

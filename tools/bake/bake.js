@@ -1,4 +1,5 @@
 import * as Blocks from "./blocks.js";
+import * as Catalogue from "./catalogue.js";
 import * as Clips from "./clips.js";
 import * as Constructs from "./constructs.js";
 import * as Migrations from "../../content/migrations.js";
@@ -21,7 +22,7 @@ const ASSETS = path.join(ROOT, "assets");
 const LOCK = path.join(ROOT, "assets.lock.json");
 const WATCHED = ["content", "js"];
 const WATCH_DELAY_MS = 200;
-const BAKERS = [WorldTextures, Blocks, Stamps, Models, Parts, Clips, Props, Objects, Constructs, Zones];
+const BAKERS = [WorldTextures, Blocks, Stamps, Models, Parts, Clips, Props, Objects, Catalogue, Constructs, Zones];
 const USAGE = "Usage: node tools/bake/bake.js [--accept] [--watch]";
 
 

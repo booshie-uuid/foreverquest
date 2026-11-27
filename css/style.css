@@ -627,6 +627,18 @@ button
     font: inherit;
 }
 
+.editor-filters
+{
+    display: flex;
+    gap: 4px;
+}
+
+.editor-filters .editor-choice
+{
+    flex: 1;
+    width: 0;
+}
+
 .editor-swatches
 {
     display: grid;
